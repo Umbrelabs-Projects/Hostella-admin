@@ -1,51 +1,44 @@
-'use client'
+// app/page.tsx (or components/Home.tsx)
+"use client";
 
-import { useState, useEffect } from 'react'
-import ChatSidebar from './components/chat-sidebar'
-import ChatWindow from './components/chat-window'
-import EmptyState from './components/empty-state'
+import { useEffect } from "react";
+import { useChatStore } from "@/stores/useChatStore";
+import ChatSidebar from "./components/chatSidebar";
+import ChatWindow from "./components/chatWindow/ChatWindow";
+import EmptyState from "./components/empty-state";
 
-export default function Home() {
-  const [selectedChat, setSelectedChat] = useState<string | null>(null)
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true)
+export default function HomePage() {
+  const currentChatId = useChatStore((s) => s.currentChatId);
+  const setCurrentChat = useChatStore((s) => s.setCurrentChat);
 
+  // close chat with Escape (global)
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && selectedChat) {
-        setSelectedChat(null)
-        setIsSidebarOpen(true)
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setCurrentChat(null);
       }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [selectedChat])
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [setCurrentChat]);
 
   return (
     <div className="flex h-screen w-full bg-background">
-      {/* Sidebar - hidden on mobile by default */}
-      <div className={`${isSidebarOpen ? 'block' : 'hidden'} md:block md:w-90 border-r border-border`}>
-        <ChatSidebar 
-          selectedChat={selectedChat} 
-          onSelectChat={(id) => {
-            setSelectedChat(id)
-            setIsSidebarOpen(false)
-          }} 
-        />
+      <div className="hidden md:block md:w-80 border-r">
+        <ChatSidebar />
       </div>
 
-      {/* Chat Window or Empty State */}
-      <div className="flex-1 flex flex-col">
-        {selectedChat ? (
-          <ChatWindow 
-            chatId={selectedChat} 
-            onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            isSidebarOpen={isSidebarOpen}
-          />
+      <div className="md:hidden border-b">
+        {/* small header with menu to open sidebar on mobile handled inside ChatHeader/Menu */}
+      </div>
+
+      <div className="flex-1">
+        {currentChatId ? (
+          <ChatWindow chatId={currentChatId} />
         ) : (
-          <EmptyState onSelectChat={() => setIsSidebarOpen(true)} />
+          <EmptyState onSelectChat={(id) => setCurrentChat(id)} />
         )}
       </div>
     </div>
-  )
+  );
 }
