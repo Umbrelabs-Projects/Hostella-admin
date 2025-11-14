@@ -468,7 +468,7 @@ export default function ChatWindow({
             >
               <button
                 onClick={() => setPlayingVoiceId(isPlaying ? null : message.id)}
-                className="flex-shrink-0 w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
+                className="shrink-0 w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
               >
                 <span className="text-lg">{isPlaying ? "⏸" : "▶"}</span>
               </button>
@@ -490,7 +490,7 @@ export default function ChatWindow({
                 ))}
               </div>
 
-              <span className="text-sm font-mono font-semibold flex-shrink-0 w-10 text-right">
+              <span className="text-sm font-mono font-semibold shrink-0 w-10 text-right">
                 {durationStr}
               </span>
             </div>
@@ -522,7 +522,7 @@ export default function ChatWindow({
                 message.sender === "admin"
                   ? "bg-primary text-primary-foreground rounded-br-none"
                   : "bg-muted text-foreground rounded-bl-none"
-              } break-words cursor-context-menu hover:opacity-90 transition-opacity`}
+              } wrap-break-word cursor-context-menu hover:opacity-90 transition-opacity`}
             >
               <p className="font-medium mb-1">{message.text}</p>
               {message.fileData && (
@@ -570,7 +570,7 @@ export default function ChatWindow({
               message.sender === "admin"
                 ? "bg-primary text-primary-foreground rounded-br-none"
                 : "bg-muted text-foreground rounded-bl-none"
-            } break-words cursor-context-menu hover:opacity-90 transition-opacity`}
+            } wrap-break-word cursor-context-menu hover:opacity-90 transition-opacity`}
           >
             {message.replyTo && (
               <div
@@ -617,7 +617,7 @@ export default function ChatWindow({
   }
 
   return (
-    <div className="h-full flex flex-col bg-gradient-to-b from-card to-background">
+    <div className="h-full flex flex-col bg-linear-to-b from-card to-background">
       {/* Header */}
       <div className="border-b border-border p-4 flex items-center justify-between bg-card">
         <div className="flex items-center gap-3 flex-1">

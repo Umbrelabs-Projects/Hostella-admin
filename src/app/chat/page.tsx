@@ -24,7 +24,7 @@ export default function Home() {
   return (
     <div className="flex h-screen w-full bg-background">
       {/* Sidebar - hidden on mobile by default */}
-      <div className={`${isSidebarOpen ? 'block' : 'hidden'} md:block md:w-80 border-r border-border`}>
+      <div className={`${isSidebarOpen ? 'block' : 'hidden'} md:block md:w-90 border-r border-border`}>
         <ChatSidebar 
           selectedChat={selectedChat} 
           onSelectChat={(id) => {

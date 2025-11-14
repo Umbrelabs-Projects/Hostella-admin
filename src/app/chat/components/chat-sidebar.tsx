@@ -141,7 +141,7 @@ export default function ChatSidebar({
                 </div>
 
                 {chat.unread > 0 && (
-                  <div className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                  <div className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shrink-0">
                     {chat.unread}
                   </div>
                 )}
