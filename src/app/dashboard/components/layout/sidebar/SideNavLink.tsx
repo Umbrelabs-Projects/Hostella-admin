@@ -22,7 +22,7 @@ export default function SideNavLink({
       href={url}
       className={`flex items-center gap-3 mx-4 rounded-lg px-4 py-3 text-sm font-medium transition-colors ${
         isActive
-          ? "bg-yellow-50 text-yellow-600 border-l-4 border-yellow-500"
+          ? "bg-blue-50 text-blue-600 border-l-4 border-blue-500"
           : "text-gray-700 hover:bg-blue-50"
       }`}
     >
