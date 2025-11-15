@@ -1,17 +1,16 @@
-import { useEffect, useRef, useState } from "react";
+// /hooks/useChatMessages.ts
+"use client";
 
-const MOCK_MESSAGES = [
-  { id: "1", sender: "me", text: "Hello!", time: "2:20 PM" },
-  { id: "2", sender: "them", text: "Hi there!", time: "2:21 PM" },
-];
+import { useEffect, useRef } from "react";
+import { useChatStore } from "@/stores/useChatStore";
 
 export default function useChatMessages(chatId: string) {
-  const [messages] = useState(MOCK_MESSAGES);
+  const messages = useChatStore((s) => s.messages[chatId] ?? []);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages.length]);
 
   return { messages, bottomRef };
 }

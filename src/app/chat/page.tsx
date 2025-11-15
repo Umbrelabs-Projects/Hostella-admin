@@ -1,7 +1,8 @@
-// app/page.tsx (or components/Home.tsx)
+// app/page.tsx
 "use client";
 
 import { useEffect } from "react";
+
 import { useChatStore } from "@/stores/useChatStore";
 import ChatSidebar from "./components/chatSidebar";
 import ChatWindow from "./components/chatWindow/ChatWindow";
@@ -29,14 +30,14 @@ export default function HomePage() {
       </div>
 
       <div className="md:hidden border-b">
-        {/* small header with menu to open sidebar on mobile handled inside ChatHeader/Menu */}
+        {/* mobile header (e.g. hamburger) can go here */}
       </div>
 
       <div className="flex-1">
         {currentChatId ? (
           <ChatWindow chatId={currentChatId} />
         ) : (
-          <EmptyState/>
+          <EmptyState />
         )}
       </div>
     </div>
