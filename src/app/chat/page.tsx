@@ -36,7 +36,7 @@ export default function HomePage() {
         {currentChatId ? (
           <ChatWindow chatId={currentChatId} />
         ) : (
-          <EmptyState onSelectChat={(id) => setCurrentChat(id)} />
+          <EmptyState/>
         )}
       </div>
     </div>
