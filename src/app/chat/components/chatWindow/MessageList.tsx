@@ -27,15 +27,25 @@ export default function MessageList({ chatId }: { chatId: string }) {
       <ScrollArea className="flex-1 p-4">
         <div className="space-y-2 flex flex-col">
           {messages.map((message) => (
-            <div key={message.id} onContextMenu={(e) => handleContext(e, message.id)}>
-              <MessageBubble key={message.id} message={message} chatId={chatId} />
+            <div
+              key={message.id}
+              onContextMenu={(e) => handleContext(e, message.id)}
+            >
+              <MessageBubble message={message} chatId={chatId} />
             </div>
           ))}
         </div>
         <div ref={bottomRef} />
       </ScrollArea>
 
-      {contextMenu && contextMenu && <ContextMenu x={contextMenu.x} y={contextMenu.y} messageId={contextMenu.messageId} chatId={chatId} />}
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          messageId={contextMenu.messageId}
+          chatId={chatId}
+        />
+      )}
     </>
   );
 }

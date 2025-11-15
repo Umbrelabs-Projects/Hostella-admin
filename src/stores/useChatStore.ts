@@ -1,43 +1,44 @@
-// stores/useChatStore.ts
+// /stores/useChatStore.ts
 import { create } from "zustand";
+import type { Message, ChatInfo, FileData, Sender } from "@/types/chat";
 
-export type Sender = "admin" | "student";
+interface ChatStore {
+  currentChatId: string | null;
+  chatsInfo: Record<string, ChatInfo>;
+  messages: Record<string, Message[]>;
+  setCurrentChat: (id: string | null) => void;
 
-export interface FileData {
-  fileName?: string;
-  fileSize?: string;
-  fileType?: string;
-  fileBlob?: Blob | null;
+  // message ops
+  sendMessage: (chatId: string, text: string, replyTo?: Message | null) => void;
+  sendVoice: (chatId: string, duration: number, blob?: Blob | null) => void;
+  sendFile: (
+    chatId: string,
+    type: Message["type"],
+    fileData: FileData,
+    text?: string
+  ) => void;
+  deleteMessage: (chatId: string, messageId: string) => void;
+
+  // UI state
+  replying: Message | null;
+  setReplying: (msg: Message | null) => void;
+
+  contextMenu: { x: number; y: number; messageId: string } | null;
+  setContextMenu: (ctx: ChatStore["contextMenu"]) => void;
+
+  isRecording: boolean;
+  setRecording: (v: boolean) => void;
+
+  showAttachmentMenu: boolean;
+  setShowAttachmentMenu: (v: boolean) => void;
+
+  playingVoiceId: string | null;
+  setPlayingVoiceId: (id: string | null) => void;
 }
 
-export interface Message {
-  id: string;
-  sender: Sender;
-  text: string;
-  timestamp: string;
-  replyTo?: { id: string; text: string; senderName: string };
-  type?:
-    | "text"
-    | "voice"
-    | "file"
-    | "photo"
-    | "document"
-    | "contact"
-    | "poll"
-    | "drawing";
-  voiceDuration?: number;
-  fileData?: FileData;
-}
-
-export interface ChatInfo {
-  id: string;
-  name: string;
-  avatar: string;
-  online: boolean;
-  roomInfo: string;
-  checkInDate?: string;
-}
-
+/**
+ * Mock data (dev)
+ */
 const MOCK_CHATS_INFO: Record<string, ChatInfo> = {
   "1": {
     id: "1",
@@ -109,40 +110,6 @@ const MOCK_MESSAGES: Record<string, Message[]> = {
   ],
 };
 
-interface ChatStore {
-  currentChatId: string | null;
-  chatsInfo: Record<string, ChatInfo>;
-  messages: Record<string, Message[]>;
-  setCurrentChat: (id: string | null) => void;
-
-  // message ops
-  sendMessage: (chatId: string, text: string, replyTo?: Message | null) => void;
-  sendVoice: (chatId: string, duration: number, blob?: Blob | null) => void;
-  sendFile: (
-    chatId: string,
-    type: Message["type"],
-    fileData: FileData,
-    text?: string
-  ) => void;
-  deleteMessage: (chatId: string, messageId: string) => void;
-
-  // UI
-  replying: Message | null;
-  setReplying: (msg: Message | null) => void;
-
-  contextMenu: { x: number; y: number; messageId: string } | null;
-  setContextMenu: (ctx: ChatStore["contextMenu"]) => void;
-
-  isRecording: boolean;
-  setRecording: (v: boolean) => void;
-
-  showAttachmentMenu: boolean;
-  setShowAttachmentMenu: (v: boolean) => void;
-
-  playingVoiceId: string | null;
-  setPlayingVoiceId: (id: string | null) => void;
-}
-
 export const useChatStore = create<ChatStore>((set, get) => ({
   currentChatId: null,
   chatsInfo: MOCK_CHATS_INFO,
@@ -151,7 +118,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   setCurrentChat: (id) => set({ currentChatId: id }),
 
   sendMessage: (chatId, text, replyTo) => {
-    const id = String((get().messages[chatId]?.length ?? 0) + 1);
+    const messages = get().messages;
+    const id = String((messages[chatId]?.length ?? 0) + 1);
     const newMessage: Message = {
       id,
       sender: "admin",
@@ -165,23 +133,26 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         ? {
             id: replyTo.id,
             text:
-              replyTo.text.substring(0, 50) +
-              (replyTo.text.length > 50 ? "..." : ""),
+              replyTo.text.length > 50
+                ? replyTo.text.substring(0, 50) + "..."
+                : replyTo.text,
             senderName: replyTo.sender === "admin" ? "You" : "Student",
           }
         : undefined,
     };
+
     set({
       messages: {
-        ...get().messages,
-        [chatId]: [...(get().messages[chatId] ?? []), newMessage],
+        ...messages,
+        [chatId]: [...(messages[chatId] ?? []), newMessage],
       },
       replying: null,
     });
   },
 
   sendVoice: (chatId, duration, blob) => {
-    const id = String((get().messages[chatId]?.length ?? 0) + 1);
+    const messages = get().messages;
+    const id = String((messages[chatId]?.length ?? 0) + 1);
     const newMessage: Message = {
       id,
       sender: "admin",
@@ -199,21 +170,23 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         fileBlob: blob ?? null,
       },
     };
+
     set({
       messages: {
-        ...get().messages,
-        [chatId]: [...(get().messages[chatId] ?? []), newMessage],
+        ...messages,
+        [chatId]: [...(messages[chatId] ?? []), newMessage],
       },
       isRecording: false,
     });
   },
 
   sendFile: (chatId, type, fileData, text = "") => {
-    const id = String((get().messages[chatId]?.length ?? 0) + 1);
+    const messages = get().messages;
+    const id = String((messages[chatId]?.length ?? 0) + 1);
     const newMessage: Message = {
       id,
       sender: "admin",
-      text: text || (fileData.fileName ? fileData.fileName : ""),
+      text: text || (fileData.fileName ?? ""),
       timestamp: new Date().toLocaleTimeString([], {
         hour: "2-digit",
         minute: "2-digit",
@@ -221,21 +194,21 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       type,
       fileData,
     };
+
     set({
       messages: {
-        ...get().messages,
-        [chatId]: [...(get().messages[chatId] ?? []), newMessage],
+        ...messages,
+        [chatId]: [...(messages[chatId] ?? []), newMessage],
       },
     });
   },
 
   deleteMessage: (chatId, messageId) => {
+    const messages = get().messages;
     set({
       messages: {
-        ...get().messages,
-        [chatId]: (get().messages[chatId] ?? []).filter(
-          (m) => m.id !== messageId
-        ),
+        ...messages,
+        [chatId]: (messages[chatId] ?? []).filter((m) => m.id !== messageId),
       },
     });
   },
@@ -253,5 +226,5 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   setShowAttachmentMenu: (v) => set({ showAttachmentMenu: v }),
 
   playingVoiceId: null,
-  setPlayingVoiceId: (v) => set({ playingVoiceId: v }),
+  setPlayingVoiceId: (id) => set({ playingVoiceId: id }),
 }));

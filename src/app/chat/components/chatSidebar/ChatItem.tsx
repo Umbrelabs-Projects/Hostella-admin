@@ -3,7 +3,7 @@
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useChatStore } from "@/stores/useChatStore";
-import type { ChatInfo } from "@/stores/useChatStore";
+import type { ChatInfo } from "@/types/chat";
 
 export default function ChatItem({ chat }: { chat: ChatInfo }) {
   const currentChatId = useChatStore((s) => s.currentChatId);
@@ -27,10 +27,11 @@ export default function ChatItem({ chat }: { chat: ChatInfo }) {
 
         <div className="flex-1 min-w-0">
           <div className="flex justify-between items-baseline gap-2">
-            <h3 className="font-semibold text-foreground truncate">{chat.name}</h3>
+            <h3 className="font-semibold text-foreground truncate">
+              {chat.name}
+            </h3>
             <span className="text-xs text-muted-foreground whitespace-nowrap">
-              {/* no realtime timestamp for sidebar mock */}
-              {""}
+              {/* timestamp elided for mocks */}
             </span>
           </div>
 
@@ -40,8 +41,6 @@ export default function ChatItem({ chat }: { chat: ChatInfo }) {
 
           <p className="text-sm text-muted-foreground truncate">Last message</p>
         </div>
-
-        {/* unread left out of store for simplicity; add in store if needed */}
       </div>
     </button>
   );

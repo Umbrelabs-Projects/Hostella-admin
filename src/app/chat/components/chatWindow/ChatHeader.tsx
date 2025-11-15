@@ -12,7 +12,6 @@ export default function ChatHeader({ chatId }: { chatId: string }) {
   return (
     <div className="border-b border-border p-4 flex items-center justify-between bg-card">
       <div className="flex items-center gap-3 flex-1">
-        {/* show a back/menu button on small screens — implement toggling sidebar if desired */}
         <Button size="icon" variant="ghost" className="md:hidden">
           <Menu className="w-5 h-5" />
         </Button>
@@ -26,17 +25,31 @@ export default function ChatHeader({ chatId }: { chatId: string }) {
         <div className="flex-1 min-w-0">
           <h2 className="font-semibold text-foreground">{chatInfo?.name}</h2>
           <div className="flex items-center gap-2">
-            <div className={`w-2 h-2 rounded-full ${chatInfo?.online ? "bg-green-500" : "bg-gray-400"}`} />
-            <p className="text-xs text-muted-foreground">{chatInfo?.online ? "Online" : "Offline"}</p>
+            <div
+              className={`w-2 h-2 rounded-full ${
+                chatInfo?.online ? "bg-green-500" : "bg-gray-400"
+              }`}
+            />
+            <p className="text-xs text-muted-foreground">
+              {chatInfo?.online ? "Online" : "Offline"}
+            </p>
           </div>
         </div>
       </div>
 
       <div className="flex gap-2">
-        <Button size="icon" variant="ghost"><Phone className="w-5 h-5" /></Button>
-        <Button size="icon" variant="ghost"><Video className="w-5 h-5" /></Button>
-        <Button size="icon" variant="ghost"><Search className="w-5 h-5" /></Button>
-        <Button size="icon" variant="ghost"><Info className="w-5 h-5" /></Button>
+        <Button size="icon" variant="ghost">
+          <Phone className="w-5 h-5" />
+        </Button>
+        <Button size="icon" variant="ghost">
+          <Video className="w-5 h-5" />
+        </Button>
+        <Button size="icon" variant="ghost">
+          <Search className="w-5 h-5" />
+        </Button>
+        <Button size="icon" variant="ghost">
+          <Info className="w-5 h-5" />
+        </Button>
       </div>
     </div>
   );
