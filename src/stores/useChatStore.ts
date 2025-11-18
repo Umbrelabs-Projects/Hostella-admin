@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { Message, ChatInfo, FileData } from "@/types/chat";
+import { sendChatSocket } from "@/lib/chatSocket";
 
 export interface ChatStore {
   currentChatId: string | null;
@@ -7,6 +8,7 @@ export interface ChatStore {
   messages: Record<string, Message[]>;
 
   setCurrentChat: (id: string | null) => void;
+  setMessages: (chatId: string, ...msgs: Message[]) => void;
 
   // message operations
   sendMessage: (chatId: string, text: string, replyTo?: Message | null) => void;
@@ -116,6 +118,14 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   messages: MOCK_MESSAGES,
 
   setCurrentChat: (id) => set({ currentChatId: id }),
+  setMessages: (chatId, ...msgs) => {
+    set((state) => ({
+      messages: {
+        ...state.messages,
+        [chatId]: [...(state.messages[chatId] ?? []), ...msgs],
+      },
+    }));
+  },
 
   sendMessage: (chatId, text, replyTo) => {
     const messages = get().messages;
@@ -148,6 +158,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       },
       replying: null,
     });
+    // Send via WebSocket
+    sendChatSocket({ ...newMessage, chatId });
+    // Optionally, send to API
+    // apiFetch(`/chat/${chatId}/send`, { method: "POST", body: JSON.stringify(newMessage) });
   },
 
   sendVoice: (chatId, duration, blob) => {
@@ -178,6 +192,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       },
       isRecording: false,
     });
+    sendChatSocket({ ...newMessage, chatId });
+    // Optionally, send to API
+    // apiFetch(`/chat/${chatId}/send`, { method: "POST", body: JSON.stringify(newMessage) });
   },
 
   sendFile: (chatId, type, fileData, text = "") => {
@@ -200,6 +217,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         [chatId]: [...(messages[chatId] ?? []), newMessage],
       },
     });
+    sendChatSocket({ ...newMessage, chatId });
+    // Optionally, send to API
+    // apiFetch(`/chat/${chatId}/send`, { method: "POST", body: JSON.stringify(newMessage) });
   },
 
   deleteMessage: (chatId, messageId) => {

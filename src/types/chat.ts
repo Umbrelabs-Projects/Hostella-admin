@@ -1,3 +1,14 @@
+export interface Message {
+  id: string;
+  sender: Sender;
+  text: string;
+  timestamp: string;
+  replyTo?: { id: string; text: string; senderName: string };
+  type?: MessageType;
+  voiceDuration?: number;
+  fileData?: FileData;
+  chatId?: string;
+}
 // /types/chat.ts
 export type Sender = "admin" | "student";
 
@@ -18,16 +29,6 @@ export interface FileData {
   fileBlob?: Blob | null; // client-only
 }
 
-export interface Message {
-  id: string;
-  sender: Sender;
-  text: string;
-  timestamp: string;
-  replyTo?: { id: string; text: string; senderName: string };
-  type?: MessageType;
-  voiceDuration?: number;
-  fileData?: FileData;
-}
 
 export interface ChatInfo {
   id: string;

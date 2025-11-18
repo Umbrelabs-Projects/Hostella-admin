@@ -2,6 +2,9 @@
 "use client";
 
 import { useEffect } from "react";
+import { connectChatSocket, onChatSocketMessage, disconnectChatSocket } from "@/lib/chatSocket";
+import { apiFetch } from "@/lib/api";
+import type { Message } from "@/types/chat";
 
 import { useChatStore } from "@/stores/useChatStore";
 import ChatSidebar from "./components/chatSidebar";
@@ -11,6 +14,29 @@ import EmptyState from "./components/empty-state";
 export default function HomePage() {
   const currentChatId = useChatStore((s) => s.currentChatId);
   const setCurrentChat = useChatStore((s) => s.setCurrentChat);
+  const setMessages = useChatStore((s) => s.setMessages);
+
+  // Connect WebSocket and fetch chat history
+  useEffect(() => {
+    connectChatSocket("wss://your-chat-server.com/ws");
+    onChatSocketMessage((msg: Message) => {
+      if (msg && msg.id && msg.sender && typeof msg.chatId === "string") {
+        setMessages(msg.chatId, msg);
+      }
+    });
+    return () => {
+      disconnectChatSocket();
+    };
+  }, [setMessages]);
+
+  // Fetch chat history when chat changes
+  useEffect(() => {
+    if (currentChatId) {
+      apiFetch<Message[]>(`/chat/${currentChatId}/messages`).then((msgs) => {
+        setMessages(currentChatId, ...msgs);
+      });
+    }
+  }, [currentChatId, setMessages]);
 
   // close chat with Escape (global)
   useEffect(() => {
