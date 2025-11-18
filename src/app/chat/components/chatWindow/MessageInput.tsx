@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Paperclip, Mic, Send, Smile, Trash2, ChevronUp } from "lucide-react";
 import { useChatStore } from "@/stores/useChatStore";
-import type { Message } from "@/stores/useChatStore";
+import type { Message } from "@/types/chat";
 
 export default function MessageInput({ chatId }: { chatId: string }) {
   const [text, setText] = useState("");
@@ -19,8 +19,8 @@ export default function MessageInput({ chatId }: { chatId: string }) {
   const store = useChatStore();
   const replying = store.replying;
   const setReplying = store.setReplying;
-  const setShowAttachmentMenu = store.setShowAttachmentMenu;
   const showAttachmentMenu = store.showAttachmentMenu;
+  const setShowAttachmentMenu = store.setShowAttachmentMenu;
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
@@ -29,6 +29,9 @@ export default function MessageInput({ chatId }: { chatId: string }) {
   useEffect(() => {
     return () => {
       if (timerRef.current) window.clearInterval(timerRef.current);
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      }
     };
   }, []);
 

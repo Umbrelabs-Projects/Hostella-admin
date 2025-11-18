@@ -1,15 +1,40 @@
-// /types/chat.ts
-export type Sender = "student" | "admin";
-
-export type MessageType = "text" | "voice" | "file";
-
-export interface ChatMessageType {
-  id: string; // unique string id
+export interface Message {
+  id: string;
   sender: Sender;
-  content: string; // text placeholder or filename
-  timestamp: string; // display timestamp
-  type: MessageType;
-  audio?: Blob; // client-only; for sending to server convert to FormData/url
+  text: string;
+  timestamp: string;
+  replyTo?: { id: string; text: string; senderName: string };
+  type?: MessageType;
+  voiceDuration?: number;
+  fileData?: FileData;
+  chatId?: string;
+}
+// /types/chat.ts
+export type Sender = "admin" | "student";
+
+export type MessageType =
+  | "text"
+  | "voice"
+  | "file"
+  | "photo"
+  | "document"
+  | "contact"
+  | "poll"
+  | "drawing";
+
+export interface FileData {
   fileName?: string;
-  repliedToId?: string | null;
+  fileSize?: string;
+  fileType?: string;
+  fileBlob?: Blob | null; // client-only
+}
+
+
+export interface ChatInfo {
+  id: string;
+  name: string;
+  avatar: string;
+  online: boolean;
+  roomInfo: string;
+  checkInDate?: string;
 }
