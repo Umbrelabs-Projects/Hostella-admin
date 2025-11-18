@@ -1,14 +1,14 @@
-// /stores/useChatStore.ts
 import { create } from "zustand";
-import type { Message, ChatInfo, FileData, Sender } from "@/types/chat";
+import type { Message, ChatInfo, FileData } from "@/types/chat";
 
-interface ChatStore {
+export interface ChatStore {
   currentChatId: string | null;
   chatsInfo: Record<string, ChatInfo>;
   messages: Record<string, Message[]>;
+
   setCurrentChat: (id: string | null) => void;
 
-  // message ops
+  // message operations
   sendMessage: (chatId: string, text: string, replyTo?: Message | null) => void;
   sendVoice: (chatId: string, duration: number, blob?: Blob | null) => void;
   sendFile: (
@@ -36,9 +36,9 @@ interface ChatStore {
   setPlayingVoiceId: (id: string | null) => void;
 }
 
-/**
- * Mock data (dev)
- */
+// fallback empty array to stabilize selectors
+export const EMPTY_MESSAGES: Message[] = [];
+
 const MOCK_CHATS_INFO: Record<string, ChatInfo> = {
   "1": {
     id: "1",
@@ -194,7 +194,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       type,
       fileData,
     };
-
     set({
       messages: {
         ...messages,

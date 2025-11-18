@@ -1,4 +1,3 @@
-// components/chat/ChatSidebar/ChatSidebar.tsx
 "use client";
 
 import { useState } from "react";

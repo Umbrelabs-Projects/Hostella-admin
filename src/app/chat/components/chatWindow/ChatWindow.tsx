@@ -1,4 +1,3 @@
-// components/chat/ChatWindow/ChatWindow.tsx
 "use client";
 
 import ChatHeader from "./ChatHeader";

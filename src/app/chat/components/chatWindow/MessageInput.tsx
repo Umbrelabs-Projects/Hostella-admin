@@ -29,10 +29,7 @@ export default function MessageInput({ chatId }: { chatId: string }) {
   useEffect(() => {
     return () => {
       if (timerRef.current) window.clearInterval(timerRef.current);
-      if (
-        mediaRecorderRef.current &&
-        mediaRecorderRef.current.state !== "inactive"
-      ) {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
         mediaRecorderRef.current.stop();
       }
     };
@@ -67,20 +64,14 @@ export default function MessageInput({ chatId }: { chatId: string }) {
       setIsRecordingLocal(true);
       store.setRecording(true);
       setRecordTime(0);
-      timerRef.current = window.setInterval(
-        () => setRecordTime((v) => v + 1),
-        1000
-      );
+      timerRef.current = window.setInterval(() => setRecordTime((v) => v + 1), 1000);
     } catch (err) {
       console.error("Recording error", err);
     }
   };
 
   const cancelRecording = () => {
-    if (
-      mediaRecorderRef.current &&
-      mediaRecorderRef.current.state !== "inactive"
-    ) {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       mediaRecorderRef.current.stop();
     }
     setIsRecordingLocal(false);
@@ -94,10 +85,7 @@ export default function MessageInput({ chatId }: { chatId: string }) {
   };
 
   const finishRecording = () => {
-    if (
-      mediaRecorderRef.current &&
-      mediaRecorderRef.current.state !== "inactive"
-    ) {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       mediaRecorderRef.current.stop();
     }
     setIsRecordingLocal(false);
@@ -109,10 +97,7 @@ export default function MessageInput({ chatId }: { chatId: string }) {
     setRecordTime(0);
   };
 
-  const handleFileChange = (
-    e: React.ChangeEvent<HTMLInputElement>,
-    type: Message["type"]
-  ) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: Message["type"]) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const fileData = {
@@ -127,134 +112,55 @@ export default function MessageInput({ chatId }: { chatId: string }) {
   };
 
   const sendContact = () => {
-    store.sendFile(
-      chatId,
-      "contact",
-      { fileName: "contact.vcf", fileSize: "2 KB", fileType: "text/vcard" },
-      "Contact shared"
-    );
+    store.sendFile(chatId, "contact", { fileName: "contact.vcf", fileSize: "2 KB", fileType: "text/vcard" }, "Contact shared");
     setShowAttachmentMenu(false);
   };
 
   const sendPoll = () => {
-    store.sendFile(
-      chatId,
-      "poll",
-      { fileName: "poll.json", fileSize: "1 KB", fileType: "application/json" },
-      "Poll: Best time for check-in?"
-    );
+    store.sendFile(chatId, "poll", { fileName: "poll.json", fileSize: "1 KB", fileType: "application/json" }, "Poll: Best time for check-in?");
     setShowAttachmentMenu(false);
   };
 
   const sendDrawing = () => {
-    store.sendFile(
-      chatId,
-      "drawing",
-      { fileName: "sketch.png", fileSize: "256 KB", fileType: "image/png" },
-      "Drawing"
-    );
+    store.sendFile(chatId, "drawing", { fileName: "sketch.png", fileSize: "256 KB", fileType: "image/png" }, "Drawing");
     setShowAttachmentMenu(false);
   };
 
-  const formatTime = (s: number) =>
-    `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  const formatTime = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
   return (
     <div className="border-t border-border p-3 bg-card space-y-2 relative">
       {/* Recording preview */}
       {isRecordingLocal && (
         <div className="bg-muted rounded-lg px-3 py-2 flex items-center justify-between">
-          <Button size="icon" variant="ghost" onClick={cancelRecording}>
-            <Trash2 className="w-5 h-5" />
-          </Button>
+          <Button size="icon" variant="ghost" onClick={cancelRecording}><Trash2 className="w-5 h-5" /></Button>
 
           <div className="flex items-center gap-3 flex-1 justify-center">
             <span className="text-sm font-mono">{formatTime(recordTime)}</span>
             <div className="flex gap-1 items-center">
-              {[...Array(4)].map((_, i) => (
-                <div
-                  key={i}
-                  className="w-1 bg-primary rounded-full animate-pulse"
-                  style={{ height: 4, animationDelay: `${i * 0.1}s` }}
-                />
-              ))}
+              {[...Array(4)].map((_, i) => <div key={i} className="w-1 bg-primary rounded-full animate-pulse" style={{ height: 4, animationDelay: `${i * 0.1}s` }} />)}
             </div>
           </div>
 
-          <Button
-            size="icon"
-            onClick={finishRecording}
-            className="bg-primary hover:bg-primary/90 rounded-full"
-          >
-            <ChevronUp className="w-5 h-5" />
-          </Button>
+          <Button size="icon" onClick={finishRecording} className="bg-primary hover:bg-primary/90 rounded-full"><ChevronUp className="w-5 h-5" /></Button>
         </div>
       )}
 
       {/* Attachment menu */}
       {showAttachmentMenu && (
         <div className="bg-card border border-border rounded-lg p-2 space-y-1 absolute bottom-24 left-4 z-40 w-48">
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="w-full px-4 py-2 text-sm text-foreground hover:bg-muted rounded-lg flex items-center gap-3"
-          >
-            📷 Photos & videos
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*,video/*"
-            onChange={(e) => handleFileChange(e, "photo")}
-            className="hidden"
-          />
+          <button onClick={() => fileInputRef.current?.click()} className="w-full px-4 py-2 text-sm text-foreground hover:bg-muted rounded-lg flex items-center gap-3">📷 Photos & videos</button>
+          <input ref={fileInputRef} type="file" accept="image/*,video/*" onChange={(e) => handleFileChange(e, "photo")} className="hidden" />
 
-          <button
-            onClick={() => cameraInputRef.current?.click()}
-            className="w-full px-4 py-2 text-sm text-foreground hover:bg-muted rounded-lg flex items-center gap-3"
-          >
-            📹 Camera
-          </button>
-          <input
-            ref={cameraInputRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            onChange={(e) => handleFileChange(e, "photo")}
-            className="hidden"
-          />
+          <button onClick={() => cameraInputRef.current?.click()} className="w-full px-4 py-2 text-sm text-foreground hover:bg-muted rounded-lg flex items-center gap-3">📹 Camera</button>
+          <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={(e) => handleFileChange(e, "photo")} className="hidden" />
 
-          <button
-            onClick={() => docInputRef.current?.click()}
-            className="w-full px-4 py-2 text-sm text-foreground hover:bg-muted rounded-lg flex items-center gap-3"
-          >
-            📄 Document
-          </button>
-          <input
-            ref={docInputRef}
-            type="file"
-            accept=".pdf,.doc,.docx,.txt,.xls,.xlsx"
-            onChange={(e) => handleFileChange(e, "document")}
-            className="hidden"
-          />
+          <button onClick={() => docInputRef.current?.click()} className="w-full px-4 py-2 text-sm text-foreground hover:bg-muted rounded-lg flex items-center gap-3">📄 Document</button>
+          <input ref={docInputRef} type="file" accept=".pdf,.doc,.docx,.txt,.xls,.xlsx" onChange={(e) => handleFileChange(e, "document")} className="hidden" />
 
-          <button
-            onClick={sendContact}
-            className="w-full px-4 py-2 text-sm text-foreground hover:bg-muted rounded-lg flex items-center gap-3"
-          >
-            👤 Contact
-          </button>
-          <button
-            onClick={sendPoll}
-            className="w-full px-4 py-2 text-sm text-foreground hover:bg-muted rounded-lg flex items-center gap-3"
-          >
-            📊 Poll
-          </button>
-          <button
-            onClick={sendDrawing}
-            className="w-full px-4 py-2 text-sm text-foreground hover:bg-muted rounded-lg flex items-center gap-3"
-          >
-            ✏️ Drawing
-          </button>
+          <button onClick={sendContact} className="w-full px-4 py-2 text-sm text-foreground hover:bg-muted rounded-lg flex items-center gap-3">👤 Contact</button>
+          <button onClick={sendPoll} className="w-full px-4 py-2 text-sm text-foreground hover:bg-muted rounded-lg flex items-center gap-3">📊 Poll</button>
+          <button onClick={sendDrawing} className="w-full px-4 py-2 text-sm text-foreground hover:bg-muted rounded-lg flex items-center gap-3">✏️ Drawing</button>
         </div>
       )}
 
@@ -262,78 +168,30 @@ export default function MessageInput({ chatId }: { chatId: string }) {
       {replying && (
         <div className="bg-muted border-t border-border px-4 py-2 flex items-center justify-between">
           <div className="flex-1 min-w-0">
-            <p className="text-xs text-muted-foreground font-semibold">
-              Replying to {replying.sender === "admin" ? "yourself" : "student"}
-            </p>
+            <p className="text-xs text-muted-foreground font-semibold">Replying to {replying.sender === "admin" ? "yourself" : "student"}</p>
             <p className="text-sm text-foreground truncate">{replying.text}</p>
           </div>
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={() => setReplying(null)}
-            className="ml-2"
-          >
-            ✕
-          </Button>
+          <Button size="icon" variant="ghost" onClick={() => setReplying(null)} className="ml-2">✕</Button>
         </div>
       )}
 
       <div className="flex gap-2 items-end">
         <div className="relative">
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={() =>
-              store.setShowAttachmentMenu(!store.showAttachmentMenu)
-            }
-            className="text-primary hover:bg-primary/10"
-          >
-            <Paperclip className="w-5 h-5" />
-          </Button>
+          <Button size="icon" variant="ghost" onClick={() => store.setShowAttachmentMenu(!store.showAttachmentMenu)} className="text-primary hover:bg-primary/10"><Paperclip className="w-5 h-5" /></Button>
         </div>
 
-        <Input
-          placeholder="Aa"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && send()}
-          className="flex-1 bg-muted border-0 rounded-full"
-        />
+        <Input placeholder="Aa" value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()} className="flex-1 bg-muted border-0 rounded-full" />
 
-        <Button
-          size="icon"
-          variant="ghost"
-          className="text-primary hover:bg-primary/10"
-        >
-          <Smile className="w-5 h-5" />
-        </Button>
+        <Button size="icon" variant="ghost" className="text-primary hover:bg-primary/10"><Smile className="w-5 h-5" /></Button>
 
         {text.trim() ? (
-          <Button
-            size="icon"
-            onClick={send}
-            className="bg-primary hover:bg-primary/90 rounded-full"
-          >
-            <Send className="w-5 h-5" />
-          </Button>
+          <Button size="icon" onClick={send} className="bg-primary hover:bg-primary/90 rounded-full"><Send className="w-5 h-5" /></Button>
         ) : (
           <>
             {isRecordingLocal ? (
-              <Button
-                size="icon"
-                onClick={finishRecording}
-                className="bg-primary hover:bg-primary/90 rounded-full"
-              >
-                <ChevronUp className="w-5 h-5" />
-              </Button>
+              <Button size="icon" onClick={finishRecording} className="bg-primary hover:bg-primary/90 rounded-full"><ChevronUp className="w-5 h-5" /></Button>
             ) : (
-              <Button
-                size="icon"
-                onClick={startRecording}
-                className="bg-primary hover:bg-primary/90 rounded-full"
-              >
-                <Mic className="w-5 h-5" />
-              </Button>
+              <Button size="icon" onClick={startRecording} className="bg-primary hover:bg-primary/90 rounded-full"><Mic className="w-5 h-5" /></Button>
             )}
           </>
         )}
