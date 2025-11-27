@@ -6,11 +6,13 @@ import DataTable from "../components/_reusable_components/data-table";
 import { columns } from "../components/_reusable_components/columns";
 import EditContactDialog from "../components/_reusable_components/edit-contact-dialog";
 import { useBookingsStore } from "@/stores/useBookingsStore";
+import { useMembersStore } from "@/stores/useMembersStore";
 import { StudentBooking } from "@/types/booking";
 import TableFilters from "../components/_reusable_components/table-filters";
 
 export default function MembersPage() {
   const { bookings } = useBookingsStore();
+  const { members } = useMembersStore();
   const [viewingBooking, setViewingBooking] = useState<StudentBooking | null>(null);
 
   // Filters
@@ -24,12 +26,11 @@ export default function MembersPage() {
     setRoomFilter("all");
   };
 
-  // Members are bookings that have an assigned room
-  const members = bookings.filter((b) => b.allocatedRoomNumber != null);
+  // Members are tracked explicitly in the members store (after Complete Onboarding)
   const genderOptions = Array.from(new Set((members || []).map((b) => b.gender).filter(Boolean)));
   const roomOptions = Array.from(new Set((members || []).map((b) => b.roomTitle).filter(Boolean)));
 
-  const filteredMembers = members.filter((b) => {
+  const filteredMembers = (members || []).filter((b) => {
     if (genderFilter !== "all" && b.gender !== genderFilter) return false;
     if (roomFilter !== "all" && b.roomTitle !== roomFilter) return false;
     if (!search) return true;

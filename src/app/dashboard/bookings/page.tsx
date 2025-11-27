@@ -18,7 +18,7 @@ import { StudentBooking } from "@/types/booking";
 export default function Bookings() {
   
   const { bookings, updateBooking, setBookings, removeBooking } = useBookingsStore();
-  const { members, setMembers } = useMembersStore();
+  // members are managed explicitly via useMembersStore; use getState() when adding
   
   // Filters
   const [search, setSearch] = useState("");
@@ -94,14 +94,11 @@ export default function Bookings() {
     const updated: StudentBooking = { ...b, status: "approved" };
     updateBooking(updated);
     setViewingBooking(updated);
-    // add or update member list only if a room is assigned
+    // add to members store only when onboarding is completed
     if (updated.allocatedRoomNumber != null) {
-      const exists = members.find((m) => m.id === updated.id);
-      if (exists) {
-        setMembers(members.map((m) => (m.id === updated.id ? updated : m)));
-      } else {
-        setMembers([...(members || []), updated]);
-      }
+      // members store has explicit addMember
+      const { addMember } = useMembersStore.getState();
+      addMember(updated);
     }
   };
 
@@ -116,9 +113,13 @@ export default function Bookings() {
 
   const handleDeleteBooking = (id: string) => {
     removeBooking(id);
+    // also remove from members if present
+    const { removeMember } = useMembersStore.getState();
+    removeMember(id);
     setDeletingBookingId(null);
     toast.success("Booking deleted");
   };
+
 
   return (
     <main className="p-3 md:px-6">
