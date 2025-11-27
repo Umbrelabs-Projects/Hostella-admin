@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Comfortaa, Poppins } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
-import Script from "next/script";
 
 const poppins = Poppins({
   subsets: ["latin"],
