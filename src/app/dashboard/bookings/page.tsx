@@ -12,13 +12,14 @@ import EditContactDialog from "../components/_reusable_components/edit-contact-d
 import DeleteConfirmDialog from "../components/_reusable_components/delete-confirm-dialog";
 import { useBookingsStore } from "@/stores/useBookingsStore";
 import { toast } from "sonner";
-import { useMembersStore } from "@/stores/useMembersStore";
+import { apiFetch } from "@/lib/api";
 import { StudentBooking } from "@/types/booking";
+import { useMembersStore } from "@/stores/useMembersStore";
 
 export default function Bookings() {
   
   const { bookings, updateBooking, setBookings, removeBooking } = useBookingsStore();
-  // members are managed explicitly via useMembersStore; use getState() when adding
+  // members are managed by backend; Complete Onboarding will POST to API and remove booking locally
   
   // Filters
   const [search, setSearch] = useState("");
@@ -88,17 +89,34 @@ export default function Bookings() {
     setViewingBooking(updated);
   };
 
-  const handleCompleteOnboarding = (id: string) => {
+  const handleCompleteOnboarding = async (id: string) => {
     const b = bookings.find((x) => x.id === id);
     if (!b) return;
     const updated: StudentBooking = { ...b, status: "approved" };
+    // Optimistically update UI
     updateBooking(updated);
     setViewingBooking(updated);
-    // add to members store only when onboarding is completed
-    if (updated.allocatedRoomNumber != null) {
-      // members store has explicit addMember
-      const { addMember } = useMembersStore.getState();
-      addMember(updated);
+
+    if (updated.allocatedRoomNumber == null) {
+      toast.error("Cannot complete onboarding without an assigned room");
+      return;
+    }
+
+    try {
+      // send to backend to create member; backend is responsible for persisting member and
+      // subsequent reads of members will come from API
+      await apiFetch(`/members`, {
+        method: "POST",
+        body: JSON.stringify(updated),
+      });
+
+      // remove booking locally; members will be fetched from backend instead
+      removeBooking(id);
+      setViewingBooking(null);
+      toast.success("Onboarding completed; booking moved to members.");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to complete onboarding. Please try again.");
     }
   };
 

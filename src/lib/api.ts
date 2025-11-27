@@ -5,7 +5,9 @@ export const setAuthToken = (token: string | null) => {
 };
 
 export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "https://your-api.com";
+  // Default to relative paths (same origin) when no API URL is configured.
+  // This lets the app call local API routes during development without extra env setup.
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "";
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(options.headers as Record<string, string> | undefined),

@@ -13,7 +13,7 @@ import AssignRoomDialog from "./assign-room-dialog";
 import { Label } from "@/components/ui/label";
 import { StudentBooking } from "@/types/booking";
 import { Badge } from "@/components/ui/badge";
-import { Copy, Home, User, Phone, Check, CreditCard } from "lucide-react";
+import { Copy, Home, User, Phone, Check, CreditCard, X, Key } from "lucide-react";
 import { toast } from "sonner";
 import { useMembersStore } from "@/stores/useMembersStore";
 
@@ -159,7 +159,9 @@ export default function EditContactDialog({
           )}
 
           <div className="flex gap-3 justify-end pt-4 border-t">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              <X className="size-4 mr-2" />Close
+            </Button>
 
             {local.status === "pending payment" && (
               <Button onClick={() => onApprovePayment?.(local.id)}>
@@ -175,7 +177,7 @@ export default function EditContactDialog({
 
             {/* If booking is approved and not yet an explicit member, allow Assign Room (even if a room exists in data) */}
             {local.status === "approved" && !isMember && (
-              <Button onClick={handleAssign}>Assign Room</Button>
+              <Button onClick={handleAssign}><Key className="size-4 mr-2" />Assign Room</Button>
             )}
 
             {/* Complete Onboarding only shown after a room is assigned via the UI (assignedNow) */}
