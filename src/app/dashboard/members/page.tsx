@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import DataTable from "../components/_reusable_components/data-table";
 import { columns } from "../components/_reusable_components/columns";
-import StudentDetailDrawer from "../bookings/_components/student-detail-drawer";
+import EditContactDialog from "../components/_reusable_components/edit-contact-dialog";
 import { useBookingsStore } from "@/stores/useBookingsStore";
 import { StudentBooking } from "@/types/booking";
 
@@ -20,7 +20,9 @@ export default function MembersPage() {
         <DataTable columns={columns({ onView: setViewingBooking })} data={members} />
       </div>
 
-      <StudentDetailDrawer booking={viewingBooking} open={!!viewingBooking} onOpenChange={(open) => !open && setViewingBooking(null)} />
+      {viewingBooking && (
+        <EditContactDialog booking={viewingBooking} onOpenChange={(open) => !open && setViewingBooking(null)} />
+      )}
     </main>
   );
 }
