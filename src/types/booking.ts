@@ -27,4 +27,5 @@ export interface StudentBooking {
   medicalCondition?: string;
   status: BookingStatus;
   allocatedRoomNumber?: number | null;
+  date?: string; // ISO date string for booking/created date
 }

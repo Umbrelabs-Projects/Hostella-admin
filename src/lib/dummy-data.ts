@@ -21,7 +21,8 @@ export const bookings: StudentBooking[] = [
     emergencyContactNumber: "0201234567",
     relation: "Father",
     hasMedicalCondition: false,
-    status: "pending payment"
+    status: "pending payment",
+    date: "2025-11-10"
   },
   {
     id: "2",
@@ -43,7 +44,8 @@ export const bookings: StudentBooking[] = [
     relation: "Mother",
     hasMedicalCondition: true,
     medicalCondition: "Asthma",
-    status: "pending approval"
+    status: "pending approval",
+    date: "2025-11-02"
   },
   // Example allocated member (approved)
   {
@@ -66,6 +68,7 @@ export const bookings: StudentBooking[] = [
     relation: "Mother",
     hasMedicalCondition: false,
     status: "approved",
-    allocatedRoomNumber: 5
+    allocatedRoomNumber: 5,
+    date: "2025-10-21"
   }
 ];
