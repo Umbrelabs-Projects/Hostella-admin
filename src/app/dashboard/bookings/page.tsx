@@ -94,13 +94,24 @@ export default function Bookings() {
     const updated: StudentBooking = { ...b, status: "approved" };
     updateBooking(updated);
     setViewingBooking(updated);
-    // add or update member list
-    const exists = members.find((m) => m.id === updated.id);
-    if (exists) {
-      setMembers(members.map((m) => (m.id === updated.id ? updated : m)));
-    } else {
-      setMembers([...(members || []), updated]);
+    // add or update member list only if a room is assigned
+    if (updated.allocatedRoomNumber != null) {
+      const exists = members.find((m) => m.id === updated.id);
+      if (exists) {
+        setMembers(members.map((m) => (m.id === updated.id ? updated : m)));
+      } else {
+        setMembers([...(members || []), updated]);
+      }
     }
+  };
+
+  // Approve a booking (used for 'pending approval' -> mark approved/unassigned)
+  const handleApprove = (id: string) => {
+    const b = bookings.find((x) => x.id === id);
+    if (!b) return;
+    const updated: StudentBooking = { ...b, status: "approved" };
+    updateBooking(updated);
+    setViewingBooking(updated);
   };
 
   const handleDeleteBooking = (id: string) => {
@@ -177,6 +188,7 @@ export default function Bookings() {
           onApprovePayment={handleApprovePayment}
           onAssignRoom={handleAssignRoom}
           onCompleteOnboarding={handleCompleteOnboarding}
+          onApprove={handleApprove}
         />
       )}
 

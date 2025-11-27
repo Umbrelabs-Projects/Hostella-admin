@@ -23,6 +23,7 @@ interface BookingDetailsDialogProps {
   onApprovePayment?: (id: string) => void;
   onAssignRoom?: (id: string, roomNumber: number) => void;
   onCompleteOnboarding?: (id: string) => void;
+  onApprove?: (id: string) => void;
 }
 
 export default function EditContactDialog({
@@ -32,6 +33,7 @@ export default function EditContactDialog({
   onApprovePayment,
   onAssignRoom,
   onCompleteOnboarding,
+  onApprove,
 }: BookingDetailsDialogProps) {
   const [local, setLocal] = useState<StudentBooking>(booking);
 
@@ -53,6 +55,23 @@ export default function EditContactDialog({
   const statusVariant = (status: StudentBooking["status"]) =>
     status === "pending payment" ? "secondary" : status === "pending approval" ? "outline" : "default";
 
+  // derive display label: map approved+no room -> 'unassigned'; allocated members show 'Member' or 'Member (not approved)'
+  const displayStatus = (() => {
+    if (local.allocatedRoomNumber != null) {
+      return local.status === "approved" ? "Member" : "Member (not approved)";
+    }
+    if (local.status === "approved") return "unassigned";
+    return local.status;
+  })();
+
+  const displayVariant = (() => {
+    if (displayStatus === "unassigned") return "outline";
+    if (displayStatus.startsWith("Member")) return "default";
+    return statusVariant(local.status);
+  })();
+
+  const floorNumber = local.allocatedRoomNumber != null ? Math.floor((local.allocatedRoomNumber - 1) / 10) + 1 : null;
+
   return (
     <Dialog open={true} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -72,7 +91,7 @@ export default function EditContactDialog({
               </DialogDescription>
             </div>
             <div className="text-right">
-              <Badge variant={statusVariant(local.status)} className="text-sm px-3">{local.status}</Badge>
+              <Badge variant={displayVariant} className="text-sm px-3">{displayStatus}</Badge>
             </div>
           </div>
         </DialogHeader>
@@ -110,6 +129,12 @@ export default function EditContactDialog({
               <Label>Assigned Room</Label>
               <div className="text-lg font-medium">{local.allocatedRoomNumber ?? "—"}</div>
             </div>
+            {floorNumber != null && (
+              <div className="space-y-1">
+                <Label>Floor</Label>
+                <div className="text-sm">{String(floorNumber)}</div>
+              </div>
+            )}
             <div />
           </div>
 
@@ -125,15 +150,26 @@ export default function EditContactDialog({
 
           <div className="flex gap-3 justify-end pt-4 border-t">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+
             {local.status === "pending payment" && (
               <Button onClick={() => onApprovePayment?.(local.id)}>
                 <CreditCard className="size-4 mr-2" />Approve Payment
               </Button>
             )}
+
             {local.status === "pending approval" && (
+              <Button onClick={() => onApprove?.(local.id)}>
+                <Check className="size-4 mr-2" />Approve
+              </Button>
+            )}
+
+            {/* If approved but no room assigned => unassigned: show Assign Room */}
+            {local.status === "approved" && local.allocatedRoomNumber == null && (
               <Button onClick={handleAssign}>Assign Room</Button>
             )}
-            {local.status === "pending approval" && local.allocatedRoomNumber != null && (
+
+            {/* If room assigned and booking is approved, allow complete onboarding */}
+            {local.allocatedRoomNumber != null && local.status === "approved" && (
               <Button className="bg-teal-600 hover:bg-teal-700" onClick={() => onCompleteOnboarding?.(local.id)}>
                 <Check className="size-4 mr-2" />Complete Onboarding
               </Button>
