@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -12,6 +12,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
+import { Key } from "lucide-react";
 
 interface AssignRoomDialogProps {
   open: boolean;
@@ -24,15 +26,20 @@ export default function AssignRoomDialog({ open, bookingId, onOpenChange, onAssi
   const [room, setRoom] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
 
+  const roomNumber = useMemo(() => {
+    const n = parseInt(room, 10);
+    return Number.isNaN(n) ? null : n;
+  }, [room]);
+
   const submit = (e?: React.FormEvent) => {
     e?.preventDefault();
-    const n = parseInt(room, 10);
     if (!bookingId) return setError("Missing booking id");
-    if (Number.isNaN(n) || n <= 0) return setError("Please enter a valid room number");
-    onAssign(bookingId, n);
+    if (!roomNumber || roomNumber <= 0) return setError("Please enter a valid room number");
+    onAssign(bookingId, roomNumber);
     setRoom("");
     setError(null);
     onOpenChange(false);
+    toast.success(`Assigned room ${roomNumber}`);
   };
 
   return (
@@ -45,13 +52,29 @@ export default function AssignRoomDialog({ open, bookingId, onOpenChange, onAssi
         <form onSubmit={submit} className="space-y-4">
           <div>
             <Label>Room number</Label>
-            <Input value={room} onChange={(e) => setRoom(e.target.value)} placeholder="e.g. 12" />
+            <div className="flex items-center gap-2">
+              <Input
+                value={room}
+                onChange={(e) => setRoom(e.target.value)}
+                placeholder="e.g. 12"
+                type="number"
+                min={1}
+                step={1}
+                aria-label="Room number"
+                autoFocus
+                className="max-w-xs"
+              />
+              <span className="text-sm text-muted-foreground">Booking: <span className="font-mono">{bookingId ?? "—"}</span></span>
+            </div>
             {error && <div className="text-destructive text-sm mt-1">{error}</div>}
+            <div className="text-xs text-muted-foreground mt-2">Enter a positive integer for the room number. For example: <strong>12</strong>.</div>
           </div>
           <DialogFooter>
             <div className="flex justify-end gap-2">
               <Button variant="ghost" type="button" onClick={() => onOpenChange(false)}>Cancel</Button>
-              <Button type="submit">Assign</Button>
+              <Button type="submit" disabled={!roomNumber || (roomNumber ?? 0) <= 0}>
+                <Key className="size-4 mr-2" />Assign
+              </Button>
             </div>
           </DialogFooter>
         </form>

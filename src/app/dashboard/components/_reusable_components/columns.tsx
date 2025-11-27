@@ -10,63 +10,109 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 interface ColumnsConfig {
   onView: (booking: StudentBooking) => void;
   onDelete?: (id: string) => void;
+  showStatus?: boolean; // whether to show status column
+  showAssigned?: boolean; // whether to show assigned room column
+  showFloor?: boolean; // whether to include floor column (derived from room number)
 }
 
-export const columns = ({ onView, onDelete }: ColumnsConfig): ColumnDef<StudentBooking>[] => [
-  {
-    accessorKey: "firstName",
-    header: "Name",
-    cell: ({ row }) => {
-      const b = row.original;
-      const fullName = `${b.firstName} ${b.lastName || ""}`.trim();
-      return (
-        <div className="flex items-center gap-3">
-          <Avatar className="h-9 w-9">
-            <AvatarFallback className="bg-teal-600 text-white font-semibold text-xs">
-              {`${b.firstName?.[0] || ""}${b.lastName?.[0] || ""}`.toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex flex-col">
-            <span className="font-semibold text-sm">{fullName}</span>
-            <span className="text-xs text-muted-foreground">{b.studentId}</span>
+export const columns = ({ onView, onDelete, showStatus = true, showAssigned = false, showFloor = false }: ColumnsConfig): ColumnDef<StudentBooking>[] => {
+  const base: ColumnDef<StudentBooking, any>[] = [
+    {
+      accessorKey: "firstName",
+      header: "Name",
+      cell: ({ row }) => {
+        const b = row.original;
+        const fullName = `${b.firstName} ${b.lastName || ""}`.trim();
+        return (
+          <div className="flex items-center gap-3">
+            <Avatar className="h-9 w-9">
+              <AvatarFallback className="bg-teal-600 text-white font-semibold text-xs">
+                {`${b.firstName?.[0] || ""}${b.lastName?.[0] || ""}`.toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex flex-col">
+              <span className="font-semibold text-sm">{fullName}</span>
+              <span className="text-xs text-muted-foreground">{b.studentId}</span>
+            </div>
           </div>
-        </div>
-      );
+        );
+      },
     },
-  },
-  {
-    accessorKey: "bookingId",
-    header: "Booking ID",
-  },
-  {
-    accessorKey: "gender",
-    header: "Gender",
-    cell: ({ row }) => String(row.getValue("gender")).toUpperCase(),
-  },
-  {
-    accessorKey: "status",
-    header: "Status",
-    cell: ({ row }) => {
-      const status = row.getValue("status") as StudentBooking["status"];
-      const cls =
-        status === "pending payment"
-          ? "bg-amber-100 text-amber-800"
-          : status === "pending approval"
-          ? "bg-orange-100 text-orange-800"
-          : "bg-green-100 text-green-800";
-      return <Badge className={cls}>{status}</Badge>;
+    {
+      accessorKey: "bookingId",
+      header: "Booking ID",
     },
-  },
-  {
+    {
+      accessorKey: "gender",
+      header: "Gender",
+      cell: ({ row }) => String(row.getValue("gender")).toUpperCase(),
+    },
+  ];
+
+  if (showStatus) {
+    base.push({
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ row }) => {
+        const status = row.getValue("status") as StudentBooking["status"];
+        // Replace 'approved' display with 'unassigned' per UI decision
+        const label = status === "approved" ? "unassigned" : status;
+        const cls =
+          label === "pending payment"
+            ? "bg-amber-100 text-amber-800"
+            : label === "pending approval"
+            ? "bg-orange-100 text-orange-800"
+            : label === "unassigned"
+            ? "bg-slate-100 text-slate-800"
+            : "bg-green-100 text-green-800";
+        return <Badge className={cls}>{label}</Badge>;
+      },
+    });
+  }
+
+  base.push({
     accessorKey: "roomTitle",
     header: "Room Type",
-  },
-  {
+  });
+
+  if (showAssigned) {
+    base.push({
+      accessorKey: "allocatedRoomNumber",
+      header: "Room Number",
+      cell: ({ row }) => {
+        const booking = row.original;
+        // Do not show assigned room for pending statuses
+        if (booking.status === "pending payment" || booking.status === "pending approval") {
+          return <span className="text-muted-foreground">—</span>;
+        }
+        return booking.allocatedRoomNumber != null ? String(booking.allocatedRoomNumber) : <span className="text-muted-foreground">—</span>;
+      },
+    });
+  }
+
+  // optional floor column derived from room number
+  if (showFloor) {
+    base.push({
+      id: "floor",
+      header: "Floor",
+      cell: ({ row }) => {
+        const booking = row.original;
+        const n = booking.allocatedRoomNumber;
+        if (n == null) return <span className="text-muted-foreground">—</span>;
+        // Derive floor as groups of 10 rooms per floor (1-10 => floor 1, 11-20 => floor 2, etc.)
+        const floor = Math.floor((n - 1) / 10) + 1;
+        return String(floor);
+      },
+    });
+  }
+
+  base.push({
     accessorKey: "date",
     header: "Date",
     cell: ({ row }) => row.getValue("date") as string,
-  },
-  {
+  });
+
+  base.push({
     id: "actions",
     enableHiding: false,
     cell: ({ row }) => {
@@ -94,5 +140,7 @@ export const columns = ({ onView, onDelete }: ColumnsConfig): ColumnDef<StudentB
         </div>
       );
     },
-  },
-];
+  });
+
+  return base;
+};

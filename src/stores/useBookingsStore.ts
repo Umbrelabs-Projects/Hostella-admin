@@ -7,6 +7,7 @@ export type BookingsState = {
   setBookings: (b: StudentBooking[]) => void;
   setSelectedBooking: (b: StudentBooking | null) => void;
   updateBooking: (u: StudentBooking) => void;
+  removeBooking: (id: string) => void;
 };
 export const useBookingsStore = create<BookingsState>((set) => ({
   bookings: initialBookings,
@@ -15,4 +16,6 @@ export const useBookingsStore = create<BookingsState>((set) => ({
   setSelectedBooking: (b: StudentBooking | null) => set({ selectedBooking: b }),
   updateBooking: (u: StudentBooking) =>
     set((state) => ({ bookings: state.bookings.map((b) => (b.id === u.id ? u : b)), selectedBooking: u })),
+  removeBooking: (id: string) =>
+    set((state) => ({ bookings: state.bookings.filter((b) => b.id !== id) })),
 }));
