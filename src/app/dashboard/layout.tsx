@@ -34,7 +34,7 @@ export default function Layout({ children }: LayoutProps) {
       {/* Main content area */}
       <div className="flex flex-col w-full">
         <Header onMenuClick={() => setIsOpen(true)} />
-        <main className="flex-grow overflow-y-auto p-4  ">{children}</main>
+        <main className="grow overflow-y-auto p-4  ">{children}</main>
       </div>
     </div>
   );

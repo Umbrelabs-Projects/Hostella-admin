@@ -8,7 +8,8 @@ interface MessageBubbleProps {
   chatId: string;
 }
 
-export default function MessageBubble({ message, chatId }: MessageBubbleProps) {
+export default function MessageBubble({ message, chatId: _chatId }: MessageBubbleProps) {
+  void _chatId;
   const { playingVoiceId, setPlayingVoiceId } = useChatStore((s) => ({
     playingVoiceId: s.playingVoiceId,
     setPlayingVoiceId: s.setPlayingVoiceId,

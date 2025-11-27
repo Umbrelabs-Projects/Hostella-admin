@@ -32,7 +32,8 @@ export default function LoginForm() {
     resolver: zodResolver(loginSchema),
   });
 
-  const onSubmit: SubmitHandler<LoginFormValues> = async (data) => {
+  const onSubmit: SubmitHandler<LoginFormValues> = async (_data) => {
+    void _data;
     setIsLoading(true);
     toast.info("Logging in...");
 
