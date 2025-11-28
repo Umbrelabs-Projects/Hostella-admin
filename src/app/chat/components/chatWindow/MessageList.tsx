@@ -4,29 +4,27 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useEffect, useRef } from "react";
 import { useChatStore, EMPTY_MESSAGES } from "@/stores/useChatStore";
 import MessageBubble from "./MessageBubble";
-import ContextMenu from "./ContextMenu";
 
 export default function MessageList({ chatId }: { chatId: string }) {
   const messages = useChatStore((s) => s.messages[chatId] ?? EMPTY_MESSAGES);
-  const contextMenu = useChatStore((s) => s.contextMenu);
-  const setContextMenu = useChatStore((s) => s.setContextMenu);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages.length]);
 
-  const handleContext = (e: React.MouseEvent, messageId: string) => {
-    e.preventDefault();
-    setContextMenu({ x: e.clientX, y: e.clientY, messageId });
-  };
+  // MessageBubble handles its own context menu (reply/delete)
+
 
   return (
     <>
       <ScrollArea className="flex-1 p-4">
         <div className="space-y-2 flex flex-col">
           {messages.map((message) => (
-            <div key={message.id} onContextMenu={(e) => handleContext(e, message.id)}>
+            <div
+              key={message.id}
+              className={`flex w-full ${message.sender === "admin" ? "justify-end" : "justify-start"}`}
+            >
               <MessageBubble message={message} chatId={chatId} />
             </div>
           ))}
@@ -34,9 +32,7 @@ export default function MessageList({ chatId }: { chatId: string }) {
         <div ref={bottomRef} />
       </ScrollArea>
 
-      {contextMenu && (
-        <ContextMenu x={contextMenu.x} y={contextMenu.y} messageId={contextMenu.messageId} chatId={chatId} />
-      )}
+      {/* individual MessageBubble components manage their own context menus */}
     </>
   );
 }

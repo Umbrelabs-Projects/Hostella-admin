@@ -10,10 +10,8 @@ interface ContextMenuProps {
 }
 
 export default function ContextMenu({ x, y, messageId, chatId }: ContextMenuProps) {
-  const { deleteMessage, setContextMenu } = useChatStore((s) => ({
-    deleteMessage: s.deleteMessage,
-    setContextMenu: s.setContextMenu,
-  }));
+  const deleteMessage = useChatStore((s) => s.deleteMessage);
+  const setContextMenu = useChatStore((s) => s.setContextMenu);
 
   const handleDelete = () => {
     deleteMessage(chatId, messageId);

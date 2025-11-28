@@ -5,11 +5,9 @@ import ChatItem from "./ChatItem";
 import { useChatStore } from "@/stores/useChatStore";
 
 export default function ChatList({ filter }: { filter: string }) {
-  const { chatsInfo, currentChatId, setCurrentChat } = useChatStore((s) => ({
-    chatsInfo: s.chatsInfo,
-    currentChatId: s.currentChatId,
-    setCurrentChat: s.setCurrentChat,
-  }));
+  const chatsInfo = useChatStore((s) => s.chatsInfo);
+  const currentChatId = useChatStore((s) => s.currentChatId);
+  const setCurrentChat = useChatStore((s) => s.setCurrentChat);
 
   const list = Object.values(chatsInfo).filter((c) =>
     c.name.toLowerCase().includes(filter.toLowerCase())
