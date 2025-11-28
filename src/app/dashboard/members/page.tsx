@@ -10,7 +10,7 @@ import { StudentBooking } from "@/types/booking";
 import TableFilters from "../components/_reusable_components/table-filters";
 
 export default function MembersPage() {
-  const { members } = useMembersStore();
+  const members = useMembersStore((s) => s.members);
   const [viewingBooking, setViewingBooking] = useState<StudentBooking | null>(null);
 
   // Filters

@@ -14,7 +14,10 @@ import { StudentBooking, Gender, Level, RoomTitle, BookingStatus } from "@/types
 import { useMembersStore } from "@/stores/useMembersStore";
 
 export default function Bookings() {
-  const { bookings, updateBooking, setBookings, removeBooking } = useBookingsStore();
+  const bookings = useBookingsStore((s) => s.bookings);
+  const updateBooking = useBookingsStore((s) => s.updateBooking);
+  const setBookings = useBookingsStore((s) => s.setBookings);
+  const removeBooking = useBookingsStore((s) => s.removeBooking);
 
   // Filters
   const [search, setSearch] = useState("");

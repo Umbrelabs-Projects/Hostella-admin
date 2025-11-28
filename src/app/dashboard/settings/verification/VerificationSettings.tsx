@@ -3,7 +3,7 @@ import { useState } from "react";
 import VerificationItem from "./components/VerificationItem";
 import { useAuthStore } from "@/stores/useAuthStore";
 export default function VerificationSettings() {
-  const { user } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
   const [verificationStatus] = useState({
     email: { verified: true, value: user?.email || "elvisgyasisowusu@gmail.com" },
     phone: { verified: false, value: user?.phone ||  "+1 (555) 000-0000" },

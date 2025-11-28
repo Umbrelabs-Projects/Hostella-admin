@@ -58,7 +58,7 @@ export default function EditContactDialog({
     status === "pending payment" ? "secondary" : status === "pending approval" ? "outline" : "default";
 
   // derive display label: membership is explicit in members store
-  const { members: explicitMembers } = useMembersStore();
+  const explicitMembers = useMembersStore((s) => s.members);
   const isMember = explicitMembers.some((m) => m.id === local.id);
 
   const displayStatus = (() => {
