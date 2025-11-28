@@ -10,8 +10,8 @@ export const bookings: StudentBooking[] = [
     lastName: "Doe",
     gender: "female",
     level: "200",
-    school: "University of Example",
-    studentId: "UOE12345",
+    school: "KNUST",
+    studentId: "KNUST12345",
     phone: "0244123456",
     admissionLetterName: "admission-jane.pdf",
     hostelName: "Maple Hostel",
@@ -56,8 +56,8 @@ export const bookings: StudentBooking[] = [
     lastName: "Mensah",
     gender: "male",
     level: "400",
-    school: "University of Example",
-    studentId: "UOE54321",
+    school: "KNUST",
+    studentId: "KNUST54321",
     phone: "0244123000",
     admissionLetterName: "admission-alex.pdf",
     hostelName: "Maple Hostel",
@@ -71,4 +71,35 @@ export const bookings: StudentBooking[] = [
     allocatedRoomNumber: 5,
     date: "2025-10-21"
   }
+  ,
+  // Pre-seeded member (completed onboarding)
+  {
+    id: "4",
+    bookingId: "BK-1004",
+    email: "maria.adebayo@example.com",
+    firstName: "Maria",
+    lastName: "Adebayo",
+    gender: "female",
+    level: "300",
+    school: "KNUST",
+    studentId: "KNUST77777",
+    phone: "0244123111",
+    admissionLetterName: "admission-maria.pdf",
+    hostelName: "Oak Residence",
+    roomTitle: "Two-in-two",
+    price: "300",
+    emergencyContactName: "Segun Adebayo",
+    emergencyContactNumber: "0201111222",
+    relation: "Brother",
+    hasMedicalCondition: false,
+    status: "approved",
+    allocatedRoomNumber: 12,
+    date: "2025-09-15"
+  }
+];
+
+// explicit initial members (bookings that have completed onboarding)
+export const initialMembers: StudentBooking[] = [
+  // Maria Adebayo (BK-1004) is a completed member
+  bookings.find((b) => b.bookingId === "BK-1004") as StudentBooking,
 ];

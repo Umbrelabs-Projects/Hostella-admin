@@ -13,8 +13,9 @@ import AssignRoomDialog from "./assign-room-dialog";
 import { Label } from "@/components/ui/label";
 import { StudentBooking } from "@/types/booking";
 import { Badge } from "@/components/ui/badge";
-import { Copy, Home, User, Phone, Check, CreditCard } from "lucide-react";
+import { Copy, Home, User, Phone, Check, CreditCard, X, Key } from "lucide-react";
 import { toast } from "sonner";
+import { useMembersStore } from "@/stores/useMembersStore";
 
 interface BookingDetailsDialogProps {
   booking: StudentBooking;
@@ -40,6 +41,7 @@ export default function EditContactDialog({
   useEffect(() => setLocal(booking), [booking]);
 
   const [openAssign, setOpenAssign] = useState(false);
+  const [assignedNow, setAssignedNow] = useState(false);
 
   const handleAssign = () => setOpenAssign(true);
 
@@ -55,9 +57,12 @@ export default function EditContactDialog({
   const statusVariant = (status: StudentBooking["status"]) =>
     status === "pending payment" ? "secondary" : status === "pending approval" ? "outline" : "default";
 
-  // derive display label: map approved+no room -> 'unassigned'; allocated members show 'Member' or 'Member (not approved)'
+  // derive display label: membership is explicit in members store
+  const { members: explicitMembers } = useMembersStore();
+  const isMember = explicitMembers.some((m) => m.id === local.id);
+
   const displayStatus = (() => {
-    if (local.allocatedRoomNumber != null) {
+    if (isMember) {
       return local.status === "approved" ? "Member" : "Member (not approved)";
     }
     if (local.status === "approved") return "unassigned";
@@ -71,6 +76,11 @@ export default function EditContactDialog({
   })();
 
   const floorNumber = local.allocatedRoomNumber != null ? Math.floor((local.allocatedRoomNumber - 1) / 10) + 1 : null;
+
+  useEffect(() => {
+    // reset assignedNow when switching bookings
+    setAssignedNow(false);
+  }, [local.id]);
 
   return (
     <Dialog open={true} onOpenChange={onOpenChange}>
@@ -127,9 +137,9 @@ export default function EditContactDialog({
 
             <div className="space-y-1">
               <Label>Assigned Room</Label>
-              <div className="text-lg font-medium">{local.allocatedRoomNumber ?? "—"}</div>
+              <div className="text-lg font-medium">{(isMember || assignedNow) ? (local.allocatedRoomNumber ?? "—") : "—"}</div>
             </div>
-            {floorNumber != null && (
+            {(isMember || assignedNow) && floorNumber != null && (
               <div className="space-y-1">
                 <Label>Floor</Label>
                 <div className="text-sm">{String(floorNumber)}</div>
@@ -138,7 +148,7 @@ export default function EditContactDialog({
             <div />
           </div>
 
-          {(local.status === "approved") && (
+          {(isMember) && (
             <div className="space-y-2 pt-2 border-t">
               <Label>Emergency Contact</Label>
               <div className="grid grid-cols-2 gap-2">
@@ -149,7 +159,9 @@ export default function EditContactDialog({
           )}
 
           <div className="flex gap-3 justify-end pt-4 border-t">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              <X className="size-4 mr-2" />Close
+            </Button>
 
             {local.status === "pending payment" && (
               <Button onClick={() => onApprovePayment?.(local.id)}>
@@ -163,13 +175,13 @@ export default function EditContactDialog({
               </Button>
             )}
 
-            {/* If approved but no room assigned => unassigned: show Assign Room */}
-            {local.status === "approved" && local.allocatedRoomNumber == null && (
-              <Button onClick={handleAssign}>Assign Room</Button>
+            {/* If booking is approved and not yet an explicit member, allow Assign Room (even if a room exists in data) */}
+            {local.status === "approved" && !isMember && (
+              <Button onClick={handleAssign}><Key className="size-4 mr-2" />Assign Room</Button>
             )}
 
-            {/* If room assigned and booking is approved, allow complete onboarding */}
-            {local.allocatedRoomNumber != null && local.status === "approved" && (
+            {/* Complete Onboarding only shown after a room is assigned via the UI (assignedNow) */}
+            {local.allocatedRoomNumber != null && local.status === "approved" && !isMember && assignedNow && (
               <Button className="bg-teal-600 hover:bg-teal-700" onClick={() => onCompleteOnboarding?.(local.id)}>
                 <Check className="size-4 mr-2" />Complete Onboarding
               </Button>
@@ -181,7 +193,10 @@ export default function EditContactDialog({
         open={openAssign}
         bookingId={local.bookingId ?? local.id}
         onOpenChange={(o) => setOpenAssign(o)}
-        onAssign={(id, room) => onAssignRoom?.(id, room)}
+        onAssign={(id, room) => {
+          onAssignRoom?.(id, room);
+          setAssignedNow(true);
+        }}
       />
     </Dialog>
   );
