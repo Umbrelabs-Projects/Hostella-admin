@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { StudentBooking } from "@/types/booking";
-import { bookings as initialBookings, initialMembers } from "@/lib/dummy-data";
+import { initialMembers } from "@/lib/dummy-data";
 
 export type MembersState = {
   members: StudentBooking[]; // explicit members (added on Complete Onboarding)

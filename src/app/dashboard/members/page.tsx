@@ -5,13 +5,11 @@ import { useState } from "react";
 import DataTable from "../components/_reusable_components/data-table";
 import { columns } from "../components/_reusable_components/columns";
 import EditContactDialog from "../components/_reusable_components/edit-contact-dialog";
-import { useBookingsStore } from "@/stores/useBookingsStore";
 import { useMembersStore } from "@/stores/useMembersStore";
 import { StudentBooking } from "@/types/booking";
 import TableFilters from "../components/_reusable_components/table-filters";
 
 export default function MembersPage() {
-  const { bookings } = useBookingsStore();
   const { members } = useMembersStore();
   const [viewingBooking, setViewingBooking] = useState<StudentBooking | null>(null);
 

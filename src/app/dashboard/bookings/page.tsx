@@ -2,25 +2,20 @@
 
 import { useState } from "react";
 
-import { Button } from "@/components/ui/button";
-import TableFilters from "../components/_reusable_components/table-filters";
-import { Plus } from "lucide-react";
-import DataTable from "../components/_reusable_components/data-table";
-import { columns } from "../components/_reusable_components/columns";
-import AddContactDialog from "../components/_reusable_components/add-contact-dialog";
-import EditContactDialog from "../components/_reusable_components/edit-contact-dialog";
-import DeleteConfirmDialog from "../components/_reusable_components/delete-confirm-dialog";
+import BookingsHeader from "./_components/BookingsHeader";
+import BookingsFilters from "./_components/BookingsFilters";
+import BookingsTable from "./_components/BookingsTable";
+import BookingsDialogs from "./_components/BookingsDialogs";
+
 import { useBookingsStore } from "@/stores/useBookingsStore";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
-import { StudentBooking } from "@/types/booking";
+import { StudentBooking, Gender, Level, RoomTitle, BookingStatus } from "@/types/booking";
 import { useMembersStore } from "@/stores/useMembersStore";
 
 export default function Bookings() {
-  
   const { bookings, updateBooking, setBookings, removeBooking } = useBookingsStore();
-  // members are managed by backend; Complete Onboarding will POST to API and remove booking locally
-  
+
   // Filters
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -40,8 +35,6 @@ export default function Bookings() {
   const [viewingBooking, setViewingBooking] = useState<StudentBooking | null>(null);
   const [deletingBookingId, setDeletingBookingId] = useState<string | null>(null);
 
-  
-
   const handleAddBooking = (input: Partial<StudentBooking>) => {
     const id = Date.now().toString();
     const bookingId = `BK-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -51,21 +44,21 @@ export default function Bookings() {
       email: input.email ?? "",
       firstName: input.firstName ?? "",
       lastName: input.lastName ?? "",
-      gender: (input.gender as any) ?? "male",
-      level: (input.level as any) ?? "100",
+      gender: (input.gender as Gender) ?? "male",
+      level: (input.level as Level) ?? "100",
       school: input.school ?? "",
       studentId: input.studentId ?? "",
       phone: input.phone ?? "",
       admissionLetterName: input.admissionLetterName ?? "",
       hostelName: input.hostelName ?? "",
-      roomTitle: (input.roomTitle as any) ?? "Two-in-two",
+      roomTitle: (input.roomTitle as RoomTitle) ?? "Two-in-two",
       price: input.price ?? "0",
       emergencyContactName: input.emergencyContactName ?? "",
       emergencyContactNumber: input.emergencyContactNumber ?? "",
       relation: input.relation ?? "",
       hasMedicalCondition: !!input.hasMedicalCondition,
       medicalCondition: input.medicalCondition,
-      status: (input.status as any) ?? "pending payment",
+      status: (input.status as BookingStatus) ?? "pending payment",
       allocatedRoomNumber: input.allocatedRoomNumber ?? null,
       date: input.date ?? new Date().toISOString().split("T")[0],
     };
@@ -103,14 +96,11 @@ export default function Bookings() {
     }
 
     try {
-      // send to backend to create member; backend is responsible for persisting member and
-      // subsequent reads of members will come from API
       await apiFetch(`/members`, {
         method: "POST",
         body: JSON.stringify(updated),
       });
 
-      // remove booking locally; members will be fetched from backend instead
       removeBooking(id);
       setViewingBooking(null);
       toast.success("Onboarding completed; booking moved to members.");
@@ -138,22 +128,12 @@ export default function Bookings() {
     toast.success("Booking deleted");
   };
 
-
   return (
     <main className="p-3 md:px-6">
       <div className=" mx-auto">
-        {/* Header with Add button */}
-        <div className="mb-2 flex justify-end items-center">
-          <Button
-            onClick={() => setShowAddDialog(true)}
-            size="lg"
-            className="cursor-pointer bg-green-600 hover:bg-green-700"
-          >
-            <Plus className="h-4 w-4" />
-            New Booking
-          </Button>
-        </div>
-        <TableFilters
+        <BookingsHeader onNew={() => setShowAddDialog(true)} />
+
+        <BookingsFilters
           search={search}
           onSearch={setSearch}
           status={statusFilter}
@@ -168,56 +148,31 @@ export default function Bookings() {
           onReset={resetFilters}
         />
 
-        <DataTable
-          columns={columns({ onView: setViewingBooking, onDelete: setDeletingBookingId, showStatus: true, showAssigned: false })}
-          data={bookings
-            ?.filter((b) => {
-              // status filter
-              if (statusFilter !== "all") {
-                if (statusFilter === "unassigned") {
-                  if (b.status !== "approved") return false;
-                } else {
-                  if (b.status !== statusFilter) return false;
-                }
-              }
-              // gender filter
-              if (genderFilter !== "all" && b.gender !== genderFilter) return false;
-              // room filter
-              if (roomFilter !== "all" && b.roomTitle !== roomFilter) return false;
-              // search filter
-              if (!search) return true;
-              const s = search.toLowerCase();
-              const fullName = `${b.firstName} ${b.lastName}`.toLowerCase();
-              return (
-                fullName.includes(s) ||
-                (b.bookingId || "").toLowerCase().includes(s) ||
-                (b.studentId || "").toLowerCase().includes(s) ||
-                (b.email || "").toLowerCase().includes(s)
-              );
-            }) || []}
+        <BookingsTable
+          bookings={bookings}
+          search={search}
+          statusFilter={statusFilter}
+          genderFilter={genderFilter}
+          roomFilter={roomFilter}
+          onView={setViewingBooking}
+          onDelete={setDeletingBookingId}
         />
       </div>
 
-      <AddContactDialog open={showAddDialog} onOpenChange={setShowAddDialog} onAdd={handleAddBooking} />
-
-      {viewingBooking && (
-        <EditContactDialog
-          booking={viewingBooking}
-          onOpenChange={(open) => !open && setViewingBooking(null)}
-          onApprovePayment={handleApprovePayment}
-          onAssignRoom={handleAssignRoom}
-          onCompleteOnboarding={handleCompleteOnboarding}
-          onApprove={handleApprove}
-        />
-      )}
-
-      {deletingBookingId && (
-        <DeleteConfirmDialog
-          open={!!deletingBookingId}
-          onOpenChange={(open) => !open && setDeletingBookingId(null)}
-          onConfirm={() => handleDeleteBooking(deletingBookingId)}
-        />
-      )}
+      <BookingsDialogs
+        showAddDialog={showAddDialog}
+        setShowAddDialog={setShowAddDialog}
+        viewingBooking={viewingBooking}
+        setViewingBooking={setViewingBooking}
+        deletingBookingId={deletingBookingId}
+        setDeletingBookingId={setDeletingBookingId}
+        onAdd={handleAddBooking}
+        onApprovePayment={handleApprovePayment}
+        onAssignRoom={handleAssignRoom}
+        onCompleteOnboarding={handleCompleteOnboarding}
+        onApprove={handleApprove}
+        onDeleteConfirm={handleDeleteBooking}
+      />
     </main>
   );
 }

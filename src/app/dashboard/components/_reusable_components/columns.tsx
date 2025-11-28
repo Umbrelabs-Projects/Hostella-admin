@@ -16,7 +16,7 @@ interface ColumnsConfig {
 }
 
 export const columns = ({ onView, onDelete, showStatus = true, showAssigned = false, showFloor = false }: ColumnsConfig): ColumnDef<StudentBooking>[] => {
-  const base: ColumnDef<StudentBooking, any>[] = [
+  const base: ColumnDef<StudentBooking>[] = [
     {
       accessorKey: "firstName",
       header: "Name",
