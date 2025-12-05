@@ -8,6 +8,7 @@ import {
   MessageCircleMoreIcon,
   Settings,
   Users2Icon,
+  Shield,
 } from "lucide-react";
 import SideNavHeader from "./SideNavHeader";
 import SideNavLink from "./SideNavLink";
@@ -28,6 +29,7 @@ export default function SideNav({ closeMenu }: SideNavProps) {
       icon: MessageCircleMoreIcon,
       url: "/dashboard/broadcast",
     },
+    { title: "Super Admin", icon: Shield, url: "/dashboard/super-admin" },
     { title: "Settings", icon: Settings, url: "/dashboard/settings" },
   ];
 
