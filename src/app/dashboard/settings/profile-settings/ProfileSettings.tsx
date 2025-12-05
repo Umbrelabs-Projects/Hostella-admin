@@ -6,7 +6,9 @@ import PersonalInfoForm from "./components/PersonalInfoForm";
 import { useAuthStore } from "@/stores/useAuthStore";
 
 export default function ProfileSettings() {
-  const { user, updateProfile, loading } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
+  const updateProfile = useAuthStore((s) => s.updateProfile);
+  const loading = useAuthStore((s) => s.loading);
   const [firstName, setFirstName] = useState(user?.firstName || "");
   const [lastName, setLastName] = useState(user?.lastName || "");
   const [avatarFile, setAvatarFile] = useState<File | null>(null);

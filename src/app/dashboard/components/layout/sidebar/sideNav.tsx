@@ -2,7 +2,13 @@
 
 import React from "react";
 import { usePathname } from "next/navigation";
-import { BookIcon, Home, Settings, Users2Icon } from "lucide-react";
+import {
+  BookIcon,
+  Home,
+  MessageCircleMoreIcon,
+  Settings,
+  Users2Icon,
+} from "lucide-react";
 import SideNavHeader from "./SideNavHeader";
 import SideNavLink from "./SideNavLink";
 import SideNavFooter from "./SideNavFooter";
@@ -15,9 +21,13 @@ export default function SideNav({ closeMenu }: SideNavProps) {
   const pathname = usePathname();
 
   const navItems = [
-    { title: "Home", icon: Home, url: "/dashboard" },
     { title: "Bookings", icon: BookIcon, url: "/dashboard/bookings" },
     { title: "Members", icon: Users2Icon, url: "/dashboard/members" },
+    {
+      title: "Broadcast Message",
+      icon: MessageCircleMoreIcon,
+      url: "/dashboard/broadcast",
+    },
     { title: "Settings", icon: Settings, url: "/dashboard/settings" },
   ];
 

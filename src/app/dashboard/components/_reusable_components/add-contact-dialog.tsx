@@ -26,35 +26,149 @@ interface AddBookingDialogProps {
   onAdd: (booking: Partial<StudentBooking>) => void;
 }
 
+interface FieldConfig {
+  name: keyof StudentBooking;
+  label: string;
+  type?: "text" | "date" | "select";
+  placeholder?: string;
+  selectOptions?: { value: string; label: string }[];
+}
+
+const FORM_SECTIONS: { title?: string; columns: number; fields: FieldConfig[] }[] = [
+  {
+    columns: 2,
+    fields: [
+      { name: "firstName", label: "First name", type: "text" },
+      { name: "lastName", label: "Last name", type: "text" },
+      { name: "email", label: "Email", type: "text" },
+      { name: "phone", label: "Phone", type: "text" },
+      { name: "studentId", label: "Student ID", type: "text" },
+      { name: "school", label: "School", type: "text" },
+    ],
+  },
+  {
+    columns: 3,
+    fields: [
+      {
+        name: "gender",
+        label: "Gender",
+        type: "select",
+        selectOptions: [
+          { value: "male", label: "Male" },
+          { value: "female", label: "Female" },
+        ],
+      },
+      {
+        name: "level",
+        label: "Level",
+        type: "select",
+        selectOptions: [
+          { value: "100", label: "100" },
+          { value: "200", label: "200" },
+          { value: "300", label: "300" },
+          { value: "400", label: "400" },
+        ],
+      },
+      { name: "date", label: "Booking Date", type: "date" },
+    ],
+  },
+  {
+    columns: 2,
+    fields: [
+      {
+        name: "roomTitle",
+        label: "Room Type",
+        type: "select",
+        selectOptions: [
+          { value: "One-in-one", label: "One-in-one" },
+          { value: "Two-in-two", label: "Two-in-two" },
+        ],
+      },
+      { name: "hostelName", label: "Hostel", type: "text" },
+    ],
+  },
+  {
+    columns: 2,
+    fields: [
+      { name: "emergencyContactName", label: "Emergency Contact Name", type: "text", placeholder: "Name" },
+      { name: "emergencyContactNumber", label: "Emergency Contact Number", type: "text", placeholder: "Phone" },
+    ],
+  },
+];
+
+const DEFAULT_FORM_DATA: Partial<StudentBooking> = {
+  firstName: "",
+  lastName: "",
+  email: "",
+  phone: "",
+  gender: "male",
+  studentId: "",
+  level: "100",
+  school: "",
+  hostelName: "",
+  roomTitle: "Two-in-two",
+  price: "",
+  emergencyContactName: "",
+  emergencyContactNumber: "",
+  relation: "",
+  hasMedicalCondition: false,
+  status: "pending payment",
+  date: new Date().toISOString().split("T")[0],
+};
+
+interface FormFieldProps {
+  field: FieldConfig;
+  value: string | undefined;
+  onChange: (name: keyof StudentBooking, value: string) => void;
+}
+
+function FormField({ field, value, onChange }: FormFieldProps) {
+  if (field.type === "select") {
+    return (
+      <div>
+        <Label className="mb-2" htmlFor={field.name}>{field.label}</Label>
+        <Select value={value || ""} onValueChange={(v) => onChange(field.name, v)}>
+          <SelectTrigger id={field.name}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {field.selectOptions?.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <Label htmlFor={field.name}>{field.label}</Label>
+      <Input
+        id={field.name}
+        name={field.name}
+        type={field.type || "text"}
+        placeholder={field.placeholder}
+        value={value || ""}
+        onChange={(e) => onChange(field.name, e.target.value)}
+      />
+    </div>
+  );
+}
+
 export default function AddContactDialog({
   open,
   onOpenChange,
   onAdd,
 }: AddBookingDialogProps) {
-  const [formData, setFormData] = useState<Partial<StudentBooking>>({
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
-    gender: "male",
-    studentId: "",
-    level: "100",
-    school: "",
-    hostelName: "",
-    roomTitle: "Two-in-two",
-    price: "",
-    emergencyContactName: "",
-    emergencyContactNumber: "",
-    relation: "",
-    hasMedicalCondition: false,
-    status: "pending payment",
-    date: new Date().toISOString().split("T")[0],
-  });
+  const [formData, setFormData] = useState<Partial<StudentBooking>>(DEFAULT_FORM_DATA);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
+  const handleFieldChange = (name: keyof StudentBooking, value: string) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -72,96 +186,25 @@ export default function AddContactDialog({
           }}
           className="space-y-4"
         >
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="firstName">First name</Label>
-              <Input id="firstName" name="firstName" onChange={handleChange} />
+          {FORM_SECTIONS.map((section, idx) => (
+            <div key={idx} className={`grid grid-cols-${section.columns} gap-4`}>
+              {section.fields.map((field) => (
+                <FormField
+                  key={field.name}
+                  field={field}
+                  value={String(formData[field.name] || "")}
+                  onChange={handleFieldChange}
+                />
+              ))}
             </div>
-            <div>
-              <Label htmlFor="lastName">Last name</Label>
-              <Input id="lastName" name="lastName" onChange={handleChange} />
-            </div>
-            <div>
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" name="email" onChange={handleChange} />
-            </div>
-            <div>
-              <Label htmlFor="phone">Phone</Label>
-              <Input id="phone" name="phone" onChange={handleChange} />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <Label htmlFor="gender">Gender</Label>
-              <Select
-                value={formData.gender}
-                onValueChange={(v) => setFormData((p) => ({ ...p, gender: v as StudentBooking["gender"] }))}
-              >
-                <SelectTrigger id="gender">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="male">Male</SelectItem>
-                  <SelectItem value="female">Female</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="level">Level</Label>
-              <Select
-                value={formData.level}
-                onValueChange={(v) => setFormData((p) => ({ ...p, level: v as StudentBooking["level"] }))}
-              >
-                <SelectTrigger id="level">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="100">100</SelectItem>
-                  <SelectItem value="200">200</SelectItem>
-                  <SelectItem value="300">300</SelectItem>
-                  <SelectItem value="400">400</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="date">Booking Date</Label>
-              <Input id="date" name="date" type="date" onChange={handleChange} />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="roomTitle">Room Type</Label>
-              <Select
-                value={formData.roomTitle}
-                onValueChange={(v) => setFormData((p) => ({ ...p, roomTitle: v as StudentBooking["roomTitle"] }))}
-              >
-                <SelectTrigger id="roomTitle">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="One-in-one">One-in-one</SelectItem>
-                  <SelectItem value="Two-in-two">Two-in-two</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="hostelName">Hostel</Label>
-              <Input id="hostelName" name="hostelName" onChange={handleChange} />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="emergencyContactName">Emergency Contact</Label>
-            <div className="grid grid-cols-2 gap-2">
-              <Input id="emergencyContactName" name="emergencyContactName" placeholder="Name" onChange={handleChange} />
-              <Input id="emergencyContactNumber" name="emergencyContactNumber" placeholder="Phone" onChange={handleChange} />
-            </div>
-          </div>
+          ))}
 
           <div className="flex gap-2 justify-end pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
               Cancel
             </Button>
             <Button type="submit">Create Booking</Button>
@@ -171,3 +214,4 @@ export default function AddContactDialog({
     </Dialog>
   );
 }
+
