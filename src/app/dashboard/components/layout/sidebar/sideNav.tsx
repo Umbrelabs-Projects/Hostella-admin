@@ -22,6 +22,7 @@ export default function SideNav({ closeMenu }: SideNavProps) {
   const pathname = usePathname();
 
   const navItems = [
+    { title: "Home", icon: Home, url: "/dashboard/home" },
     { title: "Bookings", icon: BookIcon, url: "/dashboard/bookings" },
     { title: "Members", icon: Users2Icon, url: "/dashboard/members" },
     {
