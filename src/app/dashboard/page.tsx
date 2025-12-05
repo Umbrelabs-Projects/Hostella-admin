@@ -1,10 +1,10 @@
 import React from "react";
-import Home from "./home/page";
+import Bookings from "./bookings/page";
 
 export default function page() {
   return (
     <div>
-      <Home />
+      <Bookings />
     </div>
   );
 }

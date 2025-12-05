@@ -4,7 +4,6 @@ import React from "react";
 import { usePathname } from "next/navigation";
 import {
   BookIcon,
-  Home,
   MessageCircleMoreIcon,
   Settings,
   Users2Icon,
