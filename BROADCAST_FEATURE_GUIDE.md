@@ -8,7 +8,6 @@ A production-ready Broadcast Message system has been implemented for the Hostell
 
 ### Directory Structure
 
-```
 src/
 ├── app/dashboard/broadcast/
 │   ├── _components/
