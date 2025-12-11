@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import DataTable from "../components/_reusable_components/data-table";
 import { columns } from "../components/_reusable_components/columns";
@@ -11,6 +11,8 @@ import TableFilters from "../components/_reusable_components/table-filters";
 
 export default function MembersPage() {
   const members = useMembersStore((s) => s.members);
+  const fetchMembers = useMembersStore((s) => s.fetchMembers);
+  const loading = useMembersStore((s) => s.loading);
   const [viewingBooking, setViewingBooking] = useState<StudentBooking | null>(null);
 
   // Filters
@@ -23,6 +25,11 @@ export default function MembersPage() {
     setGenderFilter("all");
     setRoomFilter("all");
   };
+
+  // Fetch members from backend on component mount
+  useEffect(() => {
+    fetchMembers();
+  }, [fetchMembers]);
 
   // Members are tracked explicitly in the members store (after Complete Onboarding)
   const genderOptions = Array.from(new Set((members || []).map((b) => b.gender).filter(Boolean)));

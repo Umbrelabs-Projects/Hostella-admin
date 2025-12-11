@@ -164,7 +164,7 @@ Retrieves a paginated list of student bookings with optional filtering.
 - `search` (string, optional): Search by email, name, or student ID
 - `status` (string, optional): Filter by status - `pending payment`, `pending approval`, `approved`, `all`
 - `gender` (string, optional): Filter by gender - `male`, `female`, `all`
-- `roomType` (string, optional): Filter by room type - `One-in-one`, `Two-in-two`, `all`
+- `roomType` (string, optional): Filter by room type - `One-in-one`, `Two-in-one`, `all`
 
 #### Success Response (200 OK)
 ```json
@@ -1142,7 +1142,7 @@ All timestamps are ISO 8601 format with UTC timezone:
 
 #### Room Title
 - `One-in-one`: Single occupancy room
-- `Two-in-two`: Double occupancy room
+- `Two-in-one`: Double occupancy room
 
 ---
 

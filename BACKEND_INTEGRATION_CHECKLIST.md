@@ -192,7 +192,7 @@ All endpoints MUST return errors in this format:
 
 ### Room Type
 - `One-in-one` (single occupancy)
-- `Two-in-two` (double occupancy)
+- `Two-in-one` (double occupancy)
 
 ### Booking Status
 - `pending payment` - Awaiting payment confirmation

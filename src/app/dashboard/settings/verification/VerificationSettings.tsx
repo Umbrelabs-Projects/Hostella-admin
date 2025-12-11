@@ -5,8 +5,8 @@ import { useAuthStore } from "@/stores/useAuthStore";
 export default function VerificationSettings() {
   const user = useAuthStore((s) => s.user);
   const [verificationStatus] = useState({
-    email: { verified: true, value: user?.email || "elvisgyasisowusu@gmail.com" },
-    phone: { verified: false, value: user?.phone ||  "+1 (555) 000-0000" },
+    email: { verified: !!user?.email, value: user?.email || "Not provided" },
+    phone: { verified: !!user?.phone, value: user?.phone || "Not provided" },
   });
 
   const handleVerify = (type: keyof typeof verificationStatus) => {
