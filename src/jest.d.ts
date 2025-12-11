@@ -13,8 +13,8 @@ declare global {
       toHaveAttribute(attr: string, value?: string): R
       toHaveClass(className: string | string[]): R
       toHaveFocus(): R
-      toHaveFormValues(values: Record<string, any>): R
-      toHaveStyle(style: string | Record<string, any>): R
+      toHaveFormValues(values: Record<string, unknown>): R
+      toHaveStyle(style: string | Record<string, unknown>): R
       toHaveTextContent(content: string | RegExp, options?: { normalizeWhitespace?: boolean }): R
       toHaveValue(value: string | number | string[]): R
       toHaveDisplayValue(value: string | string[]): R

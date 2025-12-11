@@ -62,7 +62,7 @@ export default function Bookings() {
 
   const handleAddBooking = async (input: Partial<StudentBooking>) => {
     try {
-      const newBooking = await createBooking(input);
+      await createBooking(input);
       setShowAddDialog(false);
       toast.success("Booking created successfully");
     } catch (err) {
