@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 // Public routes that don't require authentication
-const PUBLIC_ROUTES = ["/", "/(auth)"];
+// const PUBLIC_ROUTES = ["/", "/(auth)"];
 
 // Protected routes
 const PROTECTED_ROUTES = ["/dashboard", "/chat"];

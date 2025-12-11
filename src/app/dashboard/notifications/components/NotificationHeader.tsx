@@ -3,8 +3,8 @@
 import React from "react";
 
 interface NotificationHeaderProps {
-  markAllAsRead: () => void;
-  deleteAll: () => void;
+  markAllAsRead: () => Promise<void>;
+  deleteAll: () => Promise<void>;
   allRead: boolean;
   allEmpty: boolean;
 }
