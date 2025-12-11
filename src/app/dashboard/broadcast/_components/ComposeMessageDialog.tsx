@@ -27,7 +27,7 @@ interface ComposeMessageDialogProps {
 
 export default function ComposeMessageDialog({ isOpen, onClose }: ComposeMessageDialogProps) {
   const { composer, resetComposer, loading } = useBroadcastStore();
-  const { sendMessage, scheduleMessage } = useBroadcastApi();
+  const { sendMessage } = useBroadcastApi();
 
   const form = useForm<BroadcastMessageFormData>({
     resolver: zodResolver(broadcastMessageSchema),
@@ -62,14 +62,8 @@ export default function ComposeMessageDialog({ isOpen, onClose }: ComposeMessage
         priority: data.priority,
       };
 
-      if (data.scheduledFor) {
-        await scheduleMessage({
-          ...payload,
-          scheduledFor: data.scheduledFor,
-        });
-      } else {
-        await sendMessage(payload);
-      }
+      // Note: Scheduling feature not implemented in current API
+      await sendMessage(payload);
 
       handleDialogClose();
     } catch {

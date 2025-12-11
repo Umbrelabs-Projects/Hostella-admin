@@ -54,7 +54,6 @@ export default function BookingsTable({
     <DataTable
       columns={columns({ onView, onDelete, showStatus: true, showAssigned: false })}
       data={filtered || []}
-      isLoading={isLoading}
     />
   );
 }

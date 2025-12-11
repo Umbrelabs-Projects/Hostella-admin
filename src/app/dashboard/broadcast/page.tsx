@@ -35,12 +35,12 @@ export default function BroadcastPage() {
   // Fetch messages on component mount and when filters change
   useEffect(() => {
     const loadMessages = async () => {
-      await fetchMessages(currentPage, pageSize, searchQuery, statusFilter, priorityFilter);
+      await fetchMessages(currentPage, pageSize);
       setIsInitialized(true);
     };
 
     loadMessages();
-  }, [currentPage, pageSize, searchQuery, statusFilter, priorityFilter, fetchMessages]);
+  }, [currentPage, pageSize, fetchMessages]);
 
   const handleFilterChange = useCallback(() => {
     setCurrentPage(1);
@@ -51,7 +51,7 @@ export default function BroadcastPage() {
     if (confirmed) {
       await deleteMessage(id);
       // Refresh the list
-      await fetchMessages(currentPage, pageSize, searchQuery, statusFilter, priorityFilter);
+      await fetchMessages(currentPage, pageSize);
     }
   };
 

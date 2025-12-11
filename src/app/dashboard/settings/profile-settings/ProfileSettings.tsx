@@ -14,11 +14,14 @@ export default function ProfileSettings() {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
 
   const handleSave = async () => {
-    const formData = new FormData();
-    formData.append("firstName", firstName);
-    formData.append("lastName", lastName);
-    if (avatarFile) formData.append("avatar", avatarFile);
-    await updateProfile(formData);
+    const updates: Partial<{ firstName: string; lastName: string }> = {
+      firstName,
+      lastName,
+    };
+    // Note: Avatar file upload may need separate handling via API
+    if (user) {
+      await updateProfile(updates);
+    }
   };
 
   return (
