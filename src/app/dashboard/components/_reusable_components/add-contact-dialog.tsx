@@ -81,7 +81,7 @@ const FORM_SECTIONS: { title?: string; columns: number; fields: FieldConfig[] }[
         type: "select",
         selectOptions: [
           { value: "One-in-one", label: "One-in-one" },
-          { value: "Two-in-two", label: "Two-in-two" },
+          { value: "Two-in-one", label: "Two-in-one" },
         ],
       },
       { name: "hostelName", label: "Hostel", type: "text" },
@@ -106,7 +106,7 @@ const DEFAULT_FORM_DATA: Partial<StudentBooking> = {
   level: "100",
   school: "",
   hostelName: "",
-  roomTitle: "Two-in-two",
+  roomTitle: "One-in-one",
   price: "",
   emergencyContactName: "",
   emergencyContactNumber: "",
@@ -126,7 +126,7 @@ function FormField({ field, value, onChange }: FormFieldProps) {
   if (field.type === "select") {
     return (
       <div>
-        <Label className="mb-2" htmlFor={field.name}>{field.label}</Label>
+        <Label className="mb-1 block" htmlFor={field.name}>{field.label}</Label>
         <Select value={value || ""} onValueChange={(v) => onChange(field.name, v)}>
           <SelectTrigger id={field.name}>
             <SelectValue />
@@ -145,7 +145,7 @@ function FormField({ field, value, onChange }: FormFieldProps) {
 
   return (
     <div>
-      <Label htmlFor={field.name}>{field.label}</Label>
+      <Label className="mb-1 block" htmlFor={field.name}>{field.label}</Label>
       <Input
         id={field.name}
         name={field.name}
@@ -187,7 +187,14 @@ export default function AddContactDialog({
           className="space-y-4"
         >
           {FORM_SECTIONS.map((section, idx) => (
-            <div key={idx} className={`grid grid-cols-${section.columns} gap-4`}>
+            <div 
+              key={idx} 
+              className={`grid gap-4 ${
+                section.columns === 3 
+                  ? 'grid-cols-1 sm:grid-cols-3' 
+                  : 'grid-cols-1 sm:grid-cols-2'
+              }`}
+            >
               {section.fields.map((field) => (
                 <FormField
                   key={field.name}

@@ -2,13 +2,13 @@
 
 import React, { useMemo } from "react";
 import { Notification } from "@/types/notifications";
-import { CheckCheck, TrashIcon } from "lucide-react";
+import { Bell, CheckCheck, TrashIcon } from "lucide-react";
 import { typeConfig } from "@/stores/useNotificationsStore";
 
 interface NotificationCardProps {
   notification: Notification;
-  markAsRead: (id: number) => void;
-  deleteNotification: (id: number) => void;
+  markAsRead: (id: string) => void;
+  deleteNotification: (id: string) => void;
 }
 
 const NotificationCard: React.FC<NotificationCardProps> = ({
@@ -16,7 +16,8 @@ const NotificationCard: React.FC<NotificationCardProps> = ({
   markAsRead,
   deleteNotification,
 }) => {
-  const config = typeConfig[notification.type as keyof typeof typeConfig];
+  const config =
+    typeConfig[notification.type as keyof typeof typeConfig] ?? typeConfig.system_alert;
 
   const containerClass = useMemo(
     () =>
@@ -28,7 +29,7 @@ const NotificationCard: React.FC<NotificationCardProps> = ({
     [notification.read]
   );
 
-  const Icon = config.icon;
+  const Icon = config.icon ?? Bell;
 
   return (
     <div className={containerClass}>
@@ -64,7 +65,7 @@ const NotificationCard: React.FC<NotificationCardProps> = ({
       </p>
       <div>
         <span className="text-gray-500 text-xs dark:text-gray-400">
-          {notification.time}
+          {notification.time ?? "Just now"}
         </span>
       </div>
     </div>

@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import Image from "next/image";
-import { Upload } from "lucide-react";
+import { Upload, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface AvatarUploaderProps {
@@ -28,13 +28,19 @@ export default function AvatarUploader({
   return (
     <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
       <div className="relative">
-        <Image
-          src={preview}
-          alt="Profile"
-          width={128}
-          height={128}
-          className="rounded-full border"
-        />
+        {preview && !preview.includes('/avatar.jpg') ? (
+          <Image
+            src={preview}
+            alt="Profile"
+            width={128}
+            height={128}
+            className="rounded-full border"
+          />
+        ) : (
+          <div className="w-32 h-32 rounded-full border border-gray-300 bg-gray-100 flex items-center justify-center">
+            <User className="w-16 h-16 text-gray-400" />
+          </div>
+        )}
         <label
           htmlFor="avatar-upload"
           className="absolute bottom-0 right-0 cursor-pointer"

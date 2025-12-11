@@ -1,7 +1,7 @@
 // src/types/booking.ts
 export type Gender = "male" | "female";
 export type Level = "100" | "200" | "300" | "400";
-export type RoomTitle = "One-in-one" | "Two-in-two";
+export type RoomTitle = "One-in-one" | "Two-in-one";
 
 export type BookingStatus = "pending payment" | "pending approval" | "approved";
 

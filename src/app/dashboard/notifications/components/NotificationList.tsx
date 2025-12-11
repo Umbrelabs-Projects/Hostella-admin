@@ -7,8 +7,8 @@ import { Notification } from "@/types/notifications";
 
 interface NotificationListProps {
   notifications: Notification[];
-  markAsRead: (id: number) => void;
-  deleteNotification: (id: number) => void;
+  markAsRead: (id: string) => void;
+  deleteNotification: (id: string) => void;
 }
 
 export const NotificationList: React.FC<NotificationListProps> = ({
