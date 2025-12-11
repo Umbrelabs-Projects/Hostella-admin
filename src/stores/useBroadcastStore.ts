@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { BroadcastMessage, BroadcastComposer } from "@/types/broadcast";
+import { apiFetch, APIException } from "@/lib/api";
 
 export interface BroadcastState {
   // Data
@@ -51,7 +52,16 @@ export interface BroadcastState {
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   setSuccess: (success: string | null) => void;
+  clearError: () => void;
+  clearSuccess: () => void;
   clearMessages: () => void;
+
+  // API Actions
+  fetchMessages: (page?: number, pageSize?: number) => Promise<void>;
+  sendMessage: (message: BroadcastComposer) => Promise<BroadcastMessage>;
+  updateMessageApi: (id: string, updates: Partial<BroadcastMessage>) => Promise<BroadcastMessage>;
+  deleteMessageApi: (id: string) => Promise<void>;
+  resendMessage: (id: string) => Promise<BroadcastMessage>;
 }
 
 const defaultComposer: BroadcastComposer = {
@@ -144,6 +154,10 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
 
   setSuccess: (success) => set({ success }),
 
+  clearError: () => set({ error: null }),
+
+  clearSuccess: () => set({ success: null }),
+
   clearMessages: () =>
     set({
       messages: [],
@@ -151,4 +165,161 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
       totalMessages: 0,
       currentPage: 1,
     }),
+
+  // --- API Actions ---
+  fetchMessages: async (page = 1, pageSize = 10) => {
+    set({ loading: true, error: null });
+    try {
+      const { searchQuery, statusFilter, priorityFilter } = get();
+      const params = new URLSearchParams({
+        page: page.toString(),
+        pageSize: pageSize.toString(),
+        ...(searchQuery && { search: searchQuery }),
+        ...(statusFilter !== "all" && { status: statusFilter }),
+        ...(priorityFilter !== "all" && { priority: priorityFilter }),
+      });
+
+      const response = await apiFetch<{
+        messages: BroadcastMessage[];
+        total: number;
+        page: number;
+        pageSize: number;
+      }>(`/broadcast/messages?${params}`, {
+        method: "GET",
+      });
+
+      set({
+        messages: response.messages,
+        totalMessages: response.total,
+        currentPage: response.page,
+        pageSize: response.pageSize,
+        loading: false,
+        error: null,
+      });
+    } catch (err) {
+      const message =
+        err instanceof APIException
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Failed to fetch messages";
+      set({ error: message, loading: false });
+    }
+  },
+
+  sendMessage: async (message) => {
+    set({ loading: true, error: null });
+    try {
+      const newMessage = await apiFetch<BroadcastMessage>("/broadcast/messages", {
+        method: "POST",
+        body: JSON.stringify(message),
+      });
+
+      set((state) => ({
+        messages: [newMessage, ...state.messages],
+        totalMessages: state.totalMessages + 1,
+        loading: false,
+        error: null,
+        success: "Message sent successfully",
+        composer: { ...defaultComposer },
+        isComposeDialogOpen: false,
+      }));
+
+      return newMessage;
+    } catch (err) {
+      const message =
+        err instanceof APIException
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Failed to send message";
+      set({ error: message, loading: false });
+      throw err;
+    }
+  },
+
+  updateMessageApi: async (id, updates) => {
+    set({ loading: true, error: null });
+    try {
+      const updated = await apiFetch<BroadcastMessage>(`/broadcast/messages/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(updates),
+      });
+
+      set((state) => ({
+        messages: state.messages.map((m) => (m.id === id ? updated : m)),
+        selectedMessage: state.selectedMessage?.id === id ? updated : state.selectedMessage,
+        loading: false,
+        error: null,
+      }));
+
+      return updated;
+    } catch (err) {
+      const message =
+        err instanceof APIException
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Failed to update message";
+      set({ error: message, loading: false });
+      throw err;
+    }
+  },
+
+  deleteMessageApi: async (id) => {
+    set({ loading: true, error: null });
+    try {
+      await apiFetch(`/broadcast/messages/${id}`, {
+        method: "DELETE",
+      });
+
+      set((state) => ({
+        messages: state.messages.filter((m) => m.id !== id),
+        selectedMessage: state.selectedMessage?.id === id ? null : state.selectedMessage,
+        totalMessages: state.totalMessages - 1,
+        loading: false,
+        error: null,
+      }));
+    } catch (err) {
+      const message =
+        err instanceof APIException
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Failed to delete message";
+      set({ error: message, loading: false });
+      throw err;
+    }
+  },
+
+  resendMessage: async (id) => {
+    set({ loading: true, error: null });
+    try {
+      const updated = await apiFetch<BroadcastMessage>(
+        `/broadcast/messages/${id}/resend`,
+        {
+          method: "POST",
+        }
+      );
+
+      set((state) => ({
+        messages: state.messages.map((m) => (m.id === id ? updated : m)),
+        selectedMessage: state.selectedMessage?.id === id ? updated : state.selectedMessage,
+        loading: false,
+        error: null,
+        success: "Message resent successfully",
+      }));
+
+      return updated;
+    } catch (err) {
+      const message =
+        err instanceof APIException
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Failed to resend message";
+      set({ error: message, loading: false });
+      throw err;
+    }
+  },
 }));

@@ -1,7 +1,7 @@
 // /store/useAuthStore.ts
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { setAuthToken, apiFetch } from "@/lib/api";
+import { setAuthToken, apiFetch, APIException } from "@/lib/api";
 import { SignInFormData } from "@/app/(auth)/validations/signInSchema";
 
 interface User {
@@ -18,12 +18,14 @@ interface AuthState {
   token: string | null;
   loading: boolean;
   error: string | null;
+  isAuthenticated: boolean;
 
   signIn: (data: SignInFormData) => Promise<void>;
   signOut: () => void;
   restoreSession: () => Promise<void>;
+  clearError: () => void;
 
-  updateProfile: (updates: FormData) => Promise<void>;
+  updateProfile: (updates: Partial<User>) => Promise<void>;
   updatePassword: (payload: {
     currentPassword: string;
     newPassword: string;
@@ -37,6 +39,7 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       loading: false,
       error: null,
+      isAuthenticated: false,
 
       // --- Sign In ---
       signIn: async (data) => {
@@ -51,17 +54,34 @@ export const useAuthStore = create<AuthState>()(
           );
 
           setAuthToken(res.token);
-          set({ user: res.user, token: res.token, loading: false });
+          set({
+            user: res.user,
+            token: res.token,
+            loading: false,
+            isAuthenticated: true,
+            error: null,
+          });
         } catch (err: unknown) {
-          const message = err instanceof Error ? err.message : "Sign in failed";
-          set({ error: message, loading: false });
+          const message =
+            err instanceof APIException
+              ? err.message
+              : err instanceof Error
+                ? err.message
+                : "Sign in failed";
+          set({ error: message, loading: false, isAuthenticated: false });
+          throw err;
         }
       },
 
       // --- Sign Out ---
       signOut: () => {
         setAuthToken(null);
-        set({ user: null, token: null });
+        set({
+          user: null,
+          token: null,
+          isAuthenticated: false,
+          error: null,
+        });
         localStorage.removeItem("auth-storage");
       },
 
@@ -78,31 +98,54 @@ export const useAuthStore = create<AuthState>()(
             if (token) {
               setAuthToken(token);
               const user = await apiFetch<User>("/auth/me");
-              set({ user, token, loading: false });
+              set({
+                user,
+                token,
+                loading: false,
+                isAuthenticated: true,
+                error: null,
+              });
               return;
             }
           }
 
-          set({ loading: false });
-        } catch {
+          set({ loading: false, isAuthenticated: false });
+        } catch (err) {
           setAuthToken(null);
-          set({ user: null, token: null, loading: false });
+          set({
+            user: null,
+            token: null,
+            loading: false,
+            isAuthenticated: false,
+            error:
+              err instanceof Error ? err.message : "Session restoration failed",
+          });
         }
       },
 
+      // --- Clear Error ---
+      clearError: () => {
+        set({ error: null });
+      },
+
       // --- Update Profile ---
-      updateProfile: async (formData) => {
+      updateProfile: async (updates) => {
         set({ loading: true });
         try {
-          const updated = await apiFetch<User>("/user/updateProfile", {
+          const updated = await apiFetch<User>("/auth/profile", {
             method: "PUT",
-            body: formData,
+            body: JSON.stringify(updates),
           });
-          set({ user: updated, loading: false });
+          set({ user: updated, loading: false, error: null });
         } catch (err) {
           const message =
-            err instanceof Error ? err.message : "Profile update failed";
+            err instanceof APIException
+              ? err.message
+              : err instanceof Error
+                ? err.message
+                : "Profile update failed";
           set({ error: message, loading: false });
+          throw err;
         }
       },
 
@@ -110,15 +153,20 @@ export const useAuthStore = create<AuthState>()(
       updatePassword: async (payload) => {
         set({ loading: true });
         try {
-          await apiFetch("/user/updatePassword", {
+          await apiFetch("/auth/password", {
             method: "POST",
             body: JSON.stringify(payload),
           });
-          set({ loading: false });
+          set({ loading: false, error: null });
         } catch (err) {
           const message =
-            err instanceof Error ? err.message : "Password update failed";
+            err instanceof APIException
+              ? err.message
+              : err instanceof Error
+                ? err.message
+                : "Password update failed";
           set({ error: message, loading: false });
+          throw err;
         }
       },
     }),
@@ -127,6 +175,7 @@ export const useAuthStore = create<AuthState>()(
       partialize: (state) => ({
         token: state.token,
         user: state.user,
+        isAuthenticated: state.isAuthenticated,
       }),
     }
   )

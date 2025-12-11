@@ -12,6 +12,7 @@ type Props = {
   roomFilter: string;
   onView: (b: StudentBooking | null) => void;
   onDelete: (id: string | null) => void;
+  isLoading?: boolean;
 };
 
 export default function BookingsTable({
@@ -22,11 +23,12 @@ export default function BookingsTable({
   roomFilter,
   onView,
   onDelete,
+  isLoading = false,
 }: Props) {
   const filtered = (bookings || []).filter((b) => {
     // status filter
     if (statusFilter !== "all") {
-      if (statusFilter === "unassigned") {
+      if (statusFilter === "approved") {
         if (b.status !== "approved") return false;
       } else {
         if (b.status !== statusFilter) return false;
@@ -52,6 +54,7 @@ export default function BookingsTable({
     <DataTable
       columns={columns({ onView, onDelete, showStatus: true, showAssigned: false })}
       data={filtered || []}
+      isLoading={isLoading}
     />
   );
 }
