@@ -29,7 +29,7 @@ export default function ProfileSettings() {
 
       <AvatarUploader
         avatar={user?.avatar || "/avatar.jpg"}
-        onFileSelect={setAvatarFile}
+        onFileSelect={() => {}}
       />
 
       <hr className="border-gray-200" />
