@@ -23,7 +23,6 @@ export default function BookingsTable({
   roomFilter,
   onView,
   onDelete,
-  isLoading = false,
 }: Props) {
   const filtered = (bookings || []).filter((b) => {
     // status filter

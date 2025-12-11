@@ -11,7 +11,6 @@ export default function ProfileSettings() {
   const loading = useAuthStore((s) => s.loading);
   const [firstName, setFirstName] = useState(user?.firstName || "");
   const [lastName, setLastName] = useState(user?.lastName || "");
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
 
   const handleSave = async () => {
     const updates: Partial<{ firstName: string; lastName: string }> = {
