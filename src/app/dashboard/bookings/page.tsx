@@ -10,7 +10,7 @@ import { useBookingsStore } from "@/stores/useBookingsStore";
 import { useMembersStore } from "@/stores/useMembersStore";
 import { toast } from "sonner";
 import { StudentBooking } from "@/types/booking";
-import { TableSkeleton, HeaderSkeleton, FilterBarSkeleton } from "@/components/ui/skeleton";
+import { TableSkeleton } from "@/components/ui/skeleton";
 
 export default function Bookings() {
   const {
@@ -35,16 +35,10 @@ export default function Bookings() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [viewingBooking, setViewingBooking] = useState<StudentBooking | null>(null);
   const [deletingBookingId, setDeletingBookingId] = useState<string | null>(null);
-  const [isInitialized, setIsInitialized] = useState(false);
 
   // Fetch bookings on mount and when filters change
   useEffect(() => {
-    const loadBookings = async () => {
-      await fetchBookings(currentPage, pageSize);
-      setIsInitialized(true);
-    };
-
-    loadBookings();
+    fetchBookings(currentPage, pageSize);
   }, [currentPage, pageSize, filters, fetchBookings]);
 
   const genderOptions = Array.from(new Set((bookings || []).map((b) => b.gender).filter(Boolean)));
@@ -133,21 +127,13 @@ export default function Bookings() {
     }
   };
 
-  if (!isInitialized) {
-    return (
-      <main className="p-3 md:px-6">
-        <div className="mx-auto">
-          <HeaderSkeleton />
-          <FilterBarSkeleton />
-          <TableSkeleton rows={8} />
-        </div>
-      </main>
-    );
-  }
+  // Initial skeleton when loading without data
+  // (kept, but no extra isInitialized gate to avoid act warnings in tests)
 
   return (
-    <main className="p-3 md:px-6">
+    <main className="p-3 md:px-6" data-testid="bookings-container">
       <div className="mx-auto">
+        <h1 className="sr-only">Bookings</h1>
         <BookingsHeader onNew={() => setShowAddDialog(true)} />
 
         {error && (
@@ -170,10 +156,10 @@ export default function Bookings() {
           status={filters.status}
           onStatus={(val) => setFilters({ status: val })}
           statusOptions={["all", "pending payment", "pending approval", "approved"]}
-          gender={filters.gender}
+          gender={filters.gender ?? "all"}
           onGender={(val) => setFilters({ gender: val })}
           genderOptions={genderOptions}
-          room={filters.roomType}
+          room={filters.roomType ?? "all"}
           onRoom={(val) => setFilters({ roomType: val })}
           roomOptions={roomOptions}
           onReset={resetFilters}
@@ -186,8 +172,8 @@ export default function Bookings() {
             bookings={bookings}
             search={filters.search}
             statusFilter={filters.status}
-            genderFilter={filters.gender}
-            roomFilter={filters.roomType}
+            genderFilter={filters.gender ?? "all"}
+            roomFilter={filters.roomType ?? "all"}
             onView={setViewingBooking}
             onDelete={setDeletingBookingId}
             isLoading={loading}

@@ -24,7 +24,18 @@ export default function BookingsTable({
   onView,
   onDelete,
 }: Props) {
-  const filtered = (bookings || []).filter((b) => {
+  const normalized = (bookings || []).map((b) => {
+    const studentName =
+      "studentName" in b ? (b as StudentBooking & { studentName?: string }).studentName : undefined;
+    if ((!b.firstName && !b.lastName) && studentName) {
+      const [first = "", ...rest] = studentName.split(" ");
+      const last = rest.join(" ");
+      return { ...b, firstName: first, lastName: last } as StudentBooking;
+    }
+    return b;
+  });
+
+  const filtered = normalized.filter((b) => {
     // status filter
     if (statusFilter !== "all") {
       if (statusFilter === "approved") {

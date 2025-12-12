@@ -12,7 +12,6 @@ import TableFilters from "../components/_reusable_components/table-filters";
 export default function MembersPage() {
   const members = useMembersStore((s) => s.members);
   const fetchMembers = useMembersStore((s) => s.fetchMembers);
-  const loading = useMembersStore((s) => s.loading);
   const [viewingBooking, setViewingBooking] = useState<StudentBooking | null>(null);
 
   // Filters

@@ -53,7 +53,9 @@ export const useAuthStore = create<AuthState>()(
             }
           );
 
-          setAuthToken(res.token);
+          if (typeof setAuthToken === "function") {
+            setAuthToken(res.token);
+          }
           set({
             user: res.user,
             token: res.token,
@@ -75,7 +77,9 @@ export const useAuthStore = create<AuthState>()(
 
       // --- Sign Out ---
       signOut: () => {
-        setAuthToken(null);
+        if (typeof setAuthToken === "function") {
+          setAuthToken(null);
+        }
         set({
           user: null,
           token: null,
@@ -93,10 +97,12 @@ export const useAuthStore = create<AuthState>()(
 
           if (stored) {
             const parsed = JSON.parse(stored);
-            const token = parsed?.state?.token;
+            const token = parsed?.token ?? parsed?.state?.token;
 
             if (token) {
-              setAuthToken(token);
+              if (typeof setAuthToken === "function") {
+                setAuthToken(token);
+              }
               const user = await apiFetch<User>("/auth/me");
               set({
                 user,
@@ -111,7 +117,9 @@ export const useAuthStore = create<AuthState>()(
 
           set({ loading: false, isAuthenticated: false });
         } catch (err) {
-          setAuthToken(null);
+          if (typeof setAuthToken === "function") {
+            setAuthToken(null);
+          }
           set({
             user: null,
             token: null,

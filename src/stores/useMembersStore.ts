@@ -88,20 +88,23 @@ export const useMembersStore = create<MembersState>((set, get) => ({
         ...(filters.status !== "all" && { status: filters.status }),
       });
 
-      const response = await apiFetch<{
-        members: StudentBooking[];
-        total: number;
-        page: number;
-        pageSize: number;
-      }>(`/members?${params}`, {
+      const response = await apiFetch<
+        | { members: StudentBooking[]; total: number; page: number; pageSize: number }
+        | { data: StudentBooking[]; total: number; page: number; pageSize: number }
+      >(`/members?${params}`, {
         method: "GET",
       });
 
+      const members = "members" in response ? response.members : response.data;
+      const total = response.total ?? 0;
+      const curPage = response.page ?? page;
+      const size = response.pageSize ?? pageSize;
+
       set({
-        members: response.members,
-        totalMembers: response.total,
-        currentPage: response.page,
-        pageSize: response.pageSize,
+        members,
+        totalMembers: total,
+        currentPage: curPage,
+        pageSize: size,
         loading: false,
         error: null,
       });
