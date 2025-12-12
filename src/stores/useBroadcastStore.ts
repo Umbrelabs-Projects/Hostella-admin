@@ -179,20 +179,23 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
         ...(priorityFilter !== "all" && { priority: priorityFilter }),
       });
 
-      const response = await apiFetch<{
-        messages: BroadcastMessage[];
-        total: number;
-        page: number;
-        pageSize: number;
-      }>(`/broadcast/messages?${params}`, {
+      const response = await apiFetch<
+        | { messages: BroadcastMessage[]; total: number; page: number; pageSize: number }
+        | { data: BroadcastMessage[]; total: number; page: number; pageSize: number }
+      >(`/broadcast/messages?${params}`, {
         method: "GET",
       });
 
+      const messages = "messages" in response ? response.messages : response.data;
+      const total = response.total ?? 0;
+      const curPage = response.page ?? page;
+      const size = response.pageSize ?? pageSize;
+
       set({
-        messages: response.messages,
-        totalMessages: response.total,
-        currentPage: response.page,
-        pageSize: response.pageSize,
+        messages,
+        totalMessages: total,
+        currentPage: curPage,
+        pageSize: size,
         loading: false,
         error: null,
       });
@@ -210,7 +213,7 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
   sendMessage: async (message) => {
     set({ loading: true, error: null });
     try {
-      const newMessage = await apiFetch<BroadcastMessage>("/broadcast/messages", {
+      const newMessage = await apiFetch<BroadcastMessage>("/broadcast/send", {
         method: "POST",
         body: JSON.stringify(message),
       });
@@ -241,7 +244,7 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
   updateMessageApi: async (id, updates) => {
     set({ loading: true, error: null });
     try {
-      const updated = await apiFetch<BroadcastMessage>(`/broadcast/messages/${id}`, {
+      const updated = await apiFetch<BroadcastMessage>(`/broadcast/${id}`, {
         method: "PATCH",
         body: JSON.stringify(updates),
       });
@@ -269,7 +272,7 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
   deleteMessageApi: async (id) => {
     set({ loading: true, error: null });
     try {
-      await apiFetch(`/broadcast/messages/${id}`, {
+      await apiFetch(`/broadcast/${id}`, {
         method: "DELETE",
       });
 
@@ -295,19 +298,16 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
   resendMessage: async (id) => {
     set({ loading: true, error: null });
     try {
-      const updated = await apiFetch<BroadcastMessage>(
-        `/broadcast/messages/${id}/resend`,
-        {
-          method: "POST",
-        }
-      );
+      const updated = await apiFetch<BroadcastMessage>(`/broadcast/${id}/resend`, {
+        method: "POST",
+      });
 
       set((state) => ({
         messages: state.messages.map((m) => (m.id === id ? updated : m)),
         selectedMessage: state.selectedMessage?.id === id ? updated : state.selectedMessage,
         loading: false,
         error: null,
-        success: "Message resent successfully",
+        success: "Message sent!",
       }));
 
       return updated;

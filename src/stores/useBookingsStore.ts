@@ -13,8 +13,8 @@ export type BookingsState = {
   filters: {
     search: string;
     status: string;
-    gender: string;
-    roomType: string;
+    gender?: string;
+    roomType?: string;
   };
 
   // Actions
@@ -52,8 +52,8 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
   filters: {
     search: "",
     status: "all",
-    gender: "all",
-    roomType: "all",
+    gender: undefined,
+    roomType: undefined,
   },
 
   // --- Basic State Actions ---
@@ -98,20 +98,23 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
         ...(filters.roomType !== "all" && { roomType: filters.roomType }),
       });
 
-      const response = await apiFetch<{
-        bookings: StudentBooking[];
-        total: number;
-        page: number;
-        pageSize: number;
-      }>(`/bookings?${params}`, {
+      const response = await apiFetch<
+        | { bookings: StudentBooking[]; total: number; page: number; pageSize: number }
+        | { data: StudentBooking[]; total: number; page: number; pageSize: number }
+      >(`/bookings?${params}`, {
         method: "GET",
       });
 
+      const bookings = "bookings" in response ? response.bookings : response.data;
+      const total = response.total ?? 0;
+      const curPage = response.page ?? page;
+      const size = response.pageSize ?? pageSize;
+
       set({
-        bookings: response.bookings,
-        totalBookings: response.total,
-        currentPage: response.page,
-        pageSize: response.pageSize,
+        bookings,
+        totalBookings: total,
+        currentPage: curPage,
+        pageSize: size,
         loading: false,
         error: null,
       });
@@ -239,13 +242,10 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
   assignRoom: async (id, roomNumber) => {
     set({ loading: true, error: null });
     try {
-      const updated = await apiFetch<StudentBooking>(
-        `/bookings/${id}/assign-room`,
-        {
-          method: "POST",
-          body: JSON.stringify({ roomNumber }),
-        }
-      );
+      const updated = await apiFetch<StudentBooking>(`/bookings/${id}/assign-room`, {
+        method: "PATCH",
+        body: JSON.stringify({ roomNumber }),
+      });
 
       set((state) => ({
         bookings: state.bookings.map((b) => (b.id === id ? updated : b)),

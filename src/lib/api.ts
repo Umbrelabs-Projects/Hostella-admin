@@ -1,10 +1,24 @@
 let authToken: string | null = null;
+const errorCache = new Map<string, APIException>();
 
 export const setAuthToken = (token: string | null) => {
   authToken = token;
 };
 
-export const getAuthToken = () => authToken;
+export const getAuthToken = () => {
+  authToken = null;
+  try {
+    const raw = typeof localStorage !== "undefined" ? localStorage.getItem("auth-storage") : null;
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      const token = parsed?.token ?? parsed?.state?.token ?? null;
+      authToken = typeof token === "string" ? token : null;
+    }
+  } catch {
+    authToken = null;
+  }
+  return authToken;
+};
 
 export interface ApiError {
   message: string;
@@ -31,11 +45,17 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
     ...(options.headers as Record<string, string> | undefined),
   };
 
-  if (authToken) {
-    headers["Authorization"] = `Bearer ${authToken}`;
+  const effectiveToken = getAuthToken();
+  if (effectiveToken) {
+    headers["Authorization"] = `Bearer ${effectiveToken}`;
   }
 
   const url = `${baseUrl}${endpoint}`;
+  const cacheKey = `${options.method || "GET"}:${url}`;
+
+  if (errorCache.has(cacheKey)) {
+    throw errorCache.get(cacheKey)!;
+  }
 
   try {
     const res = await fetch(url, { ...options, headers });
@@ -57,7 +77,9 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
             ? data
             : `API error: ${res.status}`;
 
-      throw new APIException(String(errorMessage), res.status, data);
+      const ex = new APIException(String(errorMessage), res.status, data);
+      errorCache.set(cacheKey, ex);
+      throw ex;
     }
 
     return data as T;

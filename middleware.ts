@@ -8,7 +8,10 @@ const PROTECTED_ROUTES = ["/dashboard", "/chat"];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const token = request.cookies.get("auth-token")?.value;
+  const token =
+    typeof request.cookies?.get === "function"
+      ? request.cookies.get("auth-token")?.value ?? null
+      : null;
 
   // Check if route is protected
   const isProtectedRoute = PROTECTED_ROUTES.some((route) =>
@@ -17,12 +20,14 @@ export function middleware(request: NextRequest) {
 
   // If trying to access protected route without token, redirect to login
   if (isProtectedRoute && !token) {
-    return NextResponse.redirect(new URL("/", request.url));
+    const base = request.url ?? request.nextUrl.origin ?? "http://localhost";
+    return NextResponse.redirect(new URL("/", base));
   }
 
   // If user is authenticated and tries to access login, redirect to dashboard
   if (pathname === "/" && token) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    const base = request.url ?? request.nextUrl.origin ?? "http://localhost";
+    return NextResponse.redirect(new URL("/dashboard", base));
   }
 
   return NextResponse.next();
