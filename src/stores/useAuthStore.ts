@@ -55,29 +55,77 @@ const useAuthStore = create<AuthState>()(
       signIn: async (data) => {
         set({ loading: true, error: null });
         try {
-          const res = await apiFetch<{ user: User; token: string }>(
-            "/auth/login",
-            {
-              method: "POST",
-              body: JSON.stringify(data),
-            }
-          );
+          const res = await apiFetch<
+            | { user: User; token: string }
+            | { success: boolean; data: { user: User; token: string } }
+            | { data: { user: User; token: string } }
+            | { user: User; accessToken: string }
+            | { user: User; access_token: string }
+          >("/auth/login", {
+            method: "POST",
+            body: JSON.stringify(data),
+          });
+
+          // Log the response for debugging
+          console.log("[signIn] Raw API response:", res);
+          console.log("[signIn] Response type:", typeof res);
+          console.log("[signIn] Response keys:", res ? Object.keys(res) : "null");
+
+          // Handle different response formats
+          let user: User | null = null;
+          let token: string | null = null;
+
+          // Format 1: { user: {...}, token: "..." }
+          if ("user" in res && "token" in res) {
+            user = res.user;
+            token = res.token;
+          }
+          // Format 2: { success: true, data: { user: {...}, token: "..." } }
+          else if ("success" in res && "data" in res && res.data) {
+            user = res.data.user;
+            token = res.data.token;
+          }
+          // Format 3: { data: { user: {...}, token: "..." } }
+          else if ("data" in res && res.data) {
+            user = res.data.user;
+            token = res.data.token;
+          }
+          // Format 4: { user: {...}, accessToken: "..." }
+          else if ("user" in res && "accessToken" in res) {
+            user = res.user;
+            token = res.accessToken;
+          }
+          // Format 5: { user: {...}, access_token: "..." }
+          else if ("user" in res && "access_token" in res) {
+            user = res.user;
+            token = res.access_token;
+          }
 
           // Defensive: Only proceed if token is a non-empty string
-          if (!res.token || typeof res.token !== "string" || !res.token.trim()) {
+          if (!token || typeof token !== "string" || !token.trim()) {
+            // Log the actual response for debugging
+            console.error("[signIn] Unexpected response format. Received:", JSON.stringify(res, null, 2));
+            console.error("[signIn] Response keys:", Object.keys(res || {}));
             // Clear all auth state and force logout
             set({ user: null, token: null, isAuthenticated: false, loading: false });
             if (typeof document !== "undefined") {
               document.cookie = `auth-token=; Path=/; Max-Age=0; SameSite=Lax`;
             }
-            throw new Error("Login failed: No token returned from server.");
+            throw new Error("Login failed: No token returned from server. Check console for response details.");
           }
 
-          set({ user: res.user, token: res.token, isAuthenticated: true, loading: false });
+          if (!user) {
+            if (process.env.NODE_ENV === "development") {
+              console.error("[signIn] No user in response:", res);
+            }
+            throw new Error("Login failed: No user data returned from server.");
+          }
+
+          set({ user, token, isAuthenticated: true, loading: false });
           // Sync cookie for middleware
           if (typeof document !== "undefined") {
             const maxAge = 7 * 24 * 60 * 60;
-            document.cookie = `auth-token=${encodeURIComponent(res.token)}; Path=/; Max-Age=${maxAge}; SameSite=Lax`;
+            document.cookie = `auth-token=${encodeURIComponent(token)}; Path=/; Max-Age=${maxAge}; SameSite=Lax`;
           }
         } catch (err: unknown) {
           // Always clear state and cookie on error
