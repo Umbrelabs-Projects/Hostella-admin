@@ -3,7 +3,7 @@
 import { Input } from "@/components/ui/input";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import React from "react";
+import React, { useState, useEffect } from "react";
 
 interface TableFiltersProps {
   search: string;
@@ -34,6 +34,12 @@ export default function TableFilters({
   roomOptions = [],
   onReset,
 }: TableFiltersProps) {
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   return (
     <div className="mb-3 flex flex-col md:flex-row md:items-center md:gap-3">
       <Input
@@ -44,44 +50,56 @@ export default function TableFilters({
       />
 
       {onStatus && (
-        <Select onValueChange={(v) => onStatus(v)} value={status}>
-          <SelectTrigger className="w-48">
-            <SelectValue>{status === "all" ? "All statuses" : status}</SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {statusOptions.map((s) => (
-              <SelectItem key={s} value={s}>{s}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        isMounted ? (
+          <Select onValueChange={(v) => onStatus(v)} value={status}>
+            <SelectTrigger className="w-48">
+              <SelectValue>{status === "all" ? "All statuses" : status}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {statusOptions.map((s) => (
+                <SelectItem key={s} value={s}>{s}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <div className="w-48 h-9 rounded-md border bg-transparent" />
+        )
       )}
 
       {onGender && (
-        <Select onValueChange={(v) => onGender(v)} value={gender}>
-          <SelectTrigger className="w-40">
-            <SelectValue>{gender === "all" ? "All genders" : gender}</SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All genders</SelectItem>
-            {genderOptions.map((g) => (
-              <SelectItem key={g} value={g}>{g}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        isMounted ? (
+          <Select onValueChange={(v) => onGender(v)} value={gender}>
+            <SelectTrigger className="w-40">
+              <SelectValue>{gender === "all" ? "All genders" : gender}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All genders</SelectItem>
+              {genderOptions.map((g) => (
+                <SelectItem key={g} value={g}>{g}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <div className="w-40 h-9 rounded-md border bg-transparent" />
+        )
       )}
 
       {onRoom && (
-        <Select onValueChange={(v) => onRoom(v)} value={room}>
-          <SelectTrigger className="w-48">
-            <SelectValue>{room === "all" ? "All rooms" : room}</SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All rooms</SelectItem>
-            {roomOptions.map((r) => (
-              <SelectItem key={r} value={r}>{r}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        isMounted ? (
+          <Select onValueChange={(v) => onRoom(v)} value={room}>
+            <SelectTrigger className="w-48">
+              <SelectValue>{room === "all" ? "All rooms" : room}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All rooms</SelectItem>
+              {roomOptions.map((r) => (
+                <SelectItem key={r} value={r}>{r}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <div className="w-48 h-9 rounded-md border bg-transparent" />
+        )
       )}
 
       <div className="ml-auto flex gap-2">

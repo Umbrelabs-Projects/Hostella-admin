@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { NotificationHeader } from "./components/NotificationHeader";
 import { NotificationList } from "./components/NotificationList";
 import { useNotificationsStore } from "@/stores/useNotificationsStore";
+import { CardSkeleton } from "@/components/ui/skeleton";
 
 const NotificationsPage: React.FC = () => {
   const {
@@ -17,10 +18,19 @@ const NotificationsPage: React.FC = () => {
     error,
   } = useNotificationsStore();
 
+  const [isInitialized, setIsInitialized] = useState(false);
+
   useEffect(() => {
-    fetchNotifications().catch(() => {
-      // error is already captured in store
-    });
+    const loadNotifications = async () => {
+      try {
+        await fetchNotifications();
+      } catch {
+        // error is already captured in store
+      } finally {
+        setIsInitialized(true);
+      }
+    };
+    loadNotifications();
   }, [fetchNotifications]);
 
   const allRead = notifications.length > 0 && notifications.every((n) => n.read);
@@ -52,17 +62,19 @@ const NotificationsPage: React.FC = () => {
         </div>
       )}
 
-      {loading && (
-        <div className="rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600">
-          Loading notifications...
+      {(loading && !isInitialized) && notifications.length === 0 ? (
+        <div className="space-y-4">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <CardSkeleton key={i} />
+          ))}
         </div>
+      ) : (
+        <NotificationList
+          notifications={notifications}
+          markAsRead={handleMarkAsRead}
+          deleteNotification={handleDelete}
+        />
       )}
-
-      <NotificationList
-        notifications={notifications}
-        markAsRead={handleMarkAsRead}
-        deleteNotification={handleDelete}
-      />
     </div>
   );
 };

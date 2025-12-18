@@ -35,10 +35,15 @@ export default function Bookings() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [viewingBooking, setViewingBooking] = useState<StudentBooking | null>(null);
   const [deletingBookingId, setDeletingBookingId] = useState<string | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Fetch bookings on mount and when filters change
   useEffect(() => {
-    fetchBookings(currentPage, pageSize);
+    const loadBookings = async () => {
+      await fetchBookings(currentPage, pageSize);
+      setIsInitialized(true);
+    };
+    loadBookings();
   }, [currentPage, pageSize, filters, fetchBookings]);
 
   // Ensure bookings is always an array
@@ -167,7 +172,7 @@ export default function Bookings() {
           onReset={resetFilters}
         />
 
-        {loading && !bookingsArray.length ? (
+        {(loading && !isInitialized) && !bookingsArray.length ? (
           <TableSkeleton rows={8} />
         ) : (
           <BookingsTable

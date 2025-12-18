@@ -8,11 +8,14 @@ import EditContactDialog from "../components/_reusable_components/edit-contact-d
 import { useMembersStore } from "@/stores/useMembersStore";
 import { StudentBooking } from "@/types/booking";
 import TableFilters from "../components/_reusable_components/table-filters";
+import { TableSkeleton } from "@/components/ui/skeleton";
 
 export default function MembersPage() {
   const members = useMembersStore((s) => s.members);
+  const loading = useMembersStore((s) => s.loading);
   const fetchMembers = useMembersStore((s) => s.fetchMembers);
   const [viewingBooking, setViewingBooking] = useState<StudentBooking | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Filters
   const [search, setSearch] = useState("");
@@ -27,7 +30,11 @@ export default function MembersPage() {
 
   // Fetch members from backend on component mount
   useEffect(() => {
-    fetchMembers();
+    const loadMembers = async () => {
+      await fetchMembers();
+      setIsInitialized(true);
+    };
+    loadMembers();
   }, [fetchMembers]);
 
   // Members are tracked explicitly in the members store (after Complete Onboarding)
@@ -65,7 +72,11 @@ export default function MembersPage() {
           onReset={resetFilters}
         />
 
-        <DataTable columns={columns({ onView: setViewingBooking, showStatus: false, showAssigned: true, showFloor: true })} data={filteredMembers} />
+        {(loading && !isInitialized) && !membersArray.length ? (
+          <TableSkeleton rows={8} />
+        ) : (
+          <DataTable columns={columns({ onView: setViewingBooking, showStatus: false, showAssigned: true, showFloor: true })} data={filteredMembers} />
+        )}
       </div>
 
       {viewingBooking && (

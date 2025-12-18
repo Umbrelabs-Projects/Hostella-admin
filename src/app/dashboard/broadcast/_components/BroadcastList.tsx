@@ -13,7 +13,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { BroadcastMessage } from "@/types/broadcast";
-import { Loader2, Trash2, RotateCcw, Eye } from "lucide-react";
+import { Trash2, RotateCcw, Eye } from "lucide-react";
+import { TableSkeleton } from "@/components/ui/skeleton";
 
 // Format date without date-fns
 const formatDate = (dateString: string) => {
@@ -68,8 +69,8 @@ export default function BroadcastList({
 }: BroadcastListProps) {
   if (loading && messages.length === 0) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+      <div className="rounded-lg border border-gray-200 bg-white overflow-hidden">
+        <TableSkeleton rows={6} />
       </div>
     );
   }
