@@ -2,8 +2,15 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import PasswordField from "./components/PasswordField";
+import { useAuthStore } from "@/stores/useAuthStore";
+import { toast } from "sonner";
+import { CheckCircle, AlertCircle } from "lucide-react";
 
 export default function PasswordSettings() {
+  const updatePassword = useAuthStore((s) => s.updatePassword);
+  const loading = useAuthStore((s) => s.loading);
+  const error = useAuthStore((s) => s.error);
+
   const [form, setForm] = useState({
     current: "",
     new: "",
@@ -14,17 +21,43 @@ export default function PasswordSettings() {
     new: false,
     confirm: false,
   });
-  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [validationError, setValidationError] = useState("");
 
   const handleSave = async () => {
-    if (form.new !== form.confirm) {
-      alert("Passwords do not match");
+    setValidationError("");
+    setSaveSuccess(false);
+
+    if (!form.current || !form.new || !form.confirm) {
+      setValidationError("All fields are required");
       return;
     }
-    setIsSaving(true);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsSaving(false);
-    setForm({ current: "", new: "", confirm: "" });
+
+    if (form.new !== form.confirm) {
+      setValidationError("New passwords do not match");
+      return;
+    }
+
+    if (form.new.length < 8) {
+      setValidationError("Password must be at least 8 characters");
+      return;
+    }
+
+    try {
+      await updatePassword({
+        currentPassword: form.current,
+        newPassword: form.new,
+      });
+      setSaveSuccess(true);
+      setForm({ current: "", new: "", confirm: "" });
+      toast.success("Password updated successfully");
+      // Hide success message after 3 seconds
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to update password";
+      toast.error(message);
+    }
   };
 
   const handleChange = (
@@ -55,6 +88,30 @@ export default function PasswordSettings() {
         </p>
       </div>
 
+      {/* Success Message */}
+      {saveSuccess && (
+        <div className="flex items-center gap-3 rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-700">
+          <CheckCircle className="h-5 w-5 shrink-0 text-green-600" />
+          <p className="font-medium">Password updated successfully</p>
+        </div>
+      )}
+
+      {/* Validation Error */}
+      {validationError && (
+        <div className="flex items-center gap-3 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          <AlertCircle className="h-5 w-5 shrink-0 text-red-600" />
+          <p className="font-medium">{validationError}</p>
+        </div>
+      )}
+
+      {/* API Error */}
+      {error && !validationError && (
+        <div className="flex items-center gap-3 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          <AlertCircle className="h-5 w-5 shrink-0 text-red-600" />
+          <p className="font-medium">{error}</p>
+        </div>
+      )}
+
       <div className="space-y-6 pt-4">
         {fields.map((field) => (
           <PasswordField
@@ -71,10 +128,10 @@ export default function PasswordSettings() {
         <div className="flex justify-end pt-4">
           <Button
             onClick={handleSave}
-            disabled={!form.current || !form.new || !form.confirm || isSaving}
+            disabled={!form.current || !form.new || !form.confirm || loading}
             className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2"
           >
-            {isSaving ? "Updating..." : "Update Password"}
+            {loading ? "Updating..." : "Update Password"}
           </Button>
         </div>
       </div>

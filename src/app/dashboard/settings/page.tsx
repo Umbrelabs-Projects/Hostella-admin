@@ -4,7 +4,6 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import ProfileSettings from "./profile-settings/ProfileSettings";
 import PasswordSettings from "./password-settings/PasswordSettings";
-import VerificationSettings from "./verification/VerificationSettings";
 import SettingsSidebar from "./components/SettingsSidebar";
 
 export default function SettingsPage() {
@@ -16,8 +15,6 @@ export default function SettingsPage() {
         return <ProfileSettings />;
       case "password":
         return <PasswordSettings />;
-      case "verification":
-        return <VerificationSettings />;
       default:
         return <ProfileSettings />;
     }

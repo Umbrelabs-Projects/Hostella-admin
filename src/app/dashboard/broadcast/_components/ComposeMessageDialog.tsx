@@ -34,7 +34,7 @@ export default function ComposeMessageDialog({ isOpen, onClose }: ComposeMessage
     defaultValues: {
       title: composer.title,
       content: composer.content,
-      recipientType: composer.recipientType,
+      recipientType: "all-members",
       priority: composer.priority,
       scheduledFor: composer.scheduledFor || "",
       selectedRecipients: composer.selectedRecipients || [],
@@ -60,9 +60,9 @@ export default function ComposeMessageDialog({ isOpen, onClose }: ComposeMessage
         recipientType: data.recipientType,
         selectedRecipients: data.selectedRecipients,
         priority: data.priority,
+        scheduledFor: data.scheduledFor || "",
       };
 
-      // Note: Scheduling feature not implemented in current API
       await sendMessage(payload);
 
       handleDialogClose();
@@ -116,28 +116,18 @@ export default function ComposeMessageDialog({ isOpen, onClose }: ComposeMessage
             )}
           </div>
 
-          {/* Recipient Type */}
+          {/* Recipient Type - forced to All Members */}
           <div className="space-y-2">
             <Label htmlFor="recipientType">Send To</Label>
-            <Select
-              value={recipientType}
-              onValueChange={(value) => {
-                setValue("recipientType", value as "all-residents" | "all-members" | "specific-members");
-              }}
-              disabled={loading}
-            >
+            <Select value={recipientType} disabled>
               <SelectTrigger id="recipientType">
-                <SelectValue placeholder="Select recipients" />
+                <SelectValue placeholder="All Members" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all-residents">All Residents</SelectItem>
                 <SelectItem value="all-members">All Members</SelectItem>
-                <SelectItem value="specific-members">Specific Members</SelectItem>
               </SelectContent>
             </Select>
-            {errors.recipientType && (
-              <p className="text-sm text-red-500">{errors.recipientType.message}</p>
-            )}
+            <p className="text-xs text-gray-500">Messages will be sent to all members in your assigned hostel.</p>
           </div>
 
           {/* Priority */}

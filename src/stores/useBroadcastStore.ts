@@ -67,7 +67,7 @@ export interface BroadcastState {
 const defaultComposer: BroadcastComposer = {
   title: "",
   content: "",
-  recipientType: "all-residents",
+  recipientType: "all-members",
   selectedRecipients: [],
   priority: "medium",
   scheduledFor: "",
@@ -179,23 +179,23 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
         ...(priorityFilter !== "all" && { priority: priorityFilter }),
       });
 
-      const response = await apiFetch<
-        | { messages: BroadcastMessage[]; total: number; page: number; pageSize: number }
-        | { data: BroadcastMessage[]; total: number; page: number; pageSize: number }
-      >(`/broadcast/messages?${params}`, {
+      // API returns { success: true, data: [...], pagination: {...} }
+      const response = await apiFetch<{
+        success: boolean;
+        data: BroadcastMessage[];
+        pagination: { page: number; pageSize: number; total: number; totalPages: number };
+      }>(`/broadcasts?${params}`, {
         method: "GET",
       });
 
-      const messages = "messages" in response ? response.messages : response.data;
-      const total = response.total ?? 0;
-      const curPage = response.page ?? page;
-      const size = response.pageSize ?? pageSize;
+      const messages = response.data ?? [];
+      const pagination = response.pagination ?? { page, pageSize, total: 0, totalPages: 0 };
 
       set({
         messages,
-        totalMessages: total,
-        currentPage: curPage,
-        pageSize: size,
+        totalMessages: pagination.total,
+        currentPage: pagination.page,
+        pageSize: pagination.pageSize,
         loading: false,
         error: null,
       });
@@ -213,17 +213,50 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
   sendMessage: async (message) => {
     set({ loading: true, error: null });
     try {
-      const newMessage = await apiFetch<BroadcastMessage>("/broadcast/send", {
+      // Remove selectedRecipients and scheduledFor from payload as per API spec
+      const payload: {
+        title: string;
+        content: string;
+        recipientType: "all-members" | "all-admins";
+        priority: BroadcastPriority;
+        scheduledFor?: string;
+      } = {
+        title: message.title,
+        content: message.content,
+        recipientType: message.recipientType as "all-members" | "all-admins",
+        priority: message.priority,
+      };
+
+      // Determine endpoint based on whether scheduling is requested
+      const hasScheduledFor = message.scheduledFor && message.scheduledFor.trim() !== "";
+      const endpoint = hasScheduledFor ? "/broadcasts/schedule" : "/broadcasts";
+      
+      if (hasScheduledFor) {
+        const scheduledDate = new Date(message.scheduledFor);
+        if (isNaN(scheduledDate.getTime())) {
+          throw new Error("Invalid scheduled date");
+        }
+        payload.scheduledFor = scheduledDate.toISOString();
+      }
+
+      // API returns { success: true, data: BroadcastMessage, message: string }
+      const response = await apiFetch<{
+        success: boolean;
+        data: BroadcastMessage;
+        message: string;
+      }>(endpoint, {
         method: "POST",
-        body: JSON.stringify(message),
+        body: JSON.stringify(payload),
       });
+
+      const newMessage = response.data;
 
       set((state) => ({
         messages: [newMessage, ...state.messages],
         totalMessages: state.totalMessages + 1,
         loading: false,
         error: null,
-        success: "Message sent successfully",
+        success: response.message || "Message sent successfully",
         composer: { ...defaultComposer },
         isComposeDialogOpen: false,
       }));
@@ -244,10 +277,16 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
   updateMessageApi: async (id, updates) => {
     set({ loading: true, error: null });
     try {
-      const updated = await apiFetch<BroadcastMessage>(`/broadcast/${id}`, {
-        method: "PATCH",
+      // API returns { success: true, data: BroadcastMessage }
+      const response = await apiFetch<{
+        success: boolean;
+        data: BroadcastMessage;
+      }>(`/broadcasts/${id}`, {
+        method: "PUT",
         body: JSON.stringify(updates),
       });
+
+      const updated = response.data;
 
       set((state) => ({
         messages: state.messages.map((m) => (m.id === id ? updated : m)),
@@ -272,7 +311,11 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
   deleteMessageApi: async (id) => {
     set({ loading: true, error: null });
     try {
-      await apiFetch(`/broadcast/${id}`, {
+      // API returns { success: true, data: { success: true, message: string } }
+      await apiFetch<{
+        success: boolean;
+        data: { success: boolean; message: string };
+      }>(`/broadcasts/${id}`, {
         method: "DELETE",
       });
 
@@ -298,9 +341,15 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
   resendMessage: async (id) => {
     set({ loading: true, error: null });
     try {
-      const updated = await apiFetch<BroadcastMessage>(`/broadcast/${id}/resend`, {
+      // API returns { success: true, data: BroadcastMessage }
+      const response = await apiFetch<{
+        success: boolean;
+        data: BroadcastMessage;
+      }>(`/broadcasts/${id}/resend`, {
         method: "POST",
       });
+
+      const updated = response.data;
 
       set((state) => ({
         messages: state.messages.map((m) => (m.id === id ? updated : m)),

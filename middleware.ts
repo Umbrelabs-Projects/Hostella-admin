@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Public routes that don't require authentication
-// const PUBLIC_ROUTES = ["/", "/(auth)"];
-
-// Protected routes
+// Protected routes (align with superadmin middleware pattern)
 const PROTECTED_ROUTES = ["/dashboard", "/chat"];
 
 export function middleware(request: NextRequest) {
@@ -22,12 +19,6 @@ export function middleware(request: NextRequest) {
   if (isProtectedRoute && !token) {
     const base = request.url ?? request.nextUrl.origin ?? "http://localhost";
     return NextResponse.redirect(new URL("/", base));
-  }
-
-  // If user is authenticated and tries to access login, redirect to dashboard
-  if (pathname === "/" && token) {
-    const base = request.url ?? request.nextUrl.origin ?? "http://localhost";
-    return NextResponse.redirect(new URL("/dashboard", base));
   }
 
   return NextResponse.next();

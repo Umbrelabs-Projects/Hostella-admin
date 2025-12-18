@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { Mail, Lock, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -12,40 +11,37 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ROUTES } from "@/lib/constants";
 import { images } from "@/lib/images";
-
-const loginSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-});
-
-type LoginFormValues = z.infer<typeof loginSchema>;
+import { useAuthStore } from "@/stores/useAuthStore";
+import { signInSchema, type SignInFormData } from "../validations/signInSchema";
 
 export default function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const signIn = useAuthStore((s) => s.signIn);
 
   const {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<LoginFormValues>({
-    resolver: zodResolver(loginSchema),
+  } = useForm<SignInFormData>({
+    resolver: zodResolver(signInSchema),
   });
 
-  const onSubmit: SubmitHandler<LoginFormValues> = async (_data) => {
-    void _data;
+  const onSubmit: SubmitHandler<SignInFormData> = async (data) => {
     setIsLoading(true);
     toast.info("Logging in...");
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await signIn({ email: data.email, password: data.password });
       toast.success("Login successful!");
-      router.push(ROUTES.dashboard);
-    } catch {
-      toast.error("Login failed. Please try again.");
-    } finally {
-      setIsLoading(false);
+      setTimeout(() => {
+        router.push(ROUTES.dashboard);
+      }, 100);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Login failed. Please try again.";
+      toast.error(message);
     }
+    setIsLoading(false);
   };
 
   return (

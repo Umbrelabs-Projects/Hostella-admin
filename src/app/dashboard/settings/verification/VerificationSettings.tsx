@@ -1,16 +1,19 @@
 "use client";
-import { useState } from "react";
 import VerificationItem from "./components/VerificationItem";
 import { useAuthStore } from "@/stores/useAuthStore";
+
 export default function VerificationSettings() {
   const user = useAuthStore((s) => s.user);
-  const [verificationStatus] = useState({
-    email: { verified: !!user?.email, value: user?.email || "Not provided" },
-    phone: { verified: !!user?.phone, value: user?.phone || "Not provided" },
-  });
 
-  const handleVerify = (type: keyof typeof verificationStatus) => {
-    alert(`Verification link sent to ${verificationStatus[type].value}`);
+  const verificationStatus = {
+    email: {
+      verified: !!user?.emailVerified,
+      value: user?.email || "Not provided",
+    },
+    phone: {
+      verified: !!user?.phoneVerified,
+      value: user?.phone || "Not provided",
+    },
   };
 
   return (
@@ -29,19 +32,11 @@ export default function VerificationSettings() {
           title="Email Address"
           description={verificationStatus.email.value}
           status={verificationStatus.email}
-          actionLabel={
-            !verificationStatus.email.verified ? "Verify" : undefined
-          }
-          onAction={() => handleVerify("email")}
         />
         <VerificationItem
           title="Phone Number"
           description={verificationStatus.phone.value}
           status={verificationStatus.phone}
-          actionLabel={
-            !verificationStatus.phone.verified ? "Verify" : undefined
-          }
-          onAction={() => handleVerify("phone")}
         />
       </div>
     </div>

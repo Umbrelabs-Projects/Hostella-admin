@@ -31,14 +31,18 @@ describe('useBroadcastStore', () => {
   describe('fetchMessages', () => {
     it('should fetch messages with pagination', async () => {
       const mockMessages = [
-        { id: '1', title: 'Welcome', status: 'sent' },
-        { id: '2', title: 'Important', status: 'scheduled' },
+        { id: '1', title: 'Welcome', status: 'sent', recipientType: 'all-members', recipientCount: 10, priority: 'high', createdAt: '2024-01-01', updatedAt: '2024-01-01' },
+        { id: '2', title: 'Important', status: 'scheduled', recipientType: 'all-members', recipientCount: 10, priority: 'high', createdAt: '2024-01-01', updatedAt: '2024-01-01' },
       ]
       ;(apiFetch as jest.Mock).mockResolvedValueOnce({
+        success: true,
         data: mockMessages,
-        total: 2,
-        page: 1,
-        pageSize: 10,
+        pagination: {
+          page: 1,
+          pageSize: 10,
+          total: 2,
+          totalPages: 1,
+        },
       })
 
       const { result } = renderHook(() => useBroadcastStore())
@@ -74,14 +78,23 @@ describe('useBroadcastStore', () => {
       const newMessage = {
         title: 'Test Message',
         content: 'Test content',
-        recipientType: 'all-residents' as const,
+        recipientType: 'all-members' as const,
         priority: 'high' as const,
+        scheduledFor: '',
       }
-      ;(apiFetch as jest.Mock).mockResolvedValueOnce({
-        id: '1',
-        ...newMessage,
-        status: 'sent',
-      })
+      const mockResponse = {
+        success: true,
+        data: {
+          id: '1',
+          ...newMessage,
+          status: 'sent',
+          recipientCount: 10,
+          createdAt: '2024-01-01',
+          updatedAt: '2024-01-01',
+        },
+        message: 'Broadcast sent successfully',
+      }
+      ;(apiFetch as jest.Mock).mockResolvedValueOnce(mockResponse)
 
       const { result } = renderHook(() => useBroadcastStore())
 
@@ -90,17 +103,21 @@ describe('useBroadcastStore', () => {
       })
 
       expect(apiFetch).toHaveBeenCalledWith(
-        '/broadcast/send',
+        '/broadcasts',
         expect.objectContaining({
           method: 'POST',
         })
       )
+      expect(result.current.messages).toContainEqual(mockResponse.data)
     })
   })
 
   describe('deleteMessageApi', () => {
     it('should delete a message', async () => {
-      ;(apiFetch as jest.Mock).mockResolvedValueOnce({ success: true })
+      ;(apiFetch as jest.Mock).mockResolvedValueOnce({
+        success: true,
+        data: { success: true, message: 'Message deleted successfully' },
+      })
 
       const { result } = renderHook(() => useBroadcastStore())
 
@@ -109,7 +126,7 @@ describe('useBroadcastStore', () => {
       })
 
       expect(apiFetch).toHaveBeenCalledWith(
-        '/broadcast/1',
+        '/broadcasts/1',
         expect.objectContaining({ method: 'DELETE' })
       )
     })
@@ -117,11 +134,22 @@ describe('useBroadcastStore', () => {
 
   describe('resendMessage', () => {
     it('should resend a message', async () => {
-      ;(apiFetch as jest.Mock).mockResolvedValueOnce({
-        id: '1',
-        status: 'sent',
-        sentAt: new Date().toISOString(),
-      })
+      const mockResponse = {
+        success: true,
+        data: {
+          id: '1',
+          title: 'Test',
+          content: 'Content',
+          recipientType: 'all-members',
+          recipientCount: 10,
+          priority: 'high',
+          status: 'sent',
+          createdAt: '2024-01-01',
+          updatedAt: '2024-01-01',
+          sentAt: new Date().toISOString(),
+        },
+      }
+      ;(apiFetch as jest.Mock).mockResolvedValueOnce(mockResponse)
 
       const { result } = renderHook(() => useBroadcastStore())
 
@@ -130,7 +158,7 @@ describe('useBroadcastStore', () => {
       })
 
       expect(apiFetch).toHaveBeenCalledWith(
-        '/broadcast/1/resend',
+        '/broadcasts/1/resend',
         expect.objectContaining({ method: 'POST' })
       )
     })

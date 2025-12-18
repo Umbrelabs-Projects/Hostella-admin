@@ -3,21 +3,45 @@ const errorCache = new Map<string, APIException>();
 
 export const setAuthToken = (token: string | null) => {
   authToken = token;
+  if (typeof document !== "undefined") {
+    if (token) {
+      const expiryDate = new Date();
+      expiryDate.setTime(expiryDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+      document.cookie = `auth-token=${encodeURIComponent(token)}; path=/; SameSite=Lax; expires=${expiryDate.toUTCString()}`;
+    } else {
+      document.cookie = "auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
+    }
+  }
 };
 
 export const getAuthToken = () => {
-  authToken = null;
+  // localStorage first (keeps existing tests stable)
   try {
     const raw = typeof localStorage !== "undefined" ? localStorage.getItem("auth-storage") : null;
     if (raw) {
       const parsed = JSON.parse(raw);
       const token = parsed?.token ?? parsed?.state?.token ?? null;
-      authToken = typeof token === "string" ? token : null;
+      if (typeof token === "string") {
+        return token;
+      }
     }
   } catch {
-    authToken = null;
+    // ignore
   }
-  return authToken;
+  // Cookie fallback
+  try {
+    if (typeof document !== "undefined" && document.cookie) {
+      const cookies = document.cookie.split("; ");
+      const tokenCookie = cookies.find((c) => c.startsWith("auth-token="));
+      if (tokenCookie) {
+        const token = decodeURIComponent(tokenCookie.substring("auth-token=".length));
+        return token;
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return null;
 };
 
 export interface ApiError {
@@ -40,8 +64,10 @@ export class APIException extends Error implements ApiError {
 
 export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const baseUrl = process.env.API_URL ?? "";
+  const versionedEndpoint = endpoint.startsWith("/api/v1") ? endpoint : `/api/v1${endpoint}`;
+  const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
+    ...(isFormData ? {} : { "Content-Type": "application/json" }),
     ...(options.headers as Record<string, string> | undefined),
   };
 
@@ -50,7 +76,7 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
     headers["Authorization"] = `Bearer ${effectiveToken}`;
   }
 
-  const url = `${baseUrl}${endpoint}`;
+  const url = `${baseUrl}${versionedEndpoint}`;
   const cacheKey = `${options.method || "GET"}:${url}`;
 
   if (errorCache.has(cacheKey)) {
@@ -70,15 +96,33 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
     }
 
     if (!res.ok) {
-      const errorMessage =
-        typeof data === "object" && data !== null && "message" in data
-          ? (data as Record<string, unknown>).message
-          : typeof data === "string"
-            ? data
-            : `API error: ${res.status}`;
+      // Handle error response format: { success: false, message: "..." } or { message: "..." }
+      let errorMessage = `API error: ${res.status}`;
+      
+      if (typeof data === "object" && data !== null) {
+        const errorData = data as Record<string, unknown>;
+        if ("message" in errorData) {
+          errorMessage = String(errorData.message);
+        } else if ("error" in errorData) {
+          errorMessage = String(errorData.error);
+        }
+      } else if (typeof data === "string") {
+        errorMessage = data;
+      }
 
-      const ex = new APIException(String(errorMessage), res.status, data);
+      const ex = new APIException(errorMessage, res.status, data);
       errorCache.set(cacheKey, ex);
+      
+      // Handle 401 Unauthorized - clear auth and redirect to login
+      if (res.status === 401 && typeof window !== "undefined") {
+        // Clear auth token
+        setAuthToken(null);
+        // Redirect to login if not already on login page
+        if (window.location.pathname !== "/") {
+          window.location.href = "/";
+        }
+      }
+      
       throw ex;
     }
 
