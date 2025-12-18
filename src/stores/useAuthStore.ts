@@ -39,6 +39,19 @@ interface AuthState {
   clearError: () => void;
 }
 
+// Helper function to extract user from different API response formats
+function extractUserFromResponse<T extends User>(
+  response: T | { success: boolean; data: T } | { data: T }
+): T {
+  if ("data" in response && response.data) {
+    return response.data;
+  }
+  if ("success" in response && "data" in response && response.data) {
+    return response.data;
+  }
+  return response as T;
+}
+
 const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
@@ -166,7 +179,20 @@ const useAuthStore = create<AuthState>()(
           const cachedUser: User | null = parsedUser ?? null;
 
           if (token) {
-            const restoredUser = cachedUser ?? (await apiFetch<User>("/user/profile"));
+            let restoredUser: User;
+            if (cachedUser) {
+              restoredUser = cachedUser;
+            } else {
+              // Fetch profile - handle wrapped response format
+              const profileRes = await apiFetch<
+                | User
+                | { success: boolean; data: User }
+                | { data: User }
+              >("/user/profile");
+              
+              restoredUser = extractUserFromResponse(profileRes);
+            }
+            
             set({ user: restoredUser, token, isAuthenticated: true, initializing: false });
             // Normalize persisted shape so future rehydration matches
             try {
@@ -196,15 +222,29 @@ const useAuthStore = create<AuthState>()(
         // Don't set loading state for background fetches
         set({ error: null });
         try {
-          const user = await apiFetch<User>("/user/profile");
-          set({ user });
-          if (process.env.NODE_ENV === "development") {
-            console.log("[fetchProfile] Profile synced:", user);
+          const profileRes = await apiFetch<
+            | User
+            | { success: boolean; data: User }
+            | { data: User }
+          >("/user/profile");
+          
+          const user = extractUserFromResponse(profileRes);
+          // Only update if we got valid user data
+          if (user && user.id) {
+            set({ user });
+            if (process.env.NODE_ENV === "development") {
+              console.log("[fetchProfile] Profile synced:", user);
+            }
+          } else {
+            console.error("[fetchProfile] Invalid user data received:", user);
+            set({ error: "Invalid user data received from server" });
           }
         } catch (err) {
           const message =
             err instanceof Error ? err.message : "Failed to fetch profile";
+          console.error("[fetchProfile] Error:", err);
           set({ error: message });
+          // Don't clear user on error - keep existing user data
         }
       },
 
@@ -215,11 +255,18 @@ const useAuthStore = create<AuthState>()(
           if (process.env.NODE_ENV === "development") {
             console.log("[updateProfile] Uploading profile data...");
           }
-          // API returns a summary object, not full user
-          const updated = await apiFetch<User>("/user/profile", {
+          // API returns wrapped response: { success: true, data: User } or { data: User }
+          const updateRes = await apiFetch<
+            | User
+            | { success: boolean; data: User }
+            | { data: User }
+          >("/user/profile", {
             method: "PUT",
             body: formData,
           });
+          
+          const updated = extractUserFromResponse(updateRes);
+          
           if (process.env.NODE_ENV === "development") {
             console.log("[updateProfile] Received updated user:", updated);
           }
@@ -227,7 +274,14 @@ const useAuthStore = create<AuthState>()(
           set({ user: updated, loading: false });
           // Refetch to ensure we have the latest data from server
           try {
-            const latestUser = await apiFetch<User>("/user/profile");
+            const profileRes = await apiFetch<
+              | User
+              | { success: boolean; data: User }
+              | { data: User }
+            >("/user/profile");
+            
+            const latestUser = extractUserFromResponse(profileRes);
+            
             if (process.env.NODE_ENV === "development") {
               console.log(
                 "[updateProfile] Refetched user from /user/profile:",
