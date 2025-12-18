@@ -31,10 +31,12 @@ export default function MembersPage() {
   }, [fetchMembers]);
 
   // Members are tracked explicitly in the members store (after Complete Onboarding)
-  const genderOptions = Array.from(new Set((members || []).map((b) => b.gender).filter(Boolean)));
-  const roomOptions = Array.from(new Set((members || []).map((b) => b.roomTitle).filter(Boolean)));
+  // Ensure members is always an array
+  const membersArray = Array.isArray(members) ? members : [];
+  const genderOptions = Array.from(new Set(membersArray.map((b) => b.gender).filter(Boolean)));
+  const roomOptions = Array.from(new Set(membersArray.map((b) => b.roomTitle).filter(Boolean)));
 
-  const filteredMembers = (members || []).filter((b) => {
+  const filteredMembers = membersArray.filter((b) => {
     if (genderFilter !== "all" && b.gender !== genderFilter) return false;
     if (roomFilter !== "all" && b.roomTitle !== roomFilter) return false;
     if (!search) return true;
