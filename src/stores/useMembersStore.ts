@@ -101,7 +101,7 @@ export const useMembersStore = create<MembersState>((set, get) => ({
       // 1. { success: true, data: [...], pagination: {...} }
       // 2. { members: [...], total, page, pageSize }
       // 3. Direct array [...]
-      const response = await apiFetch<any>(`/members?${params}`, {
+      const response = await apiFetch<unknown>(`/members?${params}`, {
         method: "GET",
       });
 
@@ -109,11 +109,20 @@ export const useMembersStore = create<MembersState>((set, get) => ({
       let members: StudentBooking[] = [];
       let pagination: { page: number; pageSize: number; total: number; totalPages: number };
 
-      if (Array.isArray(response)) {
+      // Type guard helpers
+      const isArray = (val: unknown): val is StudentBooking[] => Array.isArray(val);
+      const hasMembers = (val: unknown): val is { members: StudentBooking[]; total?: number; page?: number; pageSize?: number; totalPages?: number } => {
+        return typeof val === "object" && val !== null && "members" in val && Array.isArray((val as { members: unknown }).members);
+      };
+      const hasData = (val: unknown): val is { success?: boolean; data: StudentBooking[] | { members: StudentBooking[] }; pagination?: { page: number; pageSize: number; total: number; totalPages: number }; page?: number; pageSize?: number; total?: number; totalPages?: number } => {
+        return typeof val === "object" && val !== null && "data" in val;
+      };
+
+      if (isArray(response)) {
         // Direct array response
         members = response;
         pagination = { page, pageSize, total: response.length, totalPages: Math.ceil(response.length / pageSize) };
-      } else if (response.members && Array.isArray(response.members)) {
+      } else if (hasMembers(response)) {
         // Old format: { members: [...], total, page, pageSize }
         members = response.members;
         pagination = {
@@ -122,22 +131,24 @@ export const useMembersStore = create<MembersState>((set, get) => ({
           total: response.total ?? response.members.length,
           totalPages: response.totalPages ?? Math.ceil((response.total ?? response.members.length) / (response.pageSize ?? pageSize)),
         };
-      } else if (response.data) {
-        // New format: { success: true, data: [...], pagination: {...} }
+      } else if (hasData(response)) {
+        // New format: { success: true, data: [...], pagination: {...} } or { data: [...] }
         if (Array.isArray(response.data)) {
           members = response.data;
-        } else if (typeof response.data === "object" && response.data !== null) {
-          // If data is an object, check if it has a members array inside
-          if (Array.isArray(response.data.members)) {
-            members = response.data.members;
+        } else if (typeof response.data === "object" && response.data !== null && "members" in response.data) {
+          // If data is an object with members array inside
+          const dataWithMembers = response.data as { members: StudentBooking[] };
+          if (Array.isArray(dataWithMembers.members)) {
+            members = dataWithMembers.members;
           } else {
-            console.warn("[fetchMembers] Response.data is an object but not an array:", response.data);
+            console.warn("[fetchMembers] Response.data.members is not an array:", response.data);
             members = [];
           }
         } else {
-          console.warn("[fetchMembers] Response.data is not an array:", response.data);
+          console.warn("[fetchMembers] Response.data is not an array or object with members:", response.data);
           members = [];
         }
+        
         pagination = response.pagination ?? {
           page: response.page ?? page,
           pageSize: response.pageSize ?? pageSize,

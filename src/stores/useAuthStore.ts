@@ -4,6 +4,14 @@ import { persist } from "zustand/middleware";
 import { apiFetch } from "@/lib/api";
 import { SignInFormData } from "@/app/(auth)/validations/signInSchema";
 
+interface AssignedHostel {
+  id: string;
+  name: string;
+  location: string;
+  campus: string;
+  phoneNumber?: string;
+}
+
 interface User {
   id: string;
   firstName: string;
@@ -15,6 +23,9 @@ interface User {
   phoneVerified?: boolean;
   role?: "STUDENT" | "ADMIN" | "SUPER_ADMIN";
   hostelId?: string | null;
+  hostelName?: string | null; // Admin's assigned hostel name (deprecated - use assignedHostels)
+  school?: string | null; // Admin's assigned school (if applicable)
+  assignedHostels?: AssignedHostel[]; // Admin's assigned hostels array
   updatedAt?: string; // ISO timestamp of last profile update
 }
 

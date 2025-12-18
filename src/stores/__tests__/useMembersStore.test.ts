@@ -34,10 +34,14 @@ describe('useMembersStore', () => {
         { id: '2', name: 'Jane Smith', email: 'jane@example.com' },
       ]
       ;(apiFetch as jest.Mock).mockResolvedValueOnce({
+        success: true,
         data: mockMembers,
-        total: 2,
-        page: 1,
-        pageSize: 10,
+        pagination: {
+          page: 1,
+          pageSize: 10,
+          total: 2,
+          totalPages: 1,
+        },
       })
 
       const { result } = renderHook(() => useMembersStore())
@@ -71,7 +75,10 @@ describe('useMembersStore', () => {
   describe('updateMemberApi', () => {
     it('should update member information', async () => {
       const updatedMember = { id: '1', firstName: 'John', lastName: 'Updated' }
-      ;(apiFetch as jest.Mock).mockResolvedValueOnce(updatedMember)
+      ;(apiFetch as jest.Mock).mockResolvedValueOnce({
+        success: true,
+        data: updatedMember,
+      })
 
       const { result } = renderHook(() => useMembersStore())
 

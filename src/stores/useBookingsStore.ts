@@ -111,7 +111,7 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
       // 1. { success: true, data: [...], pagination: {...} }
       // 2. { bookings: [...], total, page, pageSize }
       // 3. Direct array [...]
-      const response = await apiFetch<any>(`/bookings?${params}`, {
+      const response = await apiFetch<unknown>(`/bookings?${params}`, {
         method: "GET",
       });
 
@@ -119,11 +119,20 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
       let bookings: StudentBooking[] = [];
       let pagination: { page: number; pageSize: number; total: number; totalPages: number };
 
-      if (Array.isArray(response)) {
+      // Type guard helpers
+      const isArray = (val: unknown): val is StudentBooking[] => Array.isArray(val);
+      const hasBookings = (val: unknown): val is { bookings: StudentBooking[]; total?: number; page?: number; pageSize?: number; totalPages?: number } => {
+        return typeof val === "object" && val !== null && "bookings" in val && Array.isArray((val as { bookings: unknown }).bookings);
+      };
+      const hasData = (val: unknown): val is { success?: boolean; data: StudentBooking[] | { bookings: StudentBooking[] }; pagination?: { page: number; pageSize: number; total: number; totalPages: number }; page?: number; pageSize?: number; total?: number; totalPages?: number } => {
+        return typeof val === "object" && val !== null && "data" in val;
+      };
+
+      if (isArray(response)) {
         // Direct array response
         bookings = response;
         pagination = { page, pageSize, total: response.length, totalPages: Math.ceil(response.length / pageSize) };
-      } else if (response.bookings && Array.isArray(response.bookings)) {
+      } else if (hasBookings(response)) {
         // Old format: { bookings: [...], total, page, pageSize }
         bookings = response.bookings;
         pagination = {
@@ -132,22 +141,24 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
           total: response.total ?? response.bookings.length,
           totalPages: response.totalPages ?? Math.ceil((response.total ?? response.bookings.length) / (response.pageSize ?? pageSize)),
         };
-      } else if (response.data) {
-        // New format: { success: true, data: [...], pagination: {...} }
+      } else if (hasData(response)) {
+        // New format: { success: true, data: [...], pagination: {...} } or { data: [...] }
         if (Array.isArray(response.data)) {
           bookings = response.data;
-        } else if (typeof response.data === "object" && response.data !== null) {
-          // If data is an object, check if it has a bookings array inside
-          if (Array.isArray(response.data.bookings)) {
-            bookings = response.data.bookings;
+        } else if (typeof response.data === "object" && response.data !== null && "bookings" in response.data) {
+          // If data is an object with bookings array inside
+          const dataWithBookings = response.data as { bookings: StudentBooking[] };
+          if (Array.isArray(dataWithBookings.bookings)) {
+            bookings = dataWithBookings.bookings;
           } else {
-            console.warn("[fetchBookings] Response.data is an object but not an array:", response.data);
+            console.warn("[fetchBookings] Response.data.bookings is not an array:", response.data);
             bookings = [];
           }
         } else {
-          console.warn("[fetchBookings] Response.data is not an array:", response.data);
+          console.warn("[fetchBookings] Response.data is not an array or object with bookings:", response.data);
           bookings = [];
         }
+        
         pagination = response.pagination ?? {
           page: response.page ?? page,
           pageSize: response.pageSize ?? pageSize,
