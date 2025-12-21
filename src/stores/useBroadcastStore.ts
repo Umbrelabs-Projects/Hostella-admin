@@ -364,10 +364,10 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
   deleteMessageApi: async (id) => {
     set({ loading: true, error: null });
     try {
-      // API returns { success: true, data: { success: true, message: string } }
+      // API returns { success: true, message: "Message deleted successfully" }
       await apiFetch<{
         success: boolean;
-        data: { success: boolean; message: string };
+        message: string;
       }>(`/broadcasts/${id}`, {
         method: "DELETE",
       });
@@ -378,6 +378,7 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
         totalMessages: state.totalMessages - 1,
         loading: false,
         error: null,
+        success: "Message deleted successfully",
       }));
     } catch (err) {
       const message =

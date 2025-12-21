@@ -116,10 +116,25 @@ describe('useBroadcastStore', () => {
     it('should delete a message', async () => {
       ;(apiFetch as jest.Mock).mockResolvedValueOnce({
         success: true,
-        data: { success: true, message: 'Message deleted successfully' },
+        message: 'Message deleted successfully',
       })
 
       const { result } = renderHook(() => useBroadcastStore())
+
+      // Set up initial state with a message
+      act(() => {
+        result.current.addMessage({
+          id: '1',
+          title: 'Test',
+          content: 'Content',
+          recipientType: 'all-members',
+          recipientCount: 10,
+          priority: 'high',
+          status: 'sent',
+          createdAt: '2024-01-01',
+          updatedAt: '2024-01-01',
+        })
+      })
 
       await act(async () => {
         await result.current.deleteMessageApi('1')
@@ -129,6 +144,10 @@ describe('useBroadcastStore', () => {
         '/broadcasts/1',
         expect.objectContaining({ method: 'DELETE' })
       )
+      expect(result.current.messages).not.toContainEqual(
+        expect.objectContaining({ id: '1' })
+      )
+      expect(result.current.success).toBe('Message deleted successfully')
     })
   })
 

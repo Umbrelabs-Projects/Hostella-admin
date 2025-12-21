@@ -154,7 +154,7 @@ export default function BroadcastList({
                       <RotateCcw className="h-4 w-4" />
                     </Button>
                   )}
-                  {(message.status === "draft" || message.status === "scheduled") && onDelete && (
+                  {onDelete && (
                     <Button
                       size="sm"
                       variant="ghost"
