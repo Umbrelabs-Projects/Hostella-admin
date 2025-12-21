@@ -20,6 +20,7 @@ const NotificationsPage: React.FC = () => {
 
   const [isInitialized, setIsInitialized] = useState(false);
 
+  // Initial load
   useEffect(() => {
     const loadNotifications = async () => {
       try {
@@ -31,6 +32,54 @@ const NotificationsPage: React.FC = () => {
       }
     };
     loadNotifications();
+  }, [fetchNotifications]);
+
+  // Real-time polling: Fetch notifications every 30 seconds
+  useEffect(() => {
+    const POLL_INTERVAL = 30000; // 30 seconds
+    let intervalId: NodeJS.Timeout | null = null;
+
+    const pollNotifications = async () => {
+      try {
+        await fetchNotifications();
+      } catch {
+        // Silently fail - error is already captured in store
+      }
+    };
+
+    const startPolling = () => {
+      if (intervalId) clearInterval(intervalId);
+      intervalId = setInterval(pollNotifications, POLL_INTERVAL);
+    };
+
+    const stopPolling = () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+    };
+
+    // Start polling initially
+    startPolling();
+
+    // Pause polling when tab is not visible (Page Visibility API)
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopPolling();
+      } else {
+        // Resume polling when tab becomes visible
+        pollNotifications(); // Fetch immediately when tab becomes visible
+        startPolling();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    // Cleanup on unmount
+    return () => {
+      stopPolling();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, [fetchNotifications]);
 
   const allRead = notifications.length > 0 && notifications.every((n) => n.read);
