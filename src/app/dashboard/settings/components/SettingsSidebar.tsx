@@ -14,7 +14,6 @@ export default function SettingsSidebar({
   const menuItems = [
     { id: "profile", label: "Profile Settings", icon: User },
     { id: "password", label: "Password", icon: Lock },
-    { id: "verification", label: "Verification", icon: Shield },
   ];
 
   return (

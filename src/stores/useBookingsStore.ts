@@ -52,27 +52,36 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
   filters: {
     search: "",
     status: "all",
-    gender: undefined,
-    roomType: undefined,
+    gender: "all",
+    roomType: "all",
   },
 
   // --- Basic State Actions ---
-  setBookings: (b: StudentBooking[]) => set({ bookings: b }),
+  setBookings: (b: StudentBooking[]) => set({ bookings: Array.isArray(b) ? b : [] }),
   setSelectedBooking: (b: StudentBooking | null) => set({ selectedBooking: b }),
   updateBooking: (u: StudentBooking) =>
-    set((state) => ({
-      bookings: state.bookings.map((b) => (b.id === u.id ? u : b)),
-      selectedBooking: state.selectedBooking?.id === u.id ? u : state.selectedBooking,
-    })),
+    set((state) => {
+      const currentBookings = Array.isArray(state.bookings) ? state.bookings : [];
+      return {
+        bookings: currentBookings.map((b) => (b.id === u.id ? u : b)),
+        selectedBooking: state.selectedBooking?.id === u.id ? u : state.selectedBooking,
+      };
+    }),
   removeBooking: (id: string) =>
-    set((state) => ({
-      bookings: state.bookings.filter((b) => b.id !== id),
-      selectedBooking: state.selectedBooking?.id === id ? null : state.selectedBooking,
-    })),
+    set((state) => {
+      const currentBookings = Array.isArray(state.bookings) ? state.bookings : [];
+      return {
+        bookings: currentBookings.filter((b) => b.id !== id),
+        selectedBooking: state.selectedBooking?.id === id ? null : state.selectedBooking,
+      };
+    }),
   addBooking: (b: StudentBooking) =>
-    set((state) => ({
-      bookings: [...state.bookings, b],
-    })),
+    set((state) => {
+      const currentBookings = Array.isArray(state.bookings) ? state.bookings : [];
+      return {
+        bookings: [...currentBookings, b],
+      };
+    }),
 
   // --- Pagination & Filter Actions ---
   setCurrentPage: (page: number) => set({ currentPage: page }),
@@ -93,28 +102,87 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
         page: page.toString(),
         pageSize: pageSize.toString(),
         ...(filters.search && { search: filters.search }),
-        ...(filters.status !== "all" && { status: filters.status }),
-        ...(filters.gender !== "all" && { gender: filters.gender }),
-        ...(filters.roomType !== "all" && { roomType: filters.roomType }),
+        ...(filters.status && filters.status !== "all" && { status: filters.status }),
+        ...(filters.gender && filters.gender !== "all" && { gender: filters.gender }),
+        ...(filters.roomType && filters.roomType !== "all" && { roomType: filters.roomType }),
       });
 
-      const response = await apiFetch<
-        | { bookings: StudentBooking[]; total: number; page: number; pageSize: number }
-        | { data: StudentBooking[]; total: number; page: number; pageSize: number }
-      >(`/bookings?${params}`, {
+      // Backend may return different formats:
+      // 1. { success: true, data: [...], pagination: {...} }
+      // 2. { bookings: [...], total, page, pageSize }
+      // 3. Direct array [...]
+      const response = await apiFetch<unknown>(`/bookings?${params}`, {
         method: "GET",
       });
 
-      const bookings = "bookings" in response ? response.bookings : response.data;
-      const total = response.total ?? 0;
-      const curPage = response.page ?? page;
-      const size = response.pageSize ?? pageSize;
+      // Extract bookings from various possible response formats
+      let bookings: StudentBooking[] = [];
+      let pagination: { page: number; pageSize: number; total: number; totalPages: number };
+
+      // Type guard helpers
+      const isArray = (val: unknown): val is StudentBooking[] => Array.isArray(val);
+      const hasBookings = (val: unknown): val is { bookings: StudentBooking[]; total?: number; page?: number; pageSize?: number; totalPages?: number } => {
+        return typeof val === "object" && val !== null && "bookings" in val && Array.isArray((val as { bookings: unknown }).bookings);
+      };
+      const hasData = (val: unknown): val is { success?: boolean; data: StudentBooking[] | { bookings: StudentBooking[] }; pagination?: { page: number; pageSize: number; total: number; totalPages: number }; page?: number; pageSize?: number; total?: number; totalPages?: number } => {
+        return typeof val === "object" && val !== null && "data" in val;
+      };
+
+      if (isArray(response)) {
+        // Direct array response
+        bookings = response;
+        pagination = { page, pageSize, total: response.length, totalPages: Math.ceil(response.length / pageSize) };
+      } else if (hasBookings(response)) {
+        // Old format: { bookings: [...], total, page, pageSize }
+        bookings = response.bookings;
+        pagination = {
+          page: response.page ?? page,
+          pageSize: response.pageSize ?? pageSize,
+          total: response.total ?? response.bookings.length,
+          totalPages: response.totalPages ?? Math.ceil((response.total ?? response.bookings.length) / (response.pageSize ?? pageSize)),
+        };
+      } else if (hasData(response)) {
+        // New format: { success: true, data: [...], pagination: {...} } or { data: [...] }
+        if (Array.isArray(response.data)) {
+          bookings = response.data;
+        } else if (typeof response.data === "object" && response.data !== null && "bookings" in response.data) {
+          // If data is an object with bookings array inside
+          const dataWithBookings = response.data as { bookings: StudentBooking[] };
+          if (Array.isArray(dataWithBookings.bookings)) {
+            bookings = dataWithBookings.bookings;
+          } else {
+            console.warn("[fetchBookings] Response.data.bookings is not an array:", response.data);
+            bookings = [];
+          }
+        } else {
+          console.warn("[fetchBookings] Response.data is not an array or object with bookings:", response.data);
+          bookings = [];
+        }
+        
+        pagination = response.pagination ?? {
+          page: response.page ?? page,
+          pageSize: response.pageSize ?? pageSize,
+          total: response.total ?? bookings.length,
+          totalPages: response.totalPages ?? Math.ceil((response.total ?? bookings.length) / (response.pageSize ?? pageSize)),
+        };
+      } else {
+        console.warn("[fetchBookings] Unexpected response format:", response);
+        bookings = [];
+        pagination = { page, pageSize, total: 0, totalPages: 0 };
+      }
+
+      if (process.env.NODE_ENV === "development") {
+        console.log("[fetchBookings] Full response:", JSON.stringify(response, null, 2));
+        console.log("[fetchBookings] Extracted bookings:", bookings);
+        console.log("[fetchBookings] Bookings is array:", Array.isArray(bookings));
+        console.log("[fetchBookings] Pagination:", pagination);
+      }
 
       set({
         bookings,
-        totalBookings: total,
-        currentPage: curPage,
-        pageSize: size,
+        totalBookings: pagination.total,
+        currentPage: pagination.page,
+        pageSize: pagination.pageSize,
         loading: false,
         error: null,
       });
@@ -132,16 +200,28 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
   createBooking: async (booking) => {
     set({ loading: true, error: null });
     try {
-      const newBooking = await apiFetch<StudentBooking>("/bookings", {
+      // Backend returns { success: true, data: StudentBooking, message: string }
+      const response = await apiFetch<{
+        success: boolean;
+        data: StudentBooking;
+        message?: string;
+      }>("/bookings", {
         method: "POST",
         body: JSON.stringify(booking),
       });
 
-      set((state) => ({
-        bookings: [...state.bookings, newBooking],
-        loading: false,
-        error: null,
-      }));
+      const newBooking = response.data;
+
+      // Ensure bookings is always an array before updating
+      set((state) => {
+        const currentBookings = Array.isArray(state.bookings) ? state.bookings : [];
+        return {
+          bookings: [newBooking, ...currentBookings],
+          totalBookings: state.totalBookings + 1,
+          loading: false,
+          error: null,
+        };
+      });
 
       return newBooking;
     } catch (err) {
@@ -159,17 +239,27 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
   updateBookingApi: async (id, updates) => {
     set({ loading: true, error: null });
     try {
-      const updated = await apiFetch<StudentBooking>(`/bookings/${id}`, {
+      // Backend returns { success: true, data: StudentBooking, message: string }
+      const response = await apiFetch<{
+        success: boolean;
+        data: StudentBooking;
+        message?: string;
+      }>(`/bookings/${id}`, {
         method: "PATCH",
         body: JSON.stringify(updates),
       });
 
-      set((state) => ({
-        bookings: state.bookings.map((b) => (b.id === id ? updated : b)),
-        selectedBooking: state.selectedBooking?.id === id ? updated : state.selectedBooking,
-        loading: false,
-        error: null,
-      }));
+      const updated = response.data;
+
+      set((state) => {
+        const currentBookings = Array.isArray(state.bookings) ? state.bookings : [];
+        return {
+          bookings: currentBookings.map((b) => (b.id === id ? updated : b)),
+          selectedBooking: state.selectedBooking?.id === id ? updated : state.selectedBooking,
+          loading: false,
+          error: null,
+        };
+      });
 
       return updated;
     } catch (err) {
@@ -187,16 +277,24 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
   deleteBooking: async (id) => {
     set({ loading: true, error: null });
     try {
-      await apiFetch(`/bookings/${id}`, {
+      // Backend returns { success: true, data: { success: true, message: string } }
+      await apiFetch<{
+        success: boolean;
+        data: { success: boolean; message: string };
+      }>(`/bookings/${id}`, {
         method: "DELETE",
       });
 
-      set((state) => ({
-        bookings: state.bookings.filter((b) => b.id !== id),
-        selectedBooking: state.selectedBooking?.id === id ? null : state.selectedBooking,
-        loading: false,
-        error: null,
-      }));
+      set((state) => {
+        const currentBookings = Array.isArray(state.bookings) ? state.bookings : [];
+        return {
+          bookings: currentBookings.filter((b) => b.id !== id),
+          selectedBooking: state.selectedBooking?.id === id ? null : state.selectedBooking,
+          totalBookings: state.totalBookings - 1,
+          loading: false,
+          error: null,
+        };
+      });
     } catch (err) {
       const message =
         err instanceof APIException
@@ -212,19 +310,26 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
   approvePayment: async (id) => {
     set({ loading: true, error: null });
     try {
-      const updated = await apiFetch<StudentBooking>(
-        `/bookings/${id}/approve-payment`,
-        {
-          method: "POST",
-        }
-      );
+      // Backend returns { success: true, data: StudentBooking, message: string }
+      const response = await apiFetch<{
+        success: boolean;
+        data: StudentBooking;
+        message?: string;
+      }>(`/bookings/${id}/approve-payment`, {
+        method: "POST",
+      });
 
-      set((state) => ({
-        bookings: state.bookings.map((b) => (b.id === id ? updated : b)),
-        selectedBooking: state.selectedBooking?.id === id ? updated : state.selectedBooking,
-        loading: false,
-        error: null,
-      }));
+      const updated = response.data;
+
+      set((state) => {
+        const currentBookings = Array.isArray(state.bookings) ? state.bookings : [];
+        return {
+          bookings: currentBookings.map((b) => (b.id === id ? updated : b)),
+          selectedBooking: state.selectedBooking?.id === id ? updated : state.selectedBooking,
+          loading: false,
+          error: null,
+        };
+      });
 
       return updated;
     } catch (err) {
@@ -242,17 +347,28 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
   assignRoom: async (id, roomNumber) => {
     set({ loading: true, error: null });
     try {
-      const updated = await apiFetch<StudentBooking>(`/bookings/${id}/assign-room`, {
+      // Backend returns { success: true, data: StudentBooking, message: string }
+      // Note: Method is PATCH (not POST) as per backend update
+      const response = await apiFetch<{
+        success: boolean;
+        data: StudentBooking;
+        message?: string;
+      }>(`/bookings/${id}/assign-room`, {
         method: "PATCH",
         body: JSON.stringify({ roomNumber }),
       });
 
-      set((state) => ({
-        bookings: state.bookings.map((b) => (b.id === id ? updated : b)),
-        selectedBooking: state.selectedBooking?.id === id ? updated : state.selectedBooking,
-        loading: false,
-        error: null,
-      }));
+      const updated = response.data;
+
+      set((state) => {
+        const currentBookings = Array.isArray(state.bookings) ? state.bookings : [];
+        return {
+          bookings: currentBookings.map((b) => (b.id === id ? updated : b)),
+          selectedBooking: state.selectedBooking?.id === id ? updated : state.selectedBooking,
+          loading: false,
+          error: null,
+        };
+      });
 
       return updated;
     } catch (err) {
@@ -270,16 +386,24 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
   completeOnboarding: async (id) => {
     set({ loading: true, error: null });
     try {
-      await apiFetch(`/bookings/${id}/complete-onboarding`, {
+      // Backend returns { success: true, data: { success: true, message: string } }
+      await apiFetch<{
+        success: boolean;
+        data: { success: boolean; message: string };
+      }>(`/bookings/${id}/complete-onboarding`, {
         method: "POST",
       });
 
-      set((state) => ({
-        bookings: state.bookings.filter((b) => b.id !== id),
-        selectedBooking: state.selectedBooking?.id === id ? null : state.selectedBooking,
-        loading: false,
-        error: null,
-      }));
+      set((state) => {
+        const currentBookings = Array.isArray(state.bookings) ? state.bookings : [];
+        return {
+          bookings: currentBookings.filter((b) => b.id !== id),
+          selectedBooking: state.selectedBooking?.id === id ? null : state.selectedBooking,
+          totalBookings: state.totalBookings - 1,
+          loading: false,
+          error: null,
+        };
+      });
     } catch (err) {
       const message =
         err instanceof APIException

@@ -16,7 +16,7 @@ const baseNotification = {
   type: "new_booking",
   title: "New booking",
   description: "A student booked a room",
-  read: false,
+  isRead: false, // Backend uses isRead
   createdAt: "2025-12-10T10:00:00Z",
 };
 
@@ -28,7 +28,10 @@ const resetStore = () => {
       unreadCount: 0,
       loading: false,
       error: null,
-      filters: { limit: 20, offset: 0, unreadOnly: false },
+      filters: { page: 1, pageSize: 50, unreadOnly: false },
+      currentPage: 1,
+      pageSize: 50,
+      totalPages: 0,
     });
   });
   mockedApiFetch.mockReset();
@@ -39,9 +42,13 @@ describe("useNotificationsStore", () => {
 
   it("fetches notifications from the backend", async () => {
     mockedApiFetch.mockResolvedValueOnce({
+      success: true,
       notifications: [baseNotification],
       total: 1,
       unreadCount: 1,
+      page: 1,
+      pageSize: 50,
+      totalPages: 1,
     });
 
     const { result } = renderHook(() => useNotificationsStore());
@@ -51,18 +58,21 @@ describe("useNotificationsStore", () => {
     });
 
     expect(mockedApiFetch).toHaveBeenCalledWith(
-      "/notifications?limit=20&offset=0&unreadOnly=false"
+      expect.stringContaining("/notifications?page=1&pageSize=50")
     );
     expect(result.current.notifications).toHaveLength(1);
     expect(result.current.total).toBe(1);
     expect(result.current.unreadCount).toBe(1);
+    expect(result.current.currentPage).toBe(1);
+    expect(result.current.pageSize).toBe(50);
+    expect(result.current.totalPages).toBe(1);
   });
 
   it("marks a notification as read via the API", async () => {
-    mockedApiFetch.mockResolvedValue({ message: "ok" });
+    mockedApiFetch.mockResolvedValue({ success: true, message: "Notification marked as read" });
     useNotificationsStore.setState((state) => ({
       ...state,
-      notifications: [baseNotification],
+      notifications: [{ ...baseNotification, read: false }],
       total: 1,
       unreadCount: 1,
     }));
@@ -81,10 +91,10 @@ describe("useNotificationsStore", () => {
   });
 
   it("deletes a notification via the API", async () => {
-    mockedApiFetch.mockResolvedValue({ message: "deleted" });
+    mockedApiFetch.mockResolvedValue({ success: true, message: "Notification deleted successfully" });
     useNotificationsStore.setState((state) => ({
       ...state,
-      notifications: [baseNotification],
+      notifications: [{ ...baseNotification, read: false }],
       total: 1,
       unreadCount: 1,
     }));
@@ -104,11 +114,11 @@ describe("useNotificationsStore", () => {
   });
 
   it("marks all notifications as read via the API", async () => {
-    mockedApiFetch.mockResolvedValue({ message: "ok" });
+    mockedApiFetch.mockResolvedValue({ success: true, message: "All notifications marked as read" });
     useNotificationsStore.setState((state) => ({
       ...state,
       notifications: [
-        baseNotification,
+        { ...baseNotification, read: false },
         { ...baseNotification, id: "notif-2", read: false },
       ],
       total: 2,

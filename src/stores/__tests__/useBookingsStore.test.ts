@@ -36,10 +36,14 @@ describe('useBookingsStore', () => {
         { id: '2', studentName: 'Jane', status: 'approved' },
       ]
       ;(apiFetch as jest.Mock).mockResolvedValueOnce({
+        success: true,
         data: mockBookings,
-        total: 2,
-        page: 1,
-        pageSize: 10,
+        pagination: {
+          page: 1,
+          pageSize: 10,
+          total: 2,
+          totalPages: 1,
+        },
       })
 
       const { result } = renderHook(() => useBookingsStore())
@@ -55,7 +59,7 @@ describe('useBookingsStore', () => {
 
     it('should set loading state during fetch', async () => {
       ;(apiFetch as jest.Mock).mockImplementation(
-        () => new Promise((resolve) => setTimeout(() => resolve({ data: [], total: 0 }), 100))
+        () => new Promise((resolve) => setTimeout(() => resolve({ success: true, data: [], pagination: { page: 1, pageSize: 10, total: 0, totalPages: 0 } }), 100))
       )
 
       const { result } = renderHook(() => useBookingsStore())
@@ -116,9 +120,14 @@ describe('useBookingsStore', () => {
         email: 'test@example.com',
         status: 'pending payment',
       }
-      ;(apiFetch as jest.Mock).mockResolvedValueOnce({
+      const createdBooking = {
         id: '3',
         ...newBooking,
+      }
+      ;(apiFetch as jest.Mock).mockResolvedValueOnce({
+        success: true,
+        data: createdBooking,
+        message: 'Booking created successfully',
       })
 
       const { result } = renderHook(() => useBookingsStore())
@@ -134,14 +143,19 @@ describe('useBookingsStore', () => {
           body: JSON.stringify(newBooking),
         })
       )
+      expect(result.current.bookings).toContainEqual(createdBooking)
     })
   })
 
   describe('approvePayment', () => {
     it('should approve payment for a booking', async () => {
-      ;(apiFetch as jest.Mock).mockResolvedValueOnce({
+      const approvedBooking = {
         id: '1',
         status: 'approved',
+      }
+      ;(apiFetch as jest.Mock).mockResolvedValueOnce({
+        success: true,
+        data: approvedBooking,
       })
 
       const { result } = renderHook(() => useBookingsStore())
@@ -159,9 +173,13 @@ describe('useBookingsStore', () => {
 
   describe('assignRoom', () => {
     it('should assign room to a booking', async () => {
-      ;(apiFetch as jest.Mock).mockResolvedValueOnce({
+      const updatedBooking = {
         id: '1',
-        roomNumber: 101,
+        allocatedRoomNumber: 101,
+      }
+      ;(apiFetch as jest.Mock).mockResolvedValueOnce({
+        success: true,
+        data: updatedBooking,
       })
 
       const { result } = renderHook(() => useBookingsStore())
@@ -209,8 +227,8 @@ describe('useBookingsStore', () => {
       expect(result.current.filters).toEqual({
         search: 'John',
         status: 'pending',
-        gender: undefined,
-        roomType: undefined,
+        gender: 'all',
+        roomType: 'all',
       })
       expect(result.current.currentPage).toBe(1)
     })

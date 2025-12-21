@@ -8,11 +8,14 @@ import EditContactDialog from "../components/_reusable_components/edit-contact-d
 import { useMembersStore } from "@/stores/useMembersStore";
 import { StudentBooking } from "@/types/booking";
 import TableFilters from "../components/_reusable_components/table-filters";
+import { TableSkeleton } from "@/components/ui/skeleton";
 
 export default function MembersPage() {
   const members = useMembersStore((s) => s.members);
+  const loading = useMembersStore((s) => s.loading);
   const fetchMembers = useMembersStore((s) => s.fetchMembers);
   const [viewingBooking, setViewingBooking] = useState<StudentBooking | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Filters
   const [search, setSearch] = useState("");
@@ -27,14 +30,20 @@ export default function MembersPage() {
 
   // Fetch members from backend on component mount
   useEffect(() => {
-    fetchMembers();
+    const loadMembers = async () => {
+      await fetchMembers();
+      setIsInitialized(true);
+    };
+    loadMembers();
   }, [fetchMembers]);
 
   // Members are tracked explicitly in the members store (after Complete Onboarding)
-  const genderOptions = Array.from(new Set((members || []).map((b) => b.gender).filter(Boolean)));
-  const roomOptions = Array.from(new Set((members || []).map((b) => b.roomTitle).filter(Boolean)));
+  // Ensure members is always an array
+  const membersArray = Array.isArray(members) ? members : [];
+  const genderOptions = Array.from(new Set(membersArray.map((b) => b.gender).filter(Boolean)));
+  const roomOptions = Array.from(new Set(membersArray.map((b) => b.roomTitle).filter(Boolean)));
 
-  const filteredMembers = (members || []).filter((b) => {
+  const filteredMembers = membersArray.filter((b) => {
     if (genderFilter !== "all" && b.gender !== genderFilter) return false;
     if (roomFilter !== "all" && b.roomTitle !== roomFilter) return false;
     if (!search) return true;
@@ -63,7 +72,11 @@ export default function MembersPage() {
           onReset={resetFilters}
         />
 
-        <DataTable columns={columns({ onView: setViewingBooking, showStatus: false, showAssigned: true, showFloor: true })} data={filteredMembers} />
+        {(loading && !isInitialized) && !membersArray.length ? (
+          <TableSkeleton rows={8} />
+        ) : (
+          <DataTable columns={columns({ onView: setViewingBooking, showStatus: false, showAssigned: true, showFloor: true })} data={filteredMembers} />
+        )}
       </div>
 
       {viewingBooking && (

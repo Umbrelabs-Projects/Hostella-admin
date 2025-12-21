@@ -12,8 +12,8 @@ import {
 } from "lucide-react";
 
 type NotificationFilters = {
-  limit?: number;
-  offset?: number;
+  page?: number;
+  pageSize?: number;
   unreadOnly?: boolean;
 };
 
@@ -23,14 +23,18 @@ type ApiNotification = {
   title: string;
   description: string;
   relatedId?: string;
-  read: boolean;
+  isRead: boolean; // Backend uses isRead, we'll map to read
   createdAt?: string;
 };
 
 type FetchResponse = {
+  success: boolean;
   notifications: ApiNotification[];
-  total?: number;
-  unreadCount?: number;
+  total: number;
+  unreadCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
 };
 
 interface NotificationsState {
@@ -40,6 +44,9 @@ interface NotificationsState {
   loading: boolean;
   error: string | null;
   filters: Required<NotificationFilters>;
+  currentPage: number;
+  pageSize: number;
+  totalPages: number;
 
   addNotification: (notification: Notification) => void;
   fetchNotifications: (filters?: NotificationFilters) => Promise<void>;
@@ -48,6 +55,8 @@ interface NotificationsState {
   deleteNotification: (id: string) => Promise<void>;
   deleteAll: () => Promise<void>;
   setFilters: (filters: NotificationFilters) => void;
+  setCurrentPage: (page: number) => void;
+  setPageSize: (size: number) => void;
   clearError: () => void;
 }
 
@@ -112,14 +121,14 @@ const normalizeNotification = (notification: ApiNotification): Notification => (
   title: notification.title,
   description: notification.description,
   relatedId: notification.relatedId,
-  read: notification.read,
+  read: notification.isRead, // Map isRead from backend to read for frontend
   createdAt: notification.createdAt,
   time: formatRelativeTime(notification.createdAt),
 });
 
 const defaultFilters: Required<NotificationFilters> = {
-  limit: 20,
-  offset: 0,
+  page: 1,
+  pageSize: 50,
   unreadOnly: false,
 };
 
@@ -130,6 +139,9 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
   loading: false,
   error: null,
   filters: defaultFilters,
+  currentPage: 1,
+  pageSize: 50,
+  totalPages: 0,
 
   addNotification: (notification) =>
     set((state) => ({
@@ -144,20 +156,54 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
     try {
       const mergedFilters = { ...get().filters, ...filters };
       const params = new URLSearchParams({
-        limit: mergedFilters.limit.toString(),
-        offset: mergedFilters.offset.toString(),
-        unreadOnly: mergedFilters.unreadOnly.toString(),
+        page: mergedFilters.page.toString(),
+        pageSize: mergedFilters.pageSize.toString(),
+        ...(mergedFilters.unreadOnly && { unreadOnly: mergedFilters.unreadOnly.toString() }),
       });
 
+      // Backend returns { success: true, notifications: [...], total, unreadCount, page, pageSize, totalPages }
       const response = await apiFetch<FetchResponse>(`/notifications?${params.toString()}`);
 
-      const normalized = response.notifications.map(normalizeNotification);
-      const unread = response.unreadCount ?? normalized.filter((n) => !n.read).length;
+      // Handle different response formats
+      let apiNotifications: ApiNotification[] = [];
+      let paginationData = {
+        total: 0,
+        unreadCount: 0,
+        page: mergedFilters.page,
+        pageSize: mergedFilters.pageSize,
+        totalPages: 0,
+      };
+
+      if (response.success && Array.isArray(response.notifications)) {
+        apiNotifications = response.notifications;
+        paginationData = {
+          total: response.total ?? 0,
+          unreadCount: response.unreadCount ?? 0,
+          page: response.page ?? mergedFilters.page,
+          pageSize: response.pageSize ?? mergedFilters.pageSize,
+          totalPages: response.totalPages ?? 0,
+        };
+      } else if (Array.isArray(response.notifications)) {
+        // Fallback: if response doesn't have success field but has notifications
+        apiNotifications = response.notifications;
+        paginationData = {
+          total: response.total ?? apiNotifications.length,
+          unreadCount: response.unreadCount ?? apiNotifications.filter((n) => !n.isRead).length,
+          page: response.page ?? mergedFilters.page,
+          pageSize: response.pageSize ?? mergedFilters.pageSize,
+          totalPages: response.totalPages ?? Math.ceil((response.total ?? apiNotifications.length) / (response.pageSize ?? mergedFilters.pageSize)),
+        };
+      }
+
+      const normalized = apiNotifications.map(normalizeNotification);
 
       set({
         notifications: normalized,
-        total: response.total ?? normalized.length,
-        unreadCount: unread,
+        total: paginationData.total,
+        unreadCount: paginationData.unreadCount,
+        currentPage: paginationData.page,
+        pageSize: paginationData.pageSize,
+        totalPages: paginationData.totalPages,
         loading: false,
         error: null,
         filters: mergedFilters,
@@ -177,13 +223,22 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
 
   markAsRead: async (id) => {
     try {
-      await apiFetch(`/notifications/${id}/read`, { method: "POST" });
-      set((state) => ({
-        notifications: state.notifications.map((n) =>
-          n.id === id ? { ...n, read: true } : n
-        ),
-        unreadCount: Math.max(0, state.unreadCount - 1),
-      }));
+      // Backend returns { success: true, message: "Notification marked as read" }
+      await apiFetch<{ success: boolean; message: string }>(`/notifications/${id}/read`, { 
+        method: "POST" 
+      });
+      
+      set((state) => {
+        const notification = state.notifications.find((n) => n.id === id);
+        const wasUnread = notification && !notification.read;
+        
+        return {
+          notifications: state.notifications.map((n) =>
+            n.id === id ? { ...n, read: true } : n
+          ),
+          unreadCount: wasUnread ? Math.max(0, state.unreadCount - 1) : state.unreadCount,
+        };
+      });
     } catch (err) {
       const message =
         err instanceof APIException
@@ -198,7 +253,11 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
 
   markAllAsRead: async () => {
     try {
-      await apiFetch("/notifications/mark-all-read", { method: "POST" });
+      // Backend returns { success: true, message: "All notifications marked as read" }
+      await apiFetch<{ success: boolean; message: string }>("/notifications/mark-all-read", { 
+        method: "POST" 
+      });
+      
       set((state) => ({
         notifications: state.notifications.map((n) => ({ ...n, read: true })),
         unreadCount: 0,
@@ -217,15 +276,20 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
 
   deleteNotification: async (id) => {
     try {
-      await apiFetch(`/notifications/${id}`, { method: "DELETE" });
+      // Backend returns { success: true, message: "Notification deleted successfully" }
+      await apiFetch<{ success: boolean; message: string }>(`/notifications/${id}`, { 
+        method: "DELETE" 
+      });
+      
       set((state) => {
+        const notification = state.notifications.find((n) => n.id === id);
+        const wasUnread = notification && !notification.read;
         const nextNotifications = state.notifications.filter((n) => n.id !== id);
-        const unreadAdjustment = state.notifications.find((n) => n.id === id && !n.read) ? 1 : 0;
 
         return {
           notifications: nextNotifications,
           total: Math.max(0, state.total - 1),
-          unreadCount: Math.max(0, state.unreadCount - unreadAdjustment),
+          unreadCount: wasUnread ? Math.max(0, state.unreadCount - 1) : state.unreadCount,
         };
       });
     } catch (err) {
@@ -265,7 +329,12 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
   setFilters: (filters) =>
     set((state) => ({
       filters: { ...state.filters, ...filters },
+      currentPage: 1, // Reset to first page when filters change
     })),
+
+  setCurrentPage: (page: number) => set({ currentPage: page }),
+
+  setPageSize: (size: number) => set({ pageSize: size, currentPage: 1 }),
 
   clearError: () => set({ error: null }),
 }));

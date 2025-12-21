@@ -35,14 +35,21 @@ export default function Bookings() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [viewingBooking, setViewingBooking] = useState<StudentBooking | null>(null);
   const [deletingBookingId, setDeletingBookingId] = useState<string | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Fetch bookings on mount and when filters change
   useEffect(() => {
-    fetchBookings(currentPage, pageSize);
+    const loadBookings = async () => {
+      await fetchBookings(currentPage, pageSize);
+      setIsInitialized(true);
+    };
+    loadBookings();
   }, [currentPage, pageSize, filters, fetchBookings]);
 
-  const genderOptions = Array.from(new Set((bookings || []).map((b) => b.gender).filter(Boolean)));
-  const roomOptions = Array.from(new Set((bookings || []).map((b) => b.roomTitle).filter(Boolean)));
+  // Ensure bookings is always an array
+  const bookingsArray = Array.isArray(bookings) ? bookings : [];
+  const genderOptions = Array.from(new Set(bookingsArray.map((b) => b.gender).filter(Boolean)));
+  const roomOptions = Array.from(new Set(bookingsArray.map((b) => b.roomTitle).filter(Boolean)));
 
   const resetFilters = () => {
     setFilters({
@@ -86,7 +93,7 @@ export default function Bookings() {
 
   const handleCompleteOnboarding = async (id: string) => {
     try {
-      const b = bookings.find((x) => x.id === id);
+      const b = bookingsArray.find((x) => x.id === id);
       if (!b?.allocatedRoomNumber) {
         toast.error("Cannot complete onboarding without an assigned room");
         return;
@@ -104,7 +111,7 @@ export default function Bookings() {
     try {
       // This might be a local update or API call depending on business logic
       // For now, treating as local state update
-      const b = bookings.find((x) => x.id === id);
+      const b = bookingsArray.find((x) => x.id === id);
       if (b) {
         const updated: StudentBooking = { ...b, status: "approved" };
         setViewingBooking(updated);
@@ -165,11 +172,11 @@ export default function Bookings() {
           onReset={resetFilters}
         />
 
-        {loading && !bookings.length ? (
+        {(loading && !isInitialized) && !bookingsArray.length ? (
           <TableSkeleton rows={8} />
         ) : (
           <BookingsTable
-            bookings={bookings}
+            bookings={bookingsArray}
             search={filters.search}
             statusFilter={filters.status}
             genderFilter={filters.gender ?? "all"}

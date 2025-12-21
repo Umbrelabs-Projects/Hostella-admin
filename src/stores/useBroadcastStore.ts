@@ -1,7 +1,7 @@
 // src/stores/useBroadcastStore.ts
 
 import { create } from "zustand";
-import { BroadcastMessage, BroadcastComposer } from "@/types/broadcast";
+import { BroadcastMessage, BroadcastComposer, BroadcastPriority } from "@/types/broadcast";
 import { apiFetch, APIException } from "@/lib/api";
 
 export interface BroadcastState {
@@ -67,7 +67,7 @@ export interface BroadcastState {
 const defaultComposer: BroadcastComposer = {
   title: "",
   content: "",
-  recipientType: "all-residents",
+  recipientType: "all-members",
   selectedRecipients: [],
   priority: "medium",
   scheduledFor: "",
@@ -179,23 +179,75 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
         ...(priorityFilter !== "all" && { priority: priorityFilter }),
       });
 
-      const response = await apiFetch<
-        | { messages: BroadcastMessage[]; total: number; page: number; pageSize: number }
-        | { data: BroadcastMessage[]; total: number; page: number; pageSize: number }
-      >(`/broadcast/messages?${params}`, {
+      // Backend may return different formats:
+      // 1. { success: true, data: [...], pagination: {...} }
+      // 2. { messages: [...], total, page, pageSize }
+      // 3. Direct array [...]
+      const response = await apiFetch<unknown>(`/broadcasts?${params}`, {
         method: "GET",
       });
 
-      const messages = "messages" in response ? response.messages : response.data;
-      const total = response.total ?? 0;
-      const curPage = response.page ?? page;
-      const size = response.pageSize ?? pageSize;
+      // Extract messages from various possible response formats
+      let messages: BroadcastMessage[] = [];
+      let pagination: { page: number; pageSize: number; total: number; totalPages: number };
+
+      // Type guard helpers
+      const isArray = (val: unknown): val is BroadcastMessage[] => Array.isArray(val);
+      const hasMessages = (val: unknown): val is { messages: BroadcastMessage[]; total?: number; page?: number; pageSize?: number; totalPages?: number } => {
+        return typeof val === "object" && val !== null && "messages" in val && Array.isArray((val as { messages: unknown }).messages);
+      };
+      const hasData = (val: unknown): val is { success?: boolean; data: BroadcastMessage[] | { messages: BroadcastMessage[] }; pagination?: { page: number; pageSize: number; total: number; totalPages: number }; page?: number; pageSize?: number; total?: number; totalPages?: number } => {
+        return typeof val === "object" && val !== null && "data" in val;
+      };
+
+      if (isArray(response)) {
+        // Direct array response
+        messages = response;
+        pagination = { page, pageSize, total: response.length, totalPages: Math.ceil(response.length / pageSize) };
+      } else if (hasMessages(response)) {
+        // Old format: { messages: [...], total, page, pageSize }
+        messages = response.messages;
+        pagination = {
+          page: response.page ?? page,
+          pageSize: response.pageSize ?? pageSize,
+          total: response.total ?? response.messages.length,
+          totalPages: response.totalPages ?? Math.ceil((response.total ?? response.messages.length) / (response.pageSize ?? pageSize)),
+        };
+      } else if (hasData(response)) {
+        // New format: { success: true, data: [...], pagination: {...} } or { data: [...] }
+        if (Array.isArray(response.data)) {
+          messages = response.data;
+        } else if (typeof response.data === "object" && response.data !== null && "messages" in response.data) {
+          // If data is an object with messages array inside
+          const dataWithMessages = response.data as { messages: BroadcastMessage[] };
+          if (Array.isArray(dataWithMessages.messages)) {
+            messages = dataWithMessages.messages;
+          } else {
+            console.warn("[fetchMessages] Response.data.messages is not an array:", response.data);
+            messages = [];
+          }
+        } else {
+          console.warn("[fetchMessages] Response.data is not an array or object with messages:", response.data);
+          messages = [];
+        }
+        
+        pagination = response.pagination ?? {
+          page: response.page ?? page,
+          pageSize: response.pageSize ?? pageSize,
+          total: response.total ?? messages.length,
+          totalPages: response.totalPages ?? Math.ceil((response.total ?? messages.length) / (response.pageSize ?? pageSize)),
+        };
+      } else {
+        console.warn("[fetchMessages] Unexpected response format:", response);
+        messages = [];
+        pagination = { page, pageSize, total: 0, totalPages: 0 };
+      }
 
       set({
         messages,
-        totalMessages: total,
-        currentPage: curPage,
-        pageSize: size,
+        totalMessages: pagination.total,
+        currentPage: pagination.page,
+        pageSize: pagination.pageSize,
         loading: false,
         error: null,
       });
@@ -213,17 +265,51 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
   sendMessage: async (message) => {
     set({ loading: true, error: null });
     try {
-      const newMessage = await apiFetch<BroadcastMessage>("/broadcast/send", {
+      // Remove selectedRecipients and scheduledFor from payload as per API spec
+      const payload: {
+        title: string;
+        content: string;
+        recipientType: "all-members" | "all-admins";
+        priority: BroadcastPriority;
+        scheduledFor?: string;
+      } = {
+        title: message.title,
+        content: message.content,
+        recipientType: message.recipientType as "all-members" | "all-admins",
+        priority: message.priority,
+      };
+
+      // Determine endpoint based on whether scheduling is requested
+      const scheduledForValue = message.scheduledFor?.trim();
+      const hasScheduledFor = scheduledForValue && scheduledForValue !== "";
+      const endpoint = hasScheduledFor ? "/broadcasts/schedule" : "/broadcasts";
+      
+      if (hasScheduledFor && scheduledForValue) {
+        const scheduledDate = new Date(scheduledForValue);
+        if (isNaN(scheduledDate.getTime())) {
+          throw new Error("Invalid scheduled date");
+        }
+        payload.scheduledFor = scheduledDate.toISOString();
+      }
+
+      // API returns { success: true, data: BroadcastMessage, message: string }
+      const response = await apiFetch<{
+        success: boolean;
+        data: BroadcastMessage;
+        message: string;
+      }>(endpoint, {
         method: "POST",
-        body: JSON.stringify(message),
+        body: JSON.stringify(payload),
       });
+
+      const newMessage = response.data;
 
       set((state) => ({
         messages: [newMessage, ...state.messages],
         totalMessages: state.totalMessages + 1,
         loading: false,
         error: null,
-        success: "Message sent successfully",
+        success: response.message || "Message sent successfully",
         composer: { ...defaultComposer },
         isComposeDialogOpen: false,
       }));
@@ -244,10 +330,16 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
   updateMessageApi: async (id, updates) => {
     set({ loading: true, error: null });
     try {
-      const updated = await apiFetch<BroadcastMessage>(`/broadcast/${id}`, {
-        method: "PATCH",
+      // API returns { success: true, data: BroadcastMessage }
+      const response = await apiFetch<{
+        success: boolean;
+        data: BroadcastMessage;
+      }>(`/broadcasts/${id}`, {
+        method: "PUT",
         body: JSON.stringify(updates),
       });
+
+      const updated = response.data;
 
       set((state) => ({
         messages: state.messages.map((m) => (m.id === id ? updated : m)),
@@ -272,7 +364,11 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
   deleteMessageApi: async (id) => {
     set({ loading: true, error: null });
     try {
-      await apiFetch(`/broadcast/${id}`, {
+      // API returns { success: true, message: "Message deleted successfully" }
+      await apiFetch<{
+        success: boolean;
+        message: string;
+      }>(`/broadcasts/${id}`, {
         method: "DELETE",
       });
 
@@ -282,6 +378,7 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
         totalMessages: state.totalMessages - 1,
         loading: false,
         error: null,
+        success: "Message deleted successfully",
       }));
     } catch (err) {
       const message =
@@ -298,9 +395,15 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
   resendMessage: async (id) => {
     set({ loading: true, error: null });
     try {
-      const updated = await apiFetch<BroadcastMessage>(`/broadcast/${id}/resend`, {
+      // API returns { success: true, data: BroadcastMessage }
+      const response = await apiFetch<{
+        success: boolean;
+        data: BroadcastMessage;
+      }>(`/broadcasts/${id}/resend`, {
         method: "POST",
       });
+
+      const updated = response.data;
 
       set((state) => ({
         messages: state.messages.map((m) => (m.id === id ? updated : m)),

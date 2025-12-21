@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useAuthStore } from "@/stores/useAuthStore";
 
 interface AddBookingDialogProps {
   open: boolean;
@@ -32,6 +33,7 @@ interface FieldConfig {
   type?: "text" | "date" | "select";
   placeholder?: string;
   selectOptions?: { value: string; label: string }[];
+  disabled?: boolean; // Field is disabled/read-only
 }
 
 const FORM_SECTIONS: { title?: string; columns: number; fields: FieldConfig[] }[] = [
@@ -43,7 +45,21 @@ const FORM_SECTIONS: { title?: string; columns: number; fields: FieldConfig[] }[
       { name: "email", label: "Email", type: "text" },
       { name: "phone", label: "Phone", type: "text" },
       { name: "studentId", label: "Student ID", type: "text" },
-      { name: "school", label: "School", type: "text" },
+      { 
+        name: "school", 
+        label: "School", 
+        type: "select",
+        selectOptions: [
+          { value: "KNUST", label: "KNUST" },
+          { value: "UG", label: "University of Ghana" },
+          { value: "UCC", label: "University of Cape Coast" },
+          { value: "UEW", label: "University of Education, Winneba" },
+          { value: "UDS", label: "University for Development Studies" },
+          { value: "UPSA", label: "University of Professional Studies" },
+          { value: "GIMPA", label: "Ghana Institute of Management and Public Administration" },
+        ],
+        disabled: true,
+      },
     ],
   },
   {
@@ -84,7 +100,12 @@ const FORM_SECTIONS: { title?: string; columns: number; fields: FieldConfig[] }[
           { value: "Two-in-one", label: "Two-in-one" },
         ],
       },
-      { name: "hostelName", label: "Hostel", type: "text" },
+      { 
+        name: "hostelName", 
+        label: "Hostel", 
+        type: "select",
+        selectOptions: [], // Will be populated from user's assignedHostels
+      },
     ],
   },
   {
@@ -127,8 +148,12 @@ function FormField({ field, value, onChange }: FormFieldProps) {
     return (
       <div>
         <Label className="mb-1 block" htmlFor={field.name}>{field.label}</Label>
-        <Select value={value || ""} onValueChange={(v) => onChange(field.name, v)}>
-          <SelectTrigger id={field.name}>
+        <Select 
+          value={value || ""} 
+          onValueChange={(v) => onChange(field.name, v)}
+          disabled={field.disabled}
+        >
+          <SelectTrigger id={field.name} className={field.disabled ? "opacity-60 cursor-not-allowed" : ""}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -153,6 +178,8 @@ function FormField({ field, value, onChange }: FormFieldProps) {
         placeholder={field.placeholder}
         value={value || ""}
         onChange={(e) => onChange(field.name, e.target.value)}
+        disabled={field.disabled}
+        className={field.disabled ? "opacity-60 cursor-not-allowed" : ""}
       />
     </div>
   );
@@ -163,9 +190,52 @@ export default function AddContactDialog({
   onOpenChange,
   onAdd,
 }: AddBookingDialogProps) {
+  const user = useAuthStore((s) => s.user);
   const [formData, setFormData] = useState<Partial<StudentBooking>>(DEFAULT_FORM_DATA);
 
+  // Get assigned hostels from user profile
+  const assignedHostels = user?.assignedHostels || [];
+  
+  // Create hostel options for dropdown (format: "Hostel Name - Campus")
+  const hostelOptions = assignedHostels.map((hostel) => ({
+    value: hostel.name,
+    label: `${hostel.name} - ${hostel.campus}`,
+  }));
+
+  // Update form sections with dynamic hostel options
+  const formSectionsWithHostels = FORM_SECTIONS.map((section) => ({
+    ...section,
+    fields: section.fields.map((field) => {
+      if (field.name === "hostelName") {
+        return {
+          ...field,
+          selectOptions: hostelOptions,
+        };
+      }
+      return field;
+    }),
+  }));
+
+  // Pre-fill school from user profile when dialog opens
+  useEffect(() => {
+    if (open && user) {
+      setFormData((prev) => ({
+        ...prev,
+        // Pre-select first hostel if only one assigned, otherwise leave empty for user to select
+        hostelName: assignedHostels.length === 1 ? assignedHostels[0].name : prev.hostelName || "",
+        school: user.school || prev.school || "KNUST", // Default to KNUST if not provided
+      }));
+    } else if (!open) {
+      // Reset form when dialog closes
+      setFormData(DEFAULT_FORM_DATA);
+    }
+  }, [open, user, assignedHostels]);
+
   const handleFieldChange = (name: keyof StudentBooking, value: string) => {
+    // Prevent changing disabled fields
+    const field = FORM_SECTIONS.flatMap(s => s.fields).find(f => f.name === name);
+    if (field?.disabled) return;
+    
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -186,7 +256,7 @@ export default function AddContactDialog({
           }}
           className="space-y-4"
         >
-          {FORM_SECTIONS.map((section, idx) => (
+          {formSectionsWithHostels.map((section, idx) => (
             <div 
               key={idx} 
               className={`grid gap-4 ${

@@ -49,22 +49,31 @@ export const useMembersStore = create<MembersState>((set, get) => ({
   },
 
   // --- Basic State Actions ---
-  setMembers: (m: StudentBooking[]) => set({ members: m }),
+  setMembers: (m: StudentBooking[]) => set({ members: Array.isArray(m) ? m : [] }),
   setSelectedMember: (m: StudentBooking | null) => set({ selectedMember: m }),
   updateMember: (u: StudentBooking) =>
-    set((state) => ({
-      members: state.members.map((m) => (m.id === u.id ? u : m)),
-      selectedMember: state.selectedMember?.id === u.id ? u : state.selectedMember,
-    })),
+    set((state) => {
+      const currentMembers = Array.isArray(state.members) ? state.members : [];
+      return {
+        members: currentMembers.map((m) => (m.id === u.id ? u : m)),
+        selectedMember: state.selectedMember?.id === u.id ? u : state.selectedMember,
+      };
+    }),
   addMember: (m: StudentBooking) =>
-    set((state) => ({
-      members: state.members.find((x) => x.id === m.id) ? state.members : [...state.members, m],
-    })),
+    set((state) => {
+      const currentMembers = Array.isArray(state.members) ? state.members : [];
+      return {
+        members: currentMembers.find((x) => x.id === m.id) ? currentMembers : [...currentMembers, m],
+      };
+    }),
   removeMember: (id: string) =>
-    set((state) => ({
-      members: state.members.filter((m) => m.id !== id),
-      selectedMember: state.selectedMember?.id === id ? null : state.selectedMember,
-    })),
+    set((state) => {
+      const currentMembers = Array.isArray(state.members) ? state.members : [];
+      return {
+        members: currentMembers.filter((m) => m.id !== id),
+        selectedMember: state.selectedMember?.id === id ? null : state.selectedMember,
+      };
+    }),
 
   // --- Pagination & Filter Actions ---
   setCurrentPage: (page: number) => set({ currentPage: page }),
@@ -85,26 +94,85 @@ export const useMembersStore = create<MembersState>((set, get) => ({
         page: page.toString(),
         pageSize: pageSize.toString(),
         ...(filters.search && { search: filters.search }),
-        ...(filters.status !== "all" && { status: filters.status }),
+        ...(filters.status && filters.status !== "all" && { status: filters.status }),
       });
 
-      const response = await apiFetch<
-        | { members: StudentBooking[]; total: number; page: number; pageSize: number }
-        | { data: StudentBooking[]; total: number; page: number; pageSize: number }
-      >(`/members?${params}`, {
+      // Backend may return different formats:
+      // 1. { success: true, data: [...], pagination: {...} }
+      // 2. { members: [...], total, page, pageSize }
+      // 3. Direct array [...]
+      const response = await apiFetch<unknown>(`/members?${params}`, {
         method: "GET",
       });
 
-      const members = "members" in response ? response.members : response.data;
-      const total = response.total ?? 0;
-      const curPage = response.page ?? page;
-      const size = response.pageSize ?? pageSize;
+      // Extract members from various possible response formats
+      let members: StudentBooking[] = [];
+      let pagination: { page: number; pageSize: number; total: number; totalPages: number };
+
+      // Type guard helpers
+      const isArray = (val: unknown): val is StudentBooking[] => Array.isArray(val);
+      const hasMembers = (val: unknown): val is { members: StudentBooking[]; total?: number; page?: number; pageSize?: number; totalPages?: number } => {
+        return typeof val === "object" && val !== null && "members" in val && Array.isArray((val as { members: unknown }).members);
+      };
+      const hasData = (val: unknown): val is { success?: boolean; data: StudentBooking[] | { members: StudentBooking[] }; pagination?: { page: number; pageSize: number; total: number; totalPages: number }; page?: number; pageSize?: number; total?: number; totalPages?: number } => {
+        return typeof val === "object" && val !== null && "data" in val;
+      };
+
+      if (isArray(response)) {
+        // Direct array response
+        members = response;
+        pagination = { page, pageSize, total: response.length, totalPages: Math.ceil(response.length / pageSize) };
+      } else if (hasMembers(response)) {
+        // Old format: { members: [...], total, page, pageSize }
+        members = response.members;
+        pagination = {
+          page: response.page ?? page,
+          pageSize: response.pageSize ?? pageSize,
+          total: response.total ?? response.members.length,
+          totalPages: response.totalPages ?? Math.ceil((response.total ?? response.members.length) / (response.pageSize ?? pageSize)),
+        };
+      } else if (hasData(response)) {
+        // New format: { success: true, data: [...], pagination: {...} } or { data: [...] }
+        if (Array.isArray(response.data)) {
+          members = response.data;
+        } else if (typeof response.data === "object" && response.data !== null && "members" in response.data) {
+          // If data is an object with members array inside
+          const dataWithMembers = response.data as { members: StudentBooking[] };
+          if (Array.isArray(dataWithMembers.members)) {
+            members = dataWithMembers.members;
+          } else {
+            console.warn("[fetchMembers] Response.data.members is not an array:", response.data);
+            members = [];
+          }
+        } else {
+          console.warn("[fetchMembers] Response.data is not an array or object with members:", response.data);
+          members = [];
+        }
+        
+        pagination = response.pagination ?? {
+          page: response.page ?? page,
+          pageSize: response.pageSize ?? pageSize,
+          total: response.total ?? members.length,
+          totalPages: response.totalPages ?? Math.ceil((response.total ?? members.length) / (response.pageSize ?? pageSize)),
+        };
+      } else {
+        console.warn("[fetchMembers] Unexpected response format:", response);
+        members = [];
+        pagination = { page, pageSize, total: 0, totalPages: 0 };
+      }
+
+      if (process.env.NODE_ENV === "development") {
+        console.log("[fetchMembers] Full response:", JSON.stringify(response, null, 2));
+        console.log("[fetchMembers] Extracted members:", members);
+        console.log("[fetchMembers] Members is array:", Array.isArray(members));
+        console.log("[fetchMembers] Pagination:", pagination);
+      }
 
       set({
         members,
-        totalMembers: total,
-        currentPage: curPage,
-        pageSize: size,
+        totalMembers: pagination.total,
+        currentPage: pagination.page,
+        pageSize: pagination.pageSize,
         loading: false,
         error: null,
       });
@@ -122,17 +190,27 @@ export const useMembersStore = create<MembersState>((set, get) => ({
   updateMemberApi: async (id, updates) => {
     set({ loading: true, error: null });
     try {
-      const updated = await apiFetch<StudentBooking>(`/members/${id}`, {
+      // Backend returns { success: true, data: StudentBooking, message: string }
+      const response = await apiFetch<{
+        success: boolean;
+        data: StudentBooking;
+        message?: string;
+      }>(`/members/${id}`, {
         method: "PATCH",
         body: JSON.stringify(updates),
       });
 
-      set((state) => ({
-        members: state.members.map((m) => (m.id === id ? updated : m)),
-        selectedMember: state.selectedMember?.id === id ? updated : state.selectedMember,
-        loading: false,
-        error: null,
-      }));
+      const updated = response.data;
+
+      set((state) => {
+        const currentMembers = Array.isArray(state.members) ? state.members : [];
+        return {
+          members: currentMembers.map((m) => (m.id === id ? updated : m)),
+          selectedMember: state.selectedMember?.id === id ? updated : state.selectedMember,
+          loading: false,
+          error: null,
+        };
+      });
 
       return updated;
     } catch (err) {
@@ -150,16 +228,24 @@ export const useMembersStore = create<MembersState>((set, get) => ({
   deleteMember: async (id) => {
     set({ loading: true, error: null });
     try {
-      await apiFetch(`/members/${id}`, {
+      // Backend returns { success: true, data: { success: true, message: string } }
+      await apiFetch<{
+        success: boolean;
+        data: { success: boolean; message: string };
+      }>(`/members/${id}`, {
         method: "DELETE",
       });
 
-      set((state) => ({
-        members: state.members.filter((m) => m.id !== id),
-        selectedMember: state.selectedMember?.id === id ? null : state.selectedMember,
-        loading: false,
-        error: null,
-      }));
+      set((state) => {
+        const currentMembers = Array.isArray(state.members) ? state.members : [];
+        return {
+          members: currentMembers.filter((m) => m.id !== id),
+          selectedMember: state.selectedMember?.id === id ? null : state.selectedMember,
+          totalMembers: state.totalMembers - 1,
+          loading: false,
+          error: null,
+        };
+      });
     } catch (err) {
       const message =
         err instanceof APIException
