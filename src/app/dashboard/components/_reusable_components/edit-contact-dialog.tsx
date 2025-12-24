@@ -80,6 +80,43 @@ export default function EditContactDialog({
   }, [local.id]);
 
   // Fetch user avatar - API returns avatar directly in booking response per API docs
+  // Refresh booking data periodically when dialog is open to catch external updates
+  useEffect(() => {
+    const refreshBooking = async () => {
+      if (!local.id) return;
+      
+      try {
+        type BookingDetailResponse = {
+          success?: boolean;
+          data?: StudentBooking;
+        };
+        
+        const response = await apiFetch<BookingDetailResponse>(`/bookings/${local.id}`);
+        const bookingData = response.data || (response as unknown as StudentBooking);
+        
+        if (bookingData) {
+          // Update local state with fresh booking data
+          setLocal(prev => ({
+            ...prev,
+            ...bookingData,
+            status: bookingData.status || prev.status,
+            avatar: bookingData.avatar || prev.avatar,
+          }));
+        }
+      } catch (error) {
+        // Silently fail - booking might not be accessible
+      }
+    };
+
+    // Refresh immediately when dialog opens
+    refreshBooking();
+    
+    // Refresh every 5 seconds while dialog is open to catch external updates
+    const interval = setInterval(refreshBooking, 5000);
+    
+    return () => clearInterval(interval);
+  }, [local.id]);
+
   useEffect(() => {
     // According to API docs: "The booking response includes the student's 'avatar' field"
     // Check if booking has avatar directly (should be in API response)
@@ -136,43 +173,75 @@ export default function EditContactDialog({
     fetchBookingDetail();
   }, [local.id, local.avatar, local.imageUrl, booking]);
 
-  // Fetch payment receipt when booking is in PENDING_PAYMENT status
+  // Fetch payment receipt when booking is in PENDING_PAYMENT or PENDING_APPROVAL status
   useEffect(() => {
     const fetchReceipt = async () => {
-      if (normalizedStatus === "PENDING_PAYMENT" || local.status.toLowerCase() === "pending payment") {
+      const isPendingPayment = normalizedStatus === "PENDING_PAYMENT" || local.status.toLowerCase() === "pending payment";
+      const isPendingApproval = normalizedStatus === "PENDING_APPROVAL" || local.status.toLowerCase() === "pending approval";
+      
+      if (isPendingPayment || isPendingApproval) {
         setReceiptLoading(true);
         try {
-          // Fetch pending receipts and find one matching this booking
-          const response = await apiFetch<{
+          // Try to fetch pending receipts first
+          const pendingResponse = await apiFetch<{
             success: boolean;
-            data: Array<{
+            data?: Array<{
               id: string;
               bookingId: string;
-              receiptUrl: string;
+              receiptUrl?: string;
+              status: string;
+              booking?: { id: string; bookingId?: string };
+            }>;
+            items?: Array<{
+              id: string;
+              bookingId: string;
+              receiptUrl?: string;
               status: string;
               booking?: { id: string; bookingId?: string };
             }>;
           }>("/payments/admin/pending-receipts?limit=100");
           
-          if (response.success && response.data) {
-            // Find receipt for this booking - match by booking ID or internal ID
-            const bookingReceipt = response.data.find(
-              (payment) => 
-                payment.bookingId === local.id || 
-                payment.bookingId === local.bookingId ||
-                payment.booking?.id === local.id ||
-                payment.booking?.bookingId === local.bookingId
-            );
-            if (bookingReceipt?.receiptUrl) {
-              setReceiptUrl(bookingReceipt.receiptUrl);
+          let receipts: Array<{
+            id: string;
+            bookingId: string;
+            receiptUrl?: string;
+            status: string;
+            booking?: { id: string; bookingId?: string };
+          }> = [];
+
+          if (pendingResponse.success) {
+            if (Array.isArray(pendingResponse.data)) {
+              receipts = pendingResponse.data;
+            } else if (Array.isArray(pendingResponse.items)) {
+              receipts = pendingResponse.items;
             }
+          }
+
+          // Find receipt for this booking - match by booking ID or internal ID
+          const bookingReceipt = receipts.find(
+            (payment) => 
+              payment.bookingId === local.id || 
+              payment.bookingId === local.bookingId ||
+              payment.booking?.id === local.id ||
+              payment.booking?.bookingId === local.bookingId
+          );
+
+          if (bookingReceipt?.receiptUrl) {
+            setReceiptUrl(bookingReceipt.receiptUrl);
+          } else if (isPendingApproval) {
+            // If status is PENDING_APPROVAL, payment was verified but receipt might still be in the payment record
+            // Try to get receipt from the booking's payment relationship if available
+            // For now, we'll leave it empty - the receipt should have been shown before verification
+            // If needed, backend could include payment.receiptUrl in booking response
           }
         } catch {
           // Silently fail - receipt might not exist
-          // Receipt might not exist for this booking
         } finally {
           setReceiptLoading(false);
         }
+      } else {
+        // Clear receipt URL if status changed away from pending payment/approval
+        setReceiptUrl(undefined);
       }
     };
 

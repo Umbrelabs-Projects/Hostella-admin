@@ -142,56 +142,21 @@ export const usePaymentsStore = create<PaymentsState>((set, get) => ({
           loading: false,
         });
 
-        // If payment was confirmed, also approve payment on the booking
-        // This changes booking status from PENDING_PAYMENT to PENDING_APPROVAL
+        // If payment was confirmed, refresh bookings to reflect status change
+        // According to the guide: When payment status is updated to "CONFIRMED", 
+        // booking status automatically changes to "pending approval" (backend handles this)
         if (status === "CONFIRMED" && typeof window !== "undefined") {
           try {
             // Dynamically import to avoid circular dependency
             const { useBookingsStore } = await import("./useBookingsStore");
-            const { approvePayment, fetchBookings, bookings } = useBookingsStore.getState();
-            
-            // If we don't have the internal ID, try to find booking by display bookingId
-            if (!bookingId && displayBookingId) {
-              // First check if bookings are already loaded
-              let foundBooking = bookings.find(
-                (b) => b.bookingId === displayBookingId || b.id === displayBookingId
-              );
-              
-              // If not found and bookings might not be loaded, fetch them first
-              if (!foundBooking && bookings.length === 0) {
-                await fetchBookings();
-                const { bookings: refreshedBookings } = useBookingsStore.getState();
-                foundBooking = refreshedBookings.find(
-                  (b) => b.bookingId === displayBookingId || b.id === displayBookingId
-                );
-              }
-              
-              if (foundBooking) {
-                bookingId = foundBooking.id;
-              }
-            }
-            
-            // If we have the booking ID, approve payment on the booking
-            if (bookingId) {
-              // Approve payment on the booking (changes status to PENDING_APPROVAL)
-              await approvePayment(bookingId);
-            } else {
-              console.warn("Could not find booking ID for payment approval. Display ID:", displayBookingId);
-            }
-            
-            // Always refresh bookings list to reflect any status changes
-            fetchBookings().catch((err) => {
-              console.warn("Failed to refresh bookings after payment approval:", err);
-            });
-          } catch (bookingErr) {
-            // If booking approval fails, log but don't fail the payment verification
-            console.warn("Failed to approve payment on booking after verification:", bookingErr);
-            // Still refresh bookings to get latest state
-            const { useBookingsStore } = await import("./useBookingsStore");
             const { fetchBookings } = useBookingsStore.getState();
-            fetchBookings().catch((err) => {
-              console.warn("Failed to refresh bookings:", err);
-            });
+            
+            // Refresh bookings list to reflect the automatic status change
+            // The backend automatically updates booking status to "pending approval" when payment is confirmed
+            await fetchBookings();
+          } catch (err) {
+            // Log but don't fail payment verification
+            console.warn("Failed to refresh bookings after payment confirmation:", err);
           }
         }
       } else {

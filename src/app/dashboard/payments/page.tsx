@@ -124,10 +124,10 @@ export default function PaymentsPage() {
             {loading && !isInitialized ? (
               <TableSkeleton rows={5} />
             ) : displayedPayments.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <div className="rounded-full bg-gray-100 dark:bg-gray-800 p-6 mb-4">
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <div className="rounded-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 p-6 mb-4">
                   <svg
-                    className="size-12 text-gray-400"
+                    className="size-12 text-gray-400 dark:text-gray-500"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"

@@ -403,6 +403,9 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
   approvePayment: async (id) => {
     set({ loading: true, error: null });
     try {
+      // According to the guide:
+      // - If payment status is "AWAITING_VERIFICATION", it's automatically confirmed
+      // - Booking status changes to "pending approval"
       // Backend returns { success: true, data: StudentBooking, message: string }
       const response = await apiFetch<{
         success: boolean;

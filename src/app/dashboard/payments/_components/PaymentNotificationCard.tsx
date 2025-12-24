@@ -100,15 +100,15 @@ export default function PaymentNotificationCard({
 
   return (
     <>
-      <Card className="border-0 shadow-lg bg-white dark:bg-gray-900 hover:shadow-xl transition-shadow">
-        <CardHeader className="pb-4 border-b border-gray-200 dark:border-gray-800">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-3">
+      <Card className="border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover:border-gray-300 dark:hover:border-gray-700 transition-all shadow-sm hover:shadow-md">
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start gap-3 flex-1 min-w-0">
               <div
-                className={`p-2 rounded-lg ${
+                className={`p-2.5 rounded-xl flex-shrink-0 ${
                   isBankTransfer
-                    ? "bg-green-100 dark:bg-green-900/30"
-                    : "bg-purple-100 dark:bg-purple-900/30"
+                    ? "bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30"
+                    : "bg-gradient-to-br from-purple-50 to-violet-50 dark:from-purple-950/30 dark:to-violet-950/30"
                 }`}
               >
                 {isBankTransfer ? (
@@ -129,118 +129,105 @@ export default function PaymentNotificationCard({
                   />
                 )}
               </div>
-              <div>
-                <h3 className="text-base font-semibold text-gray-900 dark:text-gray-50">
-                  {isBankTransfer
-                    ? "Bank Receipt Uploaded"
-                    : "Paystack Payment Received"}
-                </h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="text-base font-semibold text-gray-900 dark:text-gray-50 truncate">
+                    {isBankTransfer
+                      ? "Bank Receipt Uploaded"
+                      : "Paystack Payment Received"}
+                  </h3>
+                  <span
+                    className={`px-2.5 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ${
+                      payment.status === "AWAITING_VERIFICATION"
+                        ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                        : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                    }`}
+                  >
+                    {payment.status === "AWAITING_VERIFICATION"
+                      ? "Pending"
+                      : payment.status}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
                   {timeAgo}
                 </p>
               </div>
             </div>
-            <div
-              className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                payment.status === "AWAITING_VERIFICATION"
-                  ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
-                  : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
-              }`}
-            >
-              {payment.status === "AWAITING_VERIFICATION"
-                ? "Awaiting Verification"
-                : payment.status}
+            <div className="text-right flex-shrink-0">
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-50">
+                GHS {payment.amount.toLocaleString()}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                Payment Amount
+              </p>
             </div>
           </div>
         </CardHeader>
 
-        <CardContent className="pt-4">
+        <CardContent className="pt-0">
           <div className="space-y-4">
-            {/* Student Information */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50">
-                <div className="p-1.5 rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                  <User className="size-4 text-blue-600 dark:text-blue-400" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Student
-                  </p>
-                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-50 truncate">
-                    {studentName}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Index: {studentIndex}
-                  </p>
+            {/* Student & Booking Info */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="p-3 rounded-lg bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 border border-blue-100 dark:border-blue-900/30">
+                <div className="flex items-start gap-3">
+                  <div className="p-1.5 rounded-lg bg-blue-100 dark:bg-blue-900/40 flex-shrink-0">
+                    <User className="size-4 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wide mb-1">
+                      Student
+                    </p>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-50 truncate mb-0.5">
+                      {studentName}
+                    </p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">
+                      Ref: <span className="font-medium">{studentIndex}</span>
+                    </p>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50">
-                <div className="p-1.5 rounded-lg bg-indigo-100 dark:bg-indigo-900/30">
-                  <Building2 className="size-4 text-indigo-600 dark:text-indigo-400" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Booking & Hostel
-                  </p>
-                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-50 truncate">
-                    {displayBookingId}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                    {hostelName} • {roomType}
-                  </p>
+              <div className="p-3 rounded-lg bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/20 dark:to-purple-950/20 border border-indigo-100 dark:border-indigo-900/30">
+                <div className="flex items-start gap-3">
+                  <div className="p-1.5 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 flex-shrink-0">
+                    <Building2 className="size-4 text-indigo-600 dark:text-indigo-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-indigo-700 dark:text-indigo-300 uppercase tracking-wide mb-1">
+                      Booking & Hostel
+                    </p>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-50 truncate mb-0.5">
+                      {displayBookingId}
+                    </p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                      {hostelName} • {roomType}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Payment Information */}
-            <div className="p-4 rounded-lg bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 dark:from-amber-950/30 dark:via-orange-950/30 dark:to-yellow-950/30 border border-amber-200 dark:border-amber-800">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <Calendar className="size-4 text-amber-600 dark:text-amber-400" />
-                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Payment Details
-                  </span>
-                </div>
+            {/* Payment Reference */}
+            <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center gap-2 mb-2">
+                <Calendar className="size-4 text-gray-500 dark:text-gray-400" />
+                <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
+                  Payment Reference
+                </span>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                <div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-                    Amount
-                  </p>
-                  <p className="text-lg font-bold text-gray-900 dark:text-gray-50">
-                    GHS {payment.amount.toLocaleString()}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-                    Reference
-                  </p>
-                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-50 font-mono">
-                    {payment.reference}
-                  </p>
-                </div>
-                {!isBankTransfer && (
-                  <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-                      Method
-                    </p>
-                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-50">
-                      Mobile Money
-                    </p>
-                  </div>
-                )}
-              </div>
+              <p className="text-sm font-mono font-semibold text-gray-900 dark:text-gray-50 break-all">
+                {payment.reference}
+              </p>
             </div>
 
             {/* Actions */}
-            <div className="flex flex-wrap gap-2 pt-2">
+            <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-200 dark:border-gray-800">
               {isBankTransfer && payment.receiptUrl && (
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setShowReceiptModal(true)}
-                  className="flex-1 md:flex-none"
+                  className="flex-1 md:flex-none border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"
                 >
                   <Eye className="size-4 mr-2" />
                   View Receipt
@@ -250,10 +237,9 @@ export default function PaymentNotificationCard({
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  // Navigate to booking details using display bookingId
                   window.location.href = `/dashboard/bookings?search=${displayBookingId}`;
                 }}
-                className="flex-1 md:flex-none"
+                className="flex-1 md:flex-none border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"
               >
                 <ExternalLink className="size-4 mr-2" />
                 View Booking
@@ -263,7 +249,7 @@ export default function PaymentNotificationCard({
                 size="sm"
                 onClick={() => handleVerify("CONFIRMED")}
                 disabled={verifying || payment.status !== "AWAITING_VERIFICATION"}
-                className="flex-1 md:flex-none bg-green-600 hover:bg-green-700 text-white"
+                className="flex-1 md:flex-none bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
               >
                 <Check className="size-4 mr-2" />
                 {verifying ? "Verifying..." : "Verify & Approve"}
@@ -273,7 +259,7 @@ export default function PaymentNotificationCard({
                 size="sm"
                 onClick={() => handleVerify("FAILED")}
                 disabled={verifying || payment.status !== "AWAITING_VERIFICATION"}
-                className="flex-1 md:flex-none"
+                className="flex-1 md:flex-none shadow-sm"
               >
                 <X className="size-4 mr-2" />
                 Reject
