@@ -19,6 +19,7 @@ export default function AddContactDialog({
 }: AddBookingDialogProps) {
   const user = useAuthStore((s) => s.user);
   const [formData, setFormData] = useState<Partial<StudentBooking>>(DEFAULT_FORM_DATA);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Get assigned hostels from user profile
   const assignedHostels = user?.assignedHostels || [];
@@ -51,10 +52,13 @@ export default function AddContactDialog({
         // Pre-select first hostel if only one assigned, otherwise leave empty for user to select
         hostelName: assignedHostels.length === 1 ? assignedHostels[0].name : prev.hostelName || "",
         school: user.school || prev.school || "KNUST", // Default to KNUST if not provided
+        // Ensure roomTitle is always set to a valid default
+        roomTitle: prev.roomTitle || "One-in-one",
       }));
     } else if (!open) {
-      // Reset form when dialog closes
+      // Reset form and loading state when dialog closes
       setFormData(DEFAULT_FORM_DATA);
+      setIsSubmitting(false);
     }
   }, [open, user, assignedHostels]);
 
@@ -67,14 +71,18 @@ export default function AddContactDialog({
   };
 
   const handleSubmit = async () => {
+    // Prevent double submission
+    if (isSubmitting) return;
+
     // Validate form
     const validationErrors = validateBookingForm(formData);
     if (validationErrors.length > 0) {
       // Show first error
-      toast.error(validationErrors[0].message);
+      toast.error(validationErrors[0].message, { duration: 4000 });
       return;
     }
 
+    setIsSubmitting(true);
     try {
       // Format data for API
       const formattedData = formatBookingForAPI(formData);
@@ -87,6 +95,8 @@ export default function AddContactDialog({
     } catch (error) {
       // Error handling is done by the parent component
       console.error("Error creating booking:", error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -117,8 +127,13 @@ export default function AddContactDialog({
         </form>
 
         <AddBookingDialogFooter
-          onCancel={() => onOpenChange(false)}
+          onCancel={() => {
+            if (!isSubmitting) {
+              onOpenChange(false);
+            }
+          }}
           onCreate={handleSubmit}
+          loading={isSubmitting}
         />
       </DialogContent>
     </Dialog>

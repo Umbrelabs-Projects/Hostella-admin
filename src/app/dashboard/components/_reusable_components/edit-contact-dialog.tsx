@@ -59,7 +59,7 @@ export default function EditContactDialog({
       await navigator.clipboard.writeText(local.bookingId ?? local.id);
       toast.success("Booking ID copied");
     } catch {
-      toast.error("Failed to copy");
+      toast.error("Failed to copy", { duration: 4000 });
     }
   };
 

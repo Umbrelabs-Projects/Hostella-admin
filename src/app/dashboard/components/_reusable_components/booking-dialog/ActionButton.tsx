@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { LucideIcon } from "lucide-react";
+import { LucideIcon, Loader2 } from "lucide-react";
 import { ReactNode } from "react";
 
 interface ActionButtonProps {
@@ -11,6 +11,7 @@ interface ActionButtonProps {
   variant?: "primary" | "success" | "info" | "teal" | "warning" | "danger" | "outline" | "destructive";
   className?: string;
   disabled?: boolean;
+  loading?: boolean;
 }
 
 const variantStyles = {
@@ -31,6 +32,7 @@ export default function ActionButton({
   variant = "primary",
   className = "",
   disabled = false,
+  loading = false,
 }: ActionButtonProps) {
   const isGradientVariant = ["primary", "success", "info", "teal", "warning", "danger"].includes(variant);
   const isOutlineVariant = variant === "outline";
@@ -47,10 +49,14 @@ export default function ActionButton({
     <Button
       variant={buttonVariant}
       onClick={onClick}
-      disabled={disabled}
+      disabled={disabled || loading}
       className={`${variantClass} ${baseClasses} ${className}`}
     >
-      <Icon className="size-4 mr-2" />
+      {loading ? (
+        <Loader2 className="size-4 mr-2 animate-spin" />
+      ) : (
+        <Icon className="size-4 mr-2" />
+      )}
       {children}
     </Button>
   );

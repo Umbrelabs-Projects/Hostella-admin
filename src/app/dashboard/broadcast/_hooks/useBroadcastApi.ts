@@ -19,7 +19,7 @@ export function useBroadcastApi() {
         await fetchMessages(page, pageSize);
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to fetch messages";
-        toast.error(message);
+        toast.error(message, { duration: 4000 });
       }
     },
     [fetchMessages]
@@ -33,7 +33,7 @@ export function useBroadcastApi() {
         return newMessage;
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to send message";
-        toast.error(message);
+        toast.error(message, { duration: 4000 });
         throw err;
       }
     },
@@ -47,7 +47,7 @@ export function useBroadcastApi() {
         toast.success("Message deleted successfully");
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to delete message";
-        toast.error(message);
+        toast.error(message, { duration: 4000 });
         throw err;
       }
     },
@@ -62,7 +62,7 @@ export function useBroadcastApi() {
         return updated;
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to resend message";
-        toast.error(message);
+        toast.error(message, { duration: 4000 });
         throw err;
       }
     },

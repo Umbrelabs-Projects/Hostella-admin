@@ -22,6 +22,7 @@ export default function FormField({ field, value, onChange }: FormFieldProps) {
           value={value || ""} 
           onValueChange={(v) => onChange(field.name, v)}
           disabled={field.disabled}
+          defaultValue={field.name === "roomTitle" ? "One-in-one" : undefined}
         >
           <SelectTrigger 
             id={field.name} 

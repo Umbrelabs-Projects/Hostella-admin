@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { StudentBooking } from "@/types/booking";
 import { apiFetch, APIException } from "@/lib/api";
+import { BookingCreateRequest } from "@/app/dashboard/components/_reusable_components/add-contact-dialog/validation";
 
 // Helper to normalize status (API returns lowercase with spaces/underscores, normalize to uppercase with underscores for internal use)
 const normalizeStatus = (status: string): string => {
@@ -46,7 +47,7 @@ export type BookingsState = {
 
   // API Actions
   fetchBookings: (page?: number, pageSize?: number) => Promise<void>;
-  createBooking: (booking: Partial<StudentBooking>) => Promise<StudentBooking>;
+  createBooking: (booking: BookingCreateRequest | Partial<StudentBooking>) => Promise<StudentBooking>;
   updateBookingApi: (id: string, updates: Partial<StudentBooking>) => Promise<StudentBooking>;
   deleteBooking: (id: string) => Promise<void>;
   approvePayment: (id: string) => Promise<StudentBooking>;
@@ -265,7 +266,19 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
   createBooking: async (booking) => {
     set({ loading: true, error: null });
     try {
-      // Backend returns { success: true, data: StudentBooking, message: string }
+      // Debug logging in development
+      if (process.env.NODE_ENV === "development") {
+        console.log("[createBooking] Sending booking data:", booking);
+        // Check if it's the new format (BookingCreateRequest) or old format (StudentBooking)
+        if ("preferredRoomType" in booking) {
+          console.log("[createBooking] Preferred room type (API format):", booking.preferredRoomType);
+        } else if ("roomTitle" in booking) {
+          console.log("[createBooking] Room title (UI format):", booking.roomTitle);
+        }
+      }
+
+      // Backend expects preferredRoomType: "SINGLE" | "DOUBLE" in the request
+      // Backend returns roomTitle: "One-in-one" | "Two-in-one" in the response
       const response = await apiFetch<{
         success: boolean;
         data: StudentBooking;

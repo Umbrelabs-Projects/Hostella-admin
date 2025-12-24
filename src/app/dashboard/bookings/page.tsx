@@ -78,17 +78,17 @@ export default function Bookings() {
     } catch (err) {
       // Handle validation errors
       if (err instanceof Error && err.message.includes("Validation")) {
-        toast.error(err.message);
+        toast.error(err.message, { duration: 4000 });
       } else if (err instanceof Error && err.message) {
         // Check if it's an API error with detailed messages
         const errorMessage = err.message;
         if (errorMessage.includes("errors")) {
-          toast.error("Please check all required fields are filled correctly");
+          toast.error("Please check all required fields are filled correctly", { duration: 4000 });
         } else {
-          toast.error(errorMessage);
+          toast.error(errorMessage, { duration: 4000 });
         }
       } else {
-        toast.error("Failed to create booking. Please try again.");
+        toast.error("Failed to create booking. Please try again.", { duration: 4000 });
       }
       throw err;
     }
@@ -100,7 +100,7 @@ export default function Bookings() {
       setViewingBooking(updated);
       toast.success("Payment approved");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to approve payment");
+      toast.error(err instanceof Error ? err.message : "Failed to approve payment", { duration: 4000 });
     }
   };
 
@@ -110,7 +110,7 @@ export default function Bookings() {
       setViewingBooking(updated);
       toast.success("Room assigned successfully");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to assign room");
+      toast.error(err instanceof Error ? err.message : "Failed to assign room", { duration: 4000 });
     }
   };
 
@@ -118,7 +118,7 @@ export default function Bookings() {
     try {
       const b = bookingsArray.find((x) => x.id === id);
       if (!b?.allocatedRoomNumber) {
-        toast.error("Cannot complete onboarding without an assigned room");
+        toast.error("Cannot complete onboarding without an assigned room", { duration: 4000 });
         return;
       }
 
@@ -126,7 +126,7 @@ export default function Bookings() {
       setViewingBooking(null);
       toast.success("Onboarding completed; booking moved to members");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to complete onboarding");
+      toast.error(err instanceof Error ? err.message : "Failed to complete onboarding", { duration: 4000 });
     }
   };
 
@@ -136,7 +136,7 @@ export default function Bookings() {
       setViewingBooking(updated);
       toast.success("Booking approved");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to approve booking");
+      toast.error(err instanceof Error ? err.message : "Failed to approve booking", { duration: 4000 });
     }
   };
 
@@ -148,7 +148,7 @@ export default function Bookings() {
       setDeletingBookingId(null);
       toast.success("Booking deleted successfully");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to delete booking");
+      toast.error(err instanceof Error ? err.message : "Failed to delete booking", { duration: 4000 });
     }
   };
 
@@ -158,7 +158,7 @@ export default function Bookings() {
       setViewingBooking(updated);
       toast.success("Booking cancelled successfully");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to cancel booking");
+      toast.error(err instanceof Error ? err.message : "Failed to cancel booking", { duration: 4000 });
     }
   };
 
