@@ -56,7 +56,7 @@ export default function TableFilters({
               <SelectValue>
                 {status === "all" 
                   ? "All statuses" 
-                  : status.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, l => l.toUpperCase())}
+                  : status?.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, l => l.toUpperCase()) || ""}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
