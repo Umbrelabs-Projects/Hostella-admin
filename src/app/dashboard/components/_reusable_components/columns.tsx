@@ -49,22 +49,56 @@ export const columns = ({ onView, onDelete, showStatus = true, showAssigned = fa
     },
   ];
 
+  // Helper to normalize and format status (API returns lowercase with spaces/underscores)
+  const normalizeStatus = (status: string): string => {
+    const normalized = status.toLowerCase().trim();
+    const statusMap: Record<string, string> = {
+      "pending payment": "PENDING_PAYMENT",
+      "pending approval": "PENDING_APPROVAL",
+      "approved": "APPROVED",
+      "room_allocated": "ROOM_ALLOCATED",
+      "room allocated": "ROOM_ALLOCATED",
+      "completed": "COMPLETED",
+      "cancelled": "CANCELLED",
+      "rejected": "REJECTED",
+      "expired": "EXPIRED",
+    };
+    return statusMap[normalized] || normalized.toUpperCase().replace(/\s+/g, "_");
+  };
+
+  const formatStatusLabel = (status: string): string => {
+    const normalized = normalizeStatus(status);
+    if (normalized === "APPROVED") return "Approved (Unassigned)";
+    if (normalized === "ROOM_ALLOCATED") return "Room Allocated";
+    if (normalized === "COMPLETED") return "Completed";
+    if (normalized === "CANCELLED") return "Cancelled";
+    if (normalized === "REJECTED") return "Rejected";
+    if (normalized === "EXPIRED") return "Expired";
+    // Convert to readable format
+    return normalized.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
+  };
+
+  const getStatusColor = (status: string): string => {
+    const normalized = normalizeStatus(status);
+    if (normalized === "PENDING_PAYMENT") return "bg-amber-100 text-amber-800";
+    if (normalized === "PENDING_APPROVAL") return "bg-orange-100 text-orange-800";
+    if (normalized === "APPROVED") return "bg-slate-100 text-slate-800";
+    if (normalized === "ROOM_ALLOCATED") return "bg-blue-100 text-blue-800";
+    if (normalized === "COMPLETED") return "bg-green-100 text-green-800";
+    if (normalized === "CANCELLED") return "bg-red-100 text-red-800";
+    if (normalized === "REJECTED") return "bg-red-100 text-red-800";
+    if (normalized === "EXPIRED") return "bg-gray-100 text-gray-800";
+    return "bg-gray-100 text-gray-800";
+  };
+
   if (showStatus) {
     base.push({
       accessorKey: "status",
       header: "Status",
       cell: ({ row }) => {
         const status = row.getValue("status") as StudentBooking["status"];
-        // Replace 'approved' display with 'unassigned' per UI decision
-        const label = status === "approved" ? "unassigned" : status;
-        const cls =
-          label === "pending payment"
-            ? "bg-amber-100 text-amber-800"
-            : label === "pending approval"
-            ? "bg-orange-100 text-orange-800"
-            : label === "unassigned"
-            ? "bg-slate-100 text-slate-800"
-            : "bg-green-100 text-green-800";
+        const label = formatStatusLabel(status);
+        const cls = getStatusColor(status);
         return <Badge className={cls}>{label}</Badge>;
       },
     });
@@ -81,8 +115,18 @@ export const columns = ({ onView, onDelete, showStatus = true, showAssigned = fa
       header: "Room Number",
       cell: ({ row }) => {
         const booking = row.original;
+        // Normalize status for comparison
+        const normalizeStatus = (status: string): string => {
+          const statusMap: Record<string, string> = {
+            "pending payment": "PENDING_PAYMENT",
+            "pending approval": "PENDING_APPROVAL",
+            "approved": "APPROVED",
+          };
+          return statusMap[status.toLowerCase()] || status.toUpperCase().replace(/\s+/g, "_");
+        };
+        const normalized = normalizeStatus(booking.status);
         // Do not show assigned room for pending statuses
-        if (booking.status === "pending payment" || booking.status === "pending approval") {
+        if (normalized === "PENDING_PAYMENT" || normalized === "PENDING_APPROVAL") {
           return <span className="text-muted-foreground">—</span>;
         }
         return booking.allocatedRoomNumber != null ? String(booking.allocatedRoomNumber) : <span className="text-muted-foreground">—</span>;

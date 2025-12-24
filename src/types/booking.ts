@@ -3,7 +3,20 @@ export type Gender = "male" | "female";
 export type Level = "100" | "200" | "300" | "400";
 export type RoomTitle = "One-in-one" | "Two-in-one";
 
-export type BookingStatus = "pending payment" | "pending approval" | "approved";
+// Backend uses uppercase with underscores, but we'll handle both formats
+export type BookingStatus = 
+  | "PENDING_PAYMENT" 
+  | "PENDING_APPROVAL" 
+  | "APPROVED" 
+  | "ROOM_ALLOCATED" 
+  | "COMPLETED" 
+  | "CANCELLED" 
+  | "REJECTED" 
+  | "EXPIRED"
+  // Legacy support (will be normalized)
+  | "pending payment" 
+  | "pending approval" 
+  | "approved";
 
 export interface StudentBooking {
   id: string; // internal id

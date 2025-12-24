@@ -39,8 +39,8 @@ describe('useAuthStore', () => {
   })
 
   describe('signIn', () => {
-    it('should sign in user successfully', async () => {
-      const mockUser = { id: '1', firstName: 'Test', lastName: 'User', email: 'test@example.com' }
+    it('should sign in user successfully with ADMIN role', async () => {
+      const mockUser = { id: '1', firstName: 'Test', lastName: 'User', email: 'test@example.com', role: 'ADMIN' as const }
       const mockToken = 'test-token'
       ;(apiFetch as jest.Mock).mockResolvedValueOnce({
         token: mockToken,
@@ -57,6 +57,71 @@ describe('useAuthStore', () => {
       expect(result.current.isAuthenticated).toBe(true)
       expect(result.current.error).toBeNull()
       expect(apiFetch).toHaveBeenCalledWith('/auth/login', expect.any(Object))
+    })
+
+    it('should reject sign in for STUDENT role', async () => {
+      const mockUser = { id: '1', firstName: 'Test', lastName: 'User', email: 'test@example.com', role: 'STUDENT' as const }
+      const mockToken = 'test-token'
+      ;(apiFetch as jest.Mock).mockResolvedValueOnce({
+        token: mockToken,
+        user: mockUser,
+      })
+
+      const { result } = renderHook(() => useAuthStore())
+
+      await act(async () => {
+        try {
+          await result.current.signIn({ email: 'test@example.com', password: 'password123' })
+        } catch {
+          // Expected error
+        }
+      })
+
+      expect(result.current.isAuthenticated).toBe(false)
+      expect(result.current.user).toBeNull()
+      expect(result.current.error).toContain('Access denied')
+    })
+
+    it('should reject sign in for user without role', async () => {
+      const mockUser = { id: '1', firstName: 'Test', lastName: 'User', email: 'test@example.com' }
+      const mockToken = 'test-token'
+      ;(apiFetch as jest.Mock).mockResolvedValueOnce({
+        token: mockToken,
+        user: mockUser,
+      })
+
+      const { result } = renderHook(() => useAuthStore())
+
+      await act(async () => {
+        try {
+          await result.current.signIn({ email: 'test@example.com', password: 'password123' })
+        } catch {
+          // Expected error
+        }
+      })
+
+      expect(result.current.isAuthenticated).toBe(false)
+      expect(result.current.user).toBeNull()
+      expect(result.current.error).toContain('Access denied')
+    })
+
+    it('should allow sign in for SUPER_ADMIN role', async () => {
+      const mockUser = { id: '1', firstName: 'Test', lastName: 'User', email: 'test@example.com', role: 'SUPER_ADMIN' as const }
+      const mockToken = 'test-token'
+      ;(apiFetch as jest.Mock).mockResolvedValueOnce({
+        token: mockToken,
+        user: mockUser,
+      })
+
+      const { result } = renderHook(() => useAuthStore())
+
+      await act(async () => {
+        await result.current.signIn({ email: 'test@example.com', password: 'password123' })
+      })
+
+      expect(result.current.user).toEqual(mockUser)
+      expect(result.current.isAuthenticated).toBe(true)
+      expect(result.current.error).toBeNull()
     })
 
     it('should handle sign in error', async () => {
@@ -79,8 +144,8 @@ describe('useAuthStore', () => {
   })
 
   describe('restoreSession', () => {
-    it('should restore session from localStorage', async () => {
-      const mockUser = { id: '1', firstName: 'Test', lastName: 'User', email: 'test@example.com' }
+    it('should restore session from localStorage for ADMIN user', async () => {
+      const mockUser = { id: '1', firstName: 'Test', lastName: 'User', email: 'test@example.com', role: 'ADMIN' as const }
       const mockToken = 'test-token'
 
       localStorage.setItem(
@@ -101,8 +166,27 @@ describe('useAuthStore', () => {
       expect(apiFetch).not.toHaveBeenCalled()
     })
 
+    it('should reject session restore for STUDENT user', async () => {
+      const mockUser = { id: '1', firstName: 'Test', lastName: 'User', email: 'test@example.com', role: 'STUDENT' as const }
+      const mockToken = 'test-token'
+
+      localStorage.setItem(
+        'auth-storage',
+        JSON.stringify({ state: { token: mockToken, user: mockUser } })
+      )
+
+      const { result } = renderHook(() => useAuthStore())
+
+      await act(async () => {
+        await result.current.restoreSession()
+      })
+
+      expect(result.current.isAuthenticated).toBe(false)
+      expect(result.current.user).toBeNull()
+    })
+
     it('should fetch user profile when token exists but user is not cached', async () => {
-      const mockUser = { id: '1', firstName: 'Test', lastName: 'User', email: 'test@example.com' }
+      const mockUser = { id: '1', firstName: 'Test', lastName: 'User', email: 'test@example.com', role: 'ADMIN' as const }
       const mockToken = 'test-token'
 
       localStorage.setItem(
@@ -143,7 +227,7 @@ describe('useAuthStore', () => {
   describe('logout', () => {
     it('should clear user and token on logout', async () => {
       // Mock apiFetch for signIn only
-      const mockUser = { id: '1', firstName: 'Test', lastName: 'User', email: 'test@example.com' }
+      const mockUser = { id: '1', firstName: 'Test', lastName: 'User', email: 'test@example.com', role: 'ADMIN' as const }
       ;(apiFetch as jest.Mock).mockResolvedValueOnce({
         token: 'test-token',
         user: mockUser,

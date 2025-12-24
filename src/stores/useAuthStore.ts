@@ -145,6 +145,16 @@ const useAuthStore = create<AuthState>()(
             throw new Error("Login failed: No user data returned from server.");
           }
 
+          // Check if user has ADMIN or SUPER_ADMIN role
+          if (!user.role || (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN")) {
+            const message = "Access denied. Only administrators can access this system.";
+            set({ user: null, token: null, isAuthenticated: false, loading: false, error: message });
+            if (typeof document !== "undefined") {
+              document.cookie = `auth-token=; Path=/; Max-Age=0; SameSite=Lax`;
+            }
+            throw new Error(message);
+          }
+
           set({ user, token, isAuthenticated: true, loading: false });
           // Sync cookie for middleware
           if (typeof document !== "undefined") {
@@ -202,6 +212,17 @@ const useAuthStore = create<AuthState>()(
               >("/user/profile");
               
               restoredUser = extractUserFromResponse(profileRes);
+            }
+            
+            // Validate role on session restore - only allow ADMIN or SUPER_ADMIN
+            if (!restoredUser.role || (restoredUser.role !== "ADMIN" && restoredUser.role !== "SUPER_ADMIN")) {
+              // Clear invalid session
+              set({ user: null, token: null, isAuthenticated: false, initializing: false });
+              localStorage.removeItem("auth-storage");
+              if (typeof document !== "undefined") {
+                document.cookie = `auth-token=; Path=/; Max-Age=0; SameSite=Lax`;
+              }
+              return;
             }
             
             set({ user: restoredUser, token, isAuthenticated: true, initializing: false });
