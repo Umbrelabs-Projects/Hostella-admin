@@ -53,11 +53,19 @@ export default function TableFilters({
         isMounted ? (
           <Select onValueChange={(v) => onStatus(v)} value={status}>
             <SelectTrigger className="w-48">
-              <SelectValue>{status === "all" ? "All statuses" : status}</SelectValue>
+              <SelectValue>
+                {status === "all" 
+                  ? "All statuses" 
+                  : status?.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, l => l.toUpperCase()) || ""}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {statusOptions.map((s) => (
-                <SelectItem key={s} value={s}>{s}</SelectItem>
+                <SelectItem key={s} value={s}>
+                  {s === "all" 
+                    ? "All statuses" 
+                    : s.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, l => l.toUpperCase())}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>

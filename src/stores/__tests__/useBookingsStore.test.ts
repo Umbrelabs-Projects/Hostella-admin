@@ -32,18 +32,12 @@ describe('useBookingsStore', () => {
   describe('fetchBookings', () => {
     it('should fetch bookings with pagination', async () => {
       const mockBookings = [
-        { id: '1', studentName: 'John', status: 'pending' },
-        { id: '2', studentName: 'Jane', status: 'approved' },
+        { id: '1', studentName: 'John', status: 'pending payment', firstName: 'John', lastName: 'Doe', email: 'john@example.com', studentId: '123', phone: '1234567890', gender: 'male', level: '100', school: 'Test', hostelName: 'Test', roomTitle: 'One-in-one', price: '100', emergencyContactName: 'Contact', emergencyContactNumber: '123', relation: 'Parent', hasMedicalCondition: false },
+        { id: '2', studentName: 'Jane', status: 'approved', firstName: 'Jane', lastName: 'Doe', email: 'jane@example.com', studentId: '456', phone: '1234567890', gender: 'female', level: '200', school: 'Test', hostelName: 'Test', roomTitle: 'Two-in-one', price: '200', emergencyContactName: 'Contact', emergencyContactNumber: '123', relation: 'Parent', hasMedicalCondition: false },
       ]
       ;(apiFetch as jest.Mock).mockResolvedValueOnce({
         success: true,
-        data: mockBookings,
-        pagination: {
-          page: 1,
-          pageSize: 10,
-          total: 2,
-          totalPages: 1,
-        },
+        data: { bookings: mockBookings, total: 2, page: 1, pageSize: 10 },
       })
 
       const { result } = renderHook(() => useBookingsStore())
@@ -52,7 +46,12 @@ describe('useBookingsStore', () => {
         await result.current.fetchBookings(1, 10)
       })
 
-      expect(result.current.bookings).toEqual(mockBookings)
+      // Status values are normalized, so "pending payment" becomes "PENDING_PAYMENT" and "approved" becomes "APPROVED"
+      expect(result.current.bookings).toHaveLength(2)
+      expect(result.current.bookings[0].id).toBe('1')
+      expect(result.current.bookings[0].status).toBe('PENDING_PAYMENT')
+      expect(result.current.bookings[1].id).toBe('2')
+      expect(result.current.bookings[1].status).toBe('APPROVED')
       expect(result.current.totalBookings).toBe(2)
       expect(result.current.currentPage).toBe(1)
     })
@@ -96,19 +95,28 @@ describe('useBookingsStore', () => {
     })
 
     it('should build query string with filters', async () => {
-      ;(apiFetch as jest.Mock).mockResolvedValueOnce({ data: [], total: 0 })
+      const mockResponse = { 
+        success: true,
+        data: { bookings: [], total: 0, page: 1, pageSize: 10 }
+      }
+      ;(apiFetch as jest.Mock).mockResolvedValue(mockResponse)
 
       const { result } = renderHook(() => useBookingsStore())
 
       await act(async () => {
-        result.current.setFilters({ search: 'John', status: 'pending' })
+        result.current.setFilters({ search: 'John', status: 'PENDING_PAYMENT' })
         await result.current.fetchBookings(1, 10)
       })
 
-      expect(apiFetch).toHaveBeenCalledWith(
-        expect.stringContaining('search=John'),
-        expect.any(Object)
-      )
+      // Verify fetchBookings was called
+      expect(apiFetch).toHaveBeenCalled()
+      const callArgs = (apiFetch as jest.Mock).mock.calls
+      expect(callArgs.length).toBeGreaterThan(0)
+      const url = callArgs[callArgs.length - 1][0] as string
+      expect(url).toContain('search=John')
+      // API converts internal status format (PENDING_PAYMENT) to API format (pending payment)
+      // URL encoding converts spaces to +, so we check for either format
+      expect(url).toMatch(/status=(pending\+payment|pending%20payment)/)
     })
   })
 
@@ -122,7 +130,22 @@ describe('useBookingsStore', () => {
       }
       const createdBooking = {
         id: '3',
-        ...newBooking,
+        firstName: 'Test',
+        lastName: 'Student',
+        email: 'test@example.com',
+        status: 'pending payment', // API returns lowercase with spaces
+        studentId: '123',
+        phone: '1234567890',
+        gender: 'male' as const,
+        level: '100' as const,
+        school: 'Test School',
+        hostelName: 'Test Hostel',
+        roomTitle: 'One-in-one' as const,
+        price: '100',
+        emergencyContactName: 'Contact',
+        emergencyContactNumber: '1234567890',
+        relation: 'Parent',
+        hasMedicalCondition: false,
       }
       ;(apiFetch as jest.Mock).mockResolvedValueOnce({
         success: true,
@@ -143,7 +166,9 @@ describe('useBookingsStore', () => {
           body: JSON.stringify(newBooking),
         })
       )
-      expect(result.current.bookings).toContainEqual(createdBooking)
+      // Status is normalized to PENDING_PAYMENT
+      expect(result.current.bookings[0].status).toBe('PENDING_PAYMENT')
+      expect(result.current.bookings[0].id).toBe('3')
     })
   })
 
@@ -200,9 +225,38 @@ describe('useBookingsStore', () => {
 
   describe('deleteBooking', () => {
     it('should delete a booking', async () => {
-      ;(apiFetch as jest.Mock).mockResolvedValueOnce({ success: true })
+      // First, add a booking with PENDING_PAYMENT status to the store
+      const mockBooking = {
+        id: '1',
+        firstName: 'Test',
+        lastName: 'Student',
+        email: 'test@example.com',
+        status: 'PENDING_PAYMENT' as const,
+        studentId: '123',
+        phone: '1234567890',
+        gender: 'male' as const,
+        level: '100' as const,
+        school: 'Test School',
+        hostelName: 'Test Hostel',
+        roomTitle: 'One-in-one' as const,
+        price: '100',
+        emergencyContactName: 'Contact',
+        emergencyContactNumber: '1234567890',
+        relation: 'Parent',
+        hasMedicalCondition: false,
+      }
+
+      ;(apiFetch as jest.Mock).mockResolvedValueOnce({ 
+        success: true,
+        data: { success: true, message: 'Booking deleted successfully' }
+      })
 
       const { result } = renderHook(() => useBookingsStore())
+
+      // Set up the booking in the store first
+      act(() => {
+        result.current.setBookings([mockBooking])
+      })
 
       await act(async () => {
         await result.current.deleteBooking('1')
@@ -212,6 +266,7 @@ describe('useBookingsStore', () => {
         '/bookings/1',
         expect.objectContaining({ method: 'DELETE' })
       )
+      expect(result.current.bookings).not.toContainEqual(mockBooking)
     })
   })
 

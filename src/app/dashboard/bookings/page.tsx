@@ -24,9 +24,11 @@ export default function Bookings() {
     fetchBookings,
     createBooking,
     approvePayment,
+    approveBooking,
     assignRoom,
     completeOnboarding,
     deleteBooking: deleteBookingApi,
+    cancelBooking,
     setFilters,
     setCurrentPage,
     clearError,
@@ -109,14 +111,9 @@ export default function Bookings() {
 
   const handleApprove = async (id: string) => {
     try {
-      // This might be a local update or API call depending on business logic
-      // For now, treating as local state update
-      const b = bookingsArray.find((x) => x.id === id);
-      if (b) {
-        const updated: StudentBooking = { ...b, status: "approved" };
-        setViewingBooking(updated);
-        toast.success("Booking approved");
-      }
+      const updated = await approveBooking(id);
+      setViewingBooking(updated);
+      toast.success("Booking approved");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to approve booking");
     }
@@ -131,6 +128,16 @@ export default function Bookings() {
       toast.success("Booking deleted successfully");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to delete booking");
+    }
+  };
+
+  const handleCancelBooking = async (id: string, reason?: string) => {
+    try {
+      const updated = await cancelBooking(id, reason);
+      setViewingBooking(updated);
+      toast.success("Booking cancelled successfully");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to cancel booking");
     }
   };
 
@@ -162,7 +169,17 @@ export default function Bookings() {
           onSearch={(val) => setFilters({ search: val })}
           status={filters.status}
           onStatus={(val) => setFilters({ status: val })}
-          statusOptions={["all", "pending payment", "pending approval", "approved"]}
+          statusOptions={[
+            "all", 
+            "PENDING_PAYMENT", // Internal format (will be converted to "pending payment" for API)
+            "PENDING_APPROVAL", 
+            "APPROVED", 
+            "ROOM_ALLOCATED", 
+            "COMPLETED", 
+            "CANCELLED", 
+            "REJECTED", 
+            "EXPIRED"
+          ]}
           gender={filters.gender ?? "all"}
           onGender={(val) => setFilters({ gender: val })}
           genderOptions={genderOptions}
@@ -231,6 +248,7 @@ export default function Bookings() {
         onCompleteOnboarding={handleCompleteOnboarding}
         onApprove={handleApprove}
         onDeleteConfirm={handleDeleteBooking}
+        onCancel={handleCancelBooking}
       />
     </main>
   );

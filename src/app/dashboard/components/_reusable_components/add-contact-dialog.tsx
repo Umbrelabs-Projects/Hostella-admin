@@ -133,7 +133,7 @@ const DEFAULT_FORM_DATA: Partial<StudentBooking> = {
   emergencyContactNumber: "",
   relation: "",
   hasMedicalCondition: false,
-  status: "pending payment",
+  status: "pending payment", // API expects lowercase with spaces
   date: new Date().toISOString().split("T")[0],
 };
 

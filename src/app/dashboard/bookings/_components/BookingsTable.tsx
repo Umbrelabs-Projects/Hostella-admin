@@ -35,14 +35,29 @@ export default function BookingsTable({
     return b;
   });
 
+  // Helper to normalize status for comparison (API returns lowercase with spaces/underscores)
+  const normalizeStatusForComparison = (status: string): string => {
+    const normalized = status.toLowerCase().trim();
+    const statusMap: Record<string, string> = {
+      "pending payment": "PENDING_PAYMENT",
+      "pending approval": "PENDING_APPROVAL",
+      "approved": "APPROVED",
+      "room_allocated": "ROOM_ALLOCATED",
+      "room allocated": "ROOM_ALLOCATED",
+      "completed": "COMPLETED",
+      "cancelled": "CANCELLED",
+      "rejected": "REJECTED",
+      "expired": "EXPIRED",
+    };
+    return statusMap[normalized] || normalized.toUpperCase().replace(/\s+/g, "_");
+  };
+
   const filtered = normalized.filter((b) => {
-    // status filter
+    // status filter - normalize both filter and booking status for comparison
     if (statusFilter !== "all") {
-      if (statusFilter === "approved") {
-        if (b.status !== "approved") return false;
-      } else {
-        if (b.status !== statusFilter) return false;
-      }
+      const normalizedFilter = normalizeStatusForComparison(statusFilter);
+      const normalizedBookingStatus = normalizeStatusForComparison(b.status);
+      if (normalizedFilter !== normalizedBookingStatus) return false;
     }
     // gender filter
     if (genderFilter !== "all" && b.gender !== genderFilter) return false;

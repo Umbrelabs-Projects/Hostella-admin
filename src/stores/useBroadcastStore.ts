@@ -285,11 +285,32 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
       const endpoint = hasScheduledFor ? "/broadcasts/schedule" : "/broadcasts";
       
       if (hasScheduledFor && scheduledForValue) {
+        // datetime-local input returns format: "YYYY-MM-DDTHH:mm" (local time, no timezone)
+        // We need to convert it to ISO 8601 format for the backend
+        // Create a date object treating the input as local time
         const scheduledDate = new Date(scheduledForValue);
         if (isNaN(scheduledDate.getTime())) {
           throw new Error("Invalid scheduled date");
         }
+        
+        // Validate that the scheduled time is in the future
+        const now = new Date();
+        if (scheduledDate <= now) {
+          throw new Error(`Scheduled time must be in the future. Selected: ${scheduledDate.toISOString()}, Now: ${now.toISOString()}`);
+        }
+        
+        // Convert to ISO 8601 format (UTC)
+        // Note: datetime-local input is in user's local timezone
+        // toISOString() converts it to UTC, which is what the backend expects
         payload.scheduledFor = scheduledDate.toISOString();
+        
+        // Debug logging (remove in production if needed)
+        console.log("[Broadcast] Scheduling message:", {
+          input: scheduledForValue,
+          localDate: scheduledDate.toString(),
+          isoDate: payload.scheduledFor,
+          endpoint,
+        });
       }
 
       // API returns { success: true, data: BroadcastMessage, message: string }
@@ -303,6 +324,16 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
       });
 
       const newMessage = response.data;
+      
+      // Debug logging for scheduled broadcasts
+      if (hasScheduledFor && newMessage.status === "scheduled") {
+        console.log("[Broadcast] Successfully scheduled:", {
+          id: newMessage.id,
+          scheduledFor: newMessage.scheduledFor,
+          status: newMessage.status,
+          message: response.message,
+        });
+      }
 
       set((state) => ({
         messages: [newMessage, ...state.messages],

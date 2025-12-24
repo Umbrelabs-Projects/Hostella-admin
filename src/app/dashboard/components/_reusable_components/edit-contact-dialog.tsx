@@ -25,6 +25,7 @@ interface BookingDetailsDialogProps {
   onAssignRoom?: (id: string, roomNumber: number) => void;
   onCompleteOnboarding?: (id: string) => void;
   onApprove?: (id: string) => void;
+  onCancel?: (id: string, reason?: string) => void;
 }
 
 export default function EditContactDialog({
@@ -35,6 +36,7 @@ export default function EditContactDialog({
   onAssignRoom,
   onCompleteOnboarding,
   onApprove,
+  onCancel,
 }: BookingDetailsDialogProps) {
   const [local, setLocal] = useState<StudentBooking>(booking);
 
@@ -54,8 +56,37 @@ export default function EditContactDialog({
     }
   };
 
-  const statusVariant = (status: StudentBooking["status"]) =>
-    status === "pending payment" ? "secondary" : status === "pending approval" ? "outline" : "default";
+  // Normalize status for comparison (API returns lowercase with spaces/underscores, normalize to uppercase with underscores)
+  const normalizeStatus = (status: string): string => {
+    const normalized = status.toLowerCase().trim();
+    const statusMap: Record<string, string> = {
+      "pending payment": "PENDING_PAYMENT",
+      "pending approval": "PENDING_APPROVAL",
+      "approved": "APPROVED",
+      "room_allocated": "ROOM_ALLOCATED",
+      "room allocated": "ROOM_ALLOCATED",
+      "completed": "COMPLETED",
+      "cancelled": "CANCELLED",
+      "rejected": "REJECTED",
+      "expired": "EXPIRED",
+    };
+    return statusMap[normalized] || normalized.toUpperCase().replace(/\s+/g, "_");
+  };
+
+  const normalizedStatus = normalizeStatus(local.status);
+
+  const statusVariant = (status: string) => {
+    const norm = normalizeStatus(status);
+    if (norm === "PENDING_PAYMENT") return "secondary";
+    if (norm === "PENDING_APPROVAL") return "outline";
+    if (norm === "APPROVED") return "default";
+    if (norm === "ROOM_ALLOCATED") return "default";
+    if (norm === "COMPLETED") return "default";
+    if (norm === "CANCELLED") return "destructive";
+    if (norm === "REJECTED") return "destructive";
+    if (norm === "EXPIRED") return "secondary";
+    return "default";
+  };
 
   // derive display label: membership is explicit in members store
   const explicitMembers = useMembersStore((s) => s.members);
@@ -63,10 +94,16 @@ export default function EditContactDialog({
 
   const displayStatus = (() => {
     if (isMember) {
-      return local.status === "approved" ? "Member" : "Member (not approved)";
+      return normalizedStatus === "COMPLETED" ? "Member" : "Member";
     }
-    if (local.status === "approved") return "unassigned";
-    return local.status;
+    if (normalizedStatus === "APPROVED") return "Approved (Unassigned)";
+    if (normalizedStatus === "ROOM_ALLOCATED") return "Room Allocated";
+    if (normalizedStatus === "COMPLETED") return "Completed";
+    if (normalizedStatus === "CANCELLED") return "Cancelled";
+    if (normalizedStatus === "REJECTED") return "Rejected";
+    if (normalizedStatus === "EXPIRED") return "Expired";
+    // Convert to readable format
+    return normalizedStatus.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
   })();
 
   const displayVariant = (() => {
@@ -163,27 +200,42 @@ export default function EditContactDialog({
               <X className="size-4 mr-2" />Close
             </Button>
 
-            {local.status === "pending payment" && (
+            {/* Approve Payment - only for PENDING_PAYMENT */}
+            {(normalizedStatus === "PENDING_PAYMENT" || local.status.toLowerCase() === "pending payment") && (
               <Button onClick={() => onApprovePayment?.(local.id)}>
                 <CreditCard className="size-4 mr-2" />Approve Payment
               </Button>
             )}
 
-            {local.status === "pending approval" && (
+            {/* Approve Booking - only for PENDING_APPROVAL */}
+            {(normalizedStatus === "PENDING_APPROVAL" || local.status.toLowerCase() === "pending approval") && (
               <Button onClick={() => onApprove?.(local.id)}>
-                <Check className="size-4 mr-2" />Approve
+                <Check className="size-4 mr-2" />Approve Booking
               </Button>
             )}
 
-            {/* If booking is approved and not yet an explicit member, allow Assign Room (even if a room exists in data) */}
-            {local.status === "approved" && !isMember && (
+            {/* Assign Room - only for APPROVED status */}
+            {(normalizedStatus === "APPROVED" || local.status.toLowerCase() === "approved") && !isMember && (
               <Button onClick={handleAssign}><Key className="size-4 mr-2" />Assign Room</Button>
             )}
 
-            {/* Complete Onboarding only shown after a room is assigned via the UI (assignedNow) */}
-            {local.allocatedRoomNumber != null && local.status === "approved" && !isMember && assignedNow && (
+            {/* Complete Onboarding - only for ROOM_ALLOCATED status */}
+            {normalizedStatus === "ROOM_ALLOCATED" && !isMember && (
               <Button className="bg-teal-600 hover:bg-teal-700" onClick={() => onCompleteOnboarding?.(local.id)}>
                 <Check className="size-4 mr-2" />Complete Onboarding
+              </Button>
+            )}
+
+            {/* Cancel Booking - available for all statuses except COMPLETED */}
+            {normalizedStatus !== "COMPLETED" && onCancel && (
+              <Button 
+                variant="destructive" 
+                onClick={() => {
+                  const reason = prompt("Reason for cancellation (optional):");
+                  onCancel(local.id, reason || undefined);
+                }}
+              >
+                <X className="size-4 mr-2" />Cancel Booking
               </Button>
             )}
           </div>
