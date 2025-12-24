@@ -105,7 +105,7 @@ describe('useAuthStore', () => {
       expect(result.current.error).toContain('Access denied')
     })
 
-    it('should allow sign in for SUPER_ADMIN role', async () => {
+    it('should reject sign in for SUPER_ADMIN role', async () => {
       const mockUser = { id: '1', firstName: 'Test', lastName: 'User', email: 'test@example.com', role: 'SUPER_ADMIN' as const }
       const mockToken = 'test-token'
       ;(apiFetch as jest.Mock).mockResolvedValueOnce({
@@ -116,12 +116,16 @@ describe('useAuthStore', () => {
       const { result } = renderHook(() => useAuthStore())
 
       await act(async () => {
-        await result.current.signIn({ email: 'test@example.com', password: 'password123' })
+        try {
+          await result.current.signIn({ email: 'test@example.com', password: 'password123' })
+        } catch {
+          // Expected error
+        }
       })
 
-      expect(result.current.user).toEqual(mockUser)
-      expect(result.current.isAuthenticated).toBe(true)
-      expect(result.current.error).toBeNull()
+      expect(result.current.isAuthenticated).toBe(false)
+      expect(result.current.user).toBeNull()
+      expect(result.current.error).toContain('Access denied')
     })
 
     it('should handle sign in error', async () => {

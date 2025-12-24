@@ -145,8 +145,8 @@ const useAuthStore = create<AuthState>()(
             throw new Error("Login failed: No user data returned from server.");
           }
 
-          // Check if user has ADMIN or SUPER_ADMIN role
-          if (!user.role || (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN")) {
+          // Check if user has ADMIN role (only ADMIN, not SUPER_ADMIN)
+          if (!user.role || user.role !== "ADMIN") {
             const message = "Access denied. Only administrators can access this system.";
             set({ user: null, token: null, isAuthenticated: false, loading: false, error: message });
             if (typeof document !== "undefined") {
@@ -214,8 +214,8 @@ const useAuthStore = create<AuthState>()(
               restoredUser = extractUserFromResponse(profileRes);
             }
             
-            // Validate role on session restore - only allow ADMIN or SUPER_ADMIN
-            if (!restoredUser.role || (restoredUser.role !== "ADMIN" && restoredUser.role !== "SUPER_ADMIN")) {
+            // Validate role on session restore - only allow ADMIN (not SUPER_ADMIN)
+            if (!restoredUser.role || restoredUser.role !== "ADMIN") {
               // Clear invalid session
               set({ user: null, token: null, isAuthenticated: false, initializing: false });
               localStorage.removeItem("auth-storage");

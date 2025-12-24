@@ -25,6 +25,7 @@ interface BookingDetailsDialogProps {
   onAssignRoom?: (id: string, roomNumber: number) => void;
   onCompleteOnboarding?: (id: string) => void;
   onApprove?: (id: string) => void;
+  onCancel?: (id: string, reason?: string) => void;
 }
 
 export default function EditContactDialog({
@@ -35,6 +36,7 @@ export default function EditContactDialog({
   onAssignRoom,
   onCompleteOnboarding,
   onApprove,
+  onCancel,
 }: BookingDetailsDialogProps) {
   const [local, setLocal] = useState<StudentBooking>(booking);
 

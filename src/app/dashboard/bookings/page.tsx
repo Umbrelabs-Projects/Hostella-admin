@@ -133,7 +133,7 @@ export default function Bookings() {
 
   const handleCancelBooking = async (id: string, reason?: string) => {
     try {
-      const updated = await cancelBookingApi(id, reason);
+      const updated = await cancelBooking(id, reason);
       setViewingBooking(updated);
       toast.success("Booking cancelled successfully");
     } catch (err) {
