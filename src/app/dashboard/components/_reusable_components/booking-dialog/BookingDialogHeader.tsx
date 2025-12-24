@@ -29,7 +29,7 @@ export default function BookingDialogHeader({
     <div
       className={`relative bg-linear-to-br ${getStatusColor(
         normalizedStatus
-      )} px-8 pt-8 pb-6 overflow-hidden shrink-0`}
+      )} px-8 pt-7 pb-4 overflow-hidden shrink-0`}
     >
       {/* Decorative background elements */}
       <div className="absolute inset-0 opacity-10">

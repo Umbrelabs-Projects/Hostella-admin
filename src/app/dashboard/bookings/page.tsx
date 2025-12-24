@@ -65,11 +65,32 @@ export default function Bookings() {
 
   const handleAddBooking = async (input: Partial<StudentBooking>) => {
     try {
-      await createBooking(input);
+      const result = await createBooking(input);
       setShowAddDialog(false);
-      toast.success("Booking created successfully");
+      
+      // Show success message with student account creation info
+      toast.success(
+        "Booking created successfully! Student account has been created and login credentials have been sent via email.",
+        { duration: 5000 }
+      );
+      
+      return result;
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to create booking");
+      // Handle validation errors
+      if (err instanceof Error && err.message.includes("Validation")) {
+        toast.error(err.message);
+      } else if (err instanceof Error && err.message) {
+        // Check if it's an API error with detailed messages
+        const errorMessage = err.message;
+        if (errorMessage.includes("errors")) {
+          toast.error("Please check all required fields are filled correctly");
+        } else {
+          toast.error(errorMessage);
+        }
+      } else {
+        toast.error("Failed to create booking. Please try again.");
+      }
+      throw err;
     }
   };
 

@@ -28,7 +28,7 @@ export default function BookingActionButtons({
   onCancel,
 }: BookingActionButtonsProps) {
   return (
-    <div className="flex gap-3 justify-end pt-6 border-t border-gray-200 dark:border-gray-800 shrink-0 mt-auto">
+    <div className="flex gap-3 justify-end px-6 py-4 border-t border-gray-200 dark:border-gray-800 shrink-0 mt-auto bg-white dark:bg-gray-900">
       <ActionButton
         icon={X}
         variant="outline"

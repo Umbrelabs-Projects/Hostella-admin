@@ -189,6 +189,7 @@ export default function EditContactDialog({
           onCopyBookingId={copyBookingId}
         />
 
+        {/* Scrollable Content Area */}
         <div className="p-6 space-y-5 bg-linear-to-b from-gray-50/50 to-white dark:from-gray-950/50 dark:to-gray-900 overflow-y-auto flex-1 min-h-0">
           <PersonalInfoCard booking={local} />
           <AccommodationCard booking={local} isMember={isMember} assignedNow={assignedNow} />
@@ -204,20 +205,20 @@ export default function EditContactDialog({
 
           {/* Emergency Contact Card */}
           {isMember && <EmergencyContactCard booking={local} />}
-
-          {/* Action Buttons */}
-          <BookingActionButtons
-            booking={local}
-            normalizedStatus={normalizedStatus}
-            isMember={isMember}
-            onClose={() => onOpenChange(false)}
-            onApprovePayment={onApprovePayment}
-            onApprove={onApprove}
-            onAssignRoom={handleAssign}
-            onCompleteOnboarding={onCompleteOnboarding}
-            onCancel={onCancel}
-          />
         </div>
+
+        {/* Fixed Footer with Action Buttons */}
+        <BookingActionButtons
+          booking={local}
+          normalizedStatus={normalizedStatus}
+          isMember={isMember}
+          onClose={() => onOpenChange(false)}
+          onApprovePayment={onApprovePayment}
+          onApprove={onApprove}
+          onAssignRoom={handleAssign}
+          onCompleteOnboarding={onCompleteOnboarding}
+          onCancel={onCancel}
+        />
       </DialogContent>
 
       <AssignRoomDialog
