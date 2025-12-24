@@ -19,6 +19,7 @@ type Props = {
   onApprove: (id: string) => void;
   onDeleteConfirm: (id: string) => void;
   onCancel?: (id: string, reason?: string) => void;
+  onRemoveStudent?: (id: string) => void;
 };
 
 export default function BookingsDialogs({
@@ -35,6 +36,7 @@ export default function BookingsDialogs({
   onApprove,
   onDeleteConfirm,
   onCancel,
+  onRemoveStudent,
 }: Props) {
   return (
     <>
@@ -49,6 +51,7 @@ export default function BookingsDialogs({
           onCompleteOnboarding={onCompleteOnboarding}
           onApprove={onApprove}
           onCancel={onCancel}
+          onRemoveStudent={onRemoveStudent}
         />
       )}
 

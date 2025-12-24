@@ -29,6 +29,7 @@ export default function Bookings() {
     completeOnboarding,
     deleteBooking: deleteBookingApi,
     cancelBooking,
+    removeStudentFromRoom,
     setFilters,
     setCurrentPage,
     clearError,
@@ -162,6 +163,16 @@ export default function Bookings() {
     }
   };
 
+  const handleRemoveStudent = async (id: string) => {
+    try {
+      const updated = await removeStudentFromRoom(id);
+      setViewingBooking(updated);
+      toast.success("Student removed from room successfully");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to remove student from room", { duration: 4000 });
+    }
+  };
+
   // Initial skeleton when loading without data
   // (kept, but no extra isInitialized gate to avoid act warnings in tests)
 
@@ -270,6 +281,7 @@ export default function Bookings() {
         onApprove={handleApprove}
         onDeleteConfirm={handleDeleteBooking}
         onCancel={handleCancelBooking}
+        onRemoveStudent={handleRemoveStudent}
       />
     </main>
   );

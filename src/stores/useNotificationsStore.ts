@@ -9,6 +9,10 @@ import {
   ClipboardList,
   Wrench,
   Bell,
+  Key,
+  CheckCircle,
+  X,
+  AlertCircle,
 } from "lucide-react";
 
 type NotificationFilters = {
@@ -61,24 +65,50 @@ interface NotificationsState {
 }
 
 // *** ADMIN NOTIFICATION ICONS + COLORS ***
+// Types match the guide: kebab-case (e.g., "payment-received", "new-booking")
 export const typeConfig = {
-  new_booking: {
+  "new-booking": {
     icon: ClipboardList,
     color: "bg-blue-100 text-blue-600 border-blue-500",
   },
-  payment_made: {
+  "payment-received": {
     icon: Receipt,
     color: "bg-green-100 text-green-600 border-green-500",
   },
-  maintenance_request: {
+  "room-allocated": {
+    icon: Key,
+    color: "bg-blue-100 text-blue-600 border-blue-500",
+  },
+  "booking-approved": {
+    icon: CheckCircle,
+    color: "bg-green-100 text-green-600 border-green-500",
+  },
+  "booking-rejected": {
+    icon: X,
+    color: "bg-red-100 text-red-600 border-red-500",
+  },
+  "booking-cancelled": {
+    icon: X,
+    color: "bg-red-100 text-red-600 border-red-500",
+  },
+  "maintenance-alert": {
     icon: Wrench,
     color: "bg-orange-100 text-orange-600 border-orange-500",
   },
-  new_user: {
-    icon: UserPlus,
+  "broadcast": {
+    icon: Bell,
     color: "bg-purple-100 text-purple-600 border-purple-500",
   },
-  system_alert: {
+  "complaint-received": {
+    icon: AlertCircle,
+    color: "bg-yellow-100 text-yellow-600 border-yellow-500",
+  },
+  "complaint-resolved": {
+    icon: CheckCircle,
+    color: "bg-green-100 text-green-600 border-green-500",
+  },
+  // Fallback for unknown types
+  "system-alert": {
     icon: Bell,
     color: "bg-gray-100 text-gray-600 border-gray-500",
   },

@@ -55,6 +55,10 @@ export type BookingsState = {
   assignRoom: (id: string, roomNumber: number) => Promise<StudentBooking>;
   completeOnboarding: (id: string) => Promise<void>;
   cancelBooking: (id: string, reason?: string) => Promise<StudentBooking>;
+  getPendingAssignments: (page?: number, limit?: number, hostelId?: string, preferredRoomType?: string) => Promise<{ items: StudentBooking[]; pagination: { total: number; page: number; limit: number; pages: number } }>;
+  getSuitableRooms: (bookingId: string) => Promise<Array<{ id: string; roomNumber: number; roomType: string; price: number; capacity: number; currentOccupancy: number; isAvailable: boolean; hostelId: string }>>;
+  removeStudentFromRoom: (bookingId: string) => Promise<StudentBooking>;
+  getBookingStats: (hostelId?: string) => Promise<{ total: number; pendingPayment: number; pendingApproval: number; approved: number; roomAllocated: number; completed: number; cancelled: number }>;
 
   // Pagination & Filter Actions
   setCurrentPage: (page: number) => void;
@@ -358,12 +362,12 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
   deleteBooking: async (id) => {
     set({ loading: true, error: null });
     try {
-      // Check if booking can be deleted (only PENDING_PAYMENT status)
+      // Check if booking can be deleted (PENDING_PAYMENT or CANCELLED status)
       const booking = get().bookings.find((b) => b.id === id);
       const normalizedStatus = booking ? normalizeStatus(booking.status) : "";
       
-      if (normalizedStatus !== "PENDING_PAYMENT") {
-        throw new Error("Only bookings with 'pending payment' status can be deleted");
+      if (normalizedStatus !== "PENDING_PAYMENT" && normalizedStatus !== "CANCELLED") {
+        throw new Error("Only bookings with 'pending payment' or 'cancelled' status can be deleted");
       }
 
       // Backend returns { success: true, data: { success: true, message: string } }
@@ -609,6 +613,174 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
           : err instanceof Error
             ? err.message
             : "Failed to cancel booking";
+      set({ error: message, loading: false });
+      throw err;
+    }
+  },
+
+  getPendingAssignments: async (page = 1, limit = 10, hostelId?, preferredRoomType?) => {
+    set({ loading: true, error: null });
+    try {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+        ...(hostelId && { hostelId }),
+        ...(preferredRoomType && { preferredRoomType }),
+      });
+
+      const response = await apiFetch<{
+        success: boolean;
+        data: {
+          items: StudentBooking[];
+          pagination: {
+            total: number;
+            page: number;
+            limit: number;
+            pages: number;
+          };
+        };
+      }>(`/bookings/admin/pending-assignments?${params}`);
+
+      if (response.success && response.data) {
+        // Normalize status values
+        const items = response.data.items.map((booking) => ({
+          ...booking,
+          status: normalizeStatus(booking.status) as StudentBooking["status"],
+        }));
+
+        set({ loading: false, error: null });
+        return {
+          items,
+          pagination: response.data.pagination,
+        };
+      } else {
+        throw new Error("Failed to fetch pending assignments");
+      }
+    } catch (err) {
+      const message =
+        err instanceof APIException
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Failed to fetch pending assignments";
+      set({ error: message, loading: false });
+      throw err;
+    }
+  },
+
+  getSuitableRooms: async (bookingId) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<{
+        success: boolean;
+        data: {
+          rooms: Array<{
+            id: string;
+            roomNumber: number;
+            roomType: string;
+            price: number;
+            capacity: number;
+            currentOccupancy: number;
+            isAvailable: boolean;
+            hostelId: string;
+          }>;
+        };
+      }>(`/bookings/${bookingId}/suitable-rooms`);
+
+      if (response.success && response.data) {
+        set({ loading: false, error: null });
+        return response.data.rooms;
+      } else {
+        throw new Error("Failed to fetch suitable rooms");
+      }
+    } catch (err) {
+      const message =
+        err instanceof APIException
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Failed to fetch suitable rooms";
+      set({ error: message, loading: false });
+      throw err;
+    }
+  },
+
+  removeStudentFromRoom: async (bookingId) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<{
+        success: boolean;
+        data: {
+          booking: StudentBooking;
+        };
+      }>(`/bookings/admin/remove-student/${bookingId}`, {
+        method: "DELETE",
+      });
+
+      if (response.success && response.data) {
+        const updated = {
+          ...response.data.booking,
+          status: normalizeStatus(response.data.booking.status) as StudentBooking["status"],
+        };
+
+        set((state) => {
+          const currentBookings = Array.isArray(state.bookings) ? state.bookings : [];
+          return {
+            bookings: currentBookings.map((b) => (b.id === bookingId ? updated : b)),
+            selectedBooking: state.selectedBooking?.id === bookingId ? updated : state.selectedBooking,
+            loading: false,
+            error: null,
+          };
+        });
+
+        return updated;
+      } else {
+        throw new Error("Failed to remove student from room");
+      }
+    } catch (err) {
+      const message =
+        err instanceof APIException
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Failed to remove student from room";
+      set({ error: message, loading: false });
+      throw err;
+    }
+  },
+
+  getBookingStats: async (hostelId?) => {
+    set({ loading: true, error: null });
+    try {
+      const params = hostelId ? `?hostelId=${hostelId}` : "";
+      const response = await apiFetch<{
+        success: boolean;
+        data: {
+          stats: {
+            total: number;
+            pendingPayment: number;
+            pendingApproval: number;
+            approved: number;
+            roomAllocated: number;
+            completed: number;
+            cancelled: number;
+          };
+        };
+      }>(`/bookings/stats/summary${params}`);
+
+      if (response.success && response.data) {
+        set({ loading: false, error: null });
+        return response.data.stats;
+      } else {
+        throw new Error("Failed to fetch booking statistics");
+      }
+    } catch (err) {
+      const message =
+        err instanceof APIException
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Failed to fetch booking statistics";
       set({ error: message, loading: false });
       throw err;
     }

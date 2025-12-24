@@ -4,13 +4,16 @@ import { MessageCircle, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import UserDropdown from "./UserDropdown";
+import NotificationDropdown from "./NotificationDropdown";
 import { useNotificationsStore } from "@/stores/useNotificationsStore";
-import { useEffect } from "react";
+import { useEffect, useState, useRef } from "react";
 
 export default function HeaderRight() {
   const notifications = useNotificationsStore((state) => state.notifications);
   const unreadCount = useNotificationsStore((state) => state.unreadCount);
   const fetchNotifications = useNotificationsStore((state) => state.fetchNotifications);
+  const [isNotificationDropdownOpen, setIsNotificationDropdownOpen] = useState(false);
+  const notificationButtonRef = useRef<HTMLButtonElement>(null);
 
   // Check if there are any unread notifications
   const hasUnread = notifications.some((n) => !n.read) || unreadCount > 0;
@@ -77,8 +80,15 @@ export default function HeaderRight() {
       </Link>
 
       {/* Notifications */}
-      <Link href="/dashboard/notifications" aria-label="Notifications">
-        <Button variant="ghost" size="icon" className="cursor-pointer relative">
+      <div className="relative">
+        <Button
+          ref={notificationButtonRef}
+          variant="ghost"
+          size="icon"
+          className="cursor-pointer relative"
+          onClick={() => setIsNotificationDropdownOpen(!isNotificationDropdownOpen)}
+          aria-label="Notifications"
+        >
           <Bell className="h-5 w-5 text-gray-600" />
 
           {/* Badge showing unread count */}
@@ -88,7 +98,10 @@ export default function HeaderRight() {
             </span>
           )}
         </Button>
-      </Link>
+        {isNotificationDropdownOpen && (
+          <NotificationDropdown onClose={() => setIsNotificationDropdownOpen(false)} />
+        )}
+      </div>
 
       <UserDropdown />
     </div>
