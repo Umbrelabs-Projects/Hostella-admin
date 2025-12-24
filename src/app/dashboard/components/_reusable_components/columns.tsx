@@ -5,7 +5,8 @@ import { StudentBooking } from "@/types/booking";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Info, Trash2 } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import Image from "next/image";
 
 interface ColumnsConfig {
   onView: (booking: StudentBooking) => void;
@@ -26,6 +27,12 @@ export const columns = ({ onView, onDelete, showStatus = true, showAssigned = fa
         return (
           <div className="flex items-center gap-3">
             <Avatar className="h-9 w-9">
+              {(b.avatar || b.imageUrl) ? (
+                <AvatarImage 
+                  src={b.avatar || b.imageUrl || ""} 
+                  alt={fullName}
+                />
+              ) : null}
               <AvatarFallback className="bg-teal-600 text-white font-semibold text-xs">
                 {`${b.firstName?.[0] || ""}${b.lastName?.[0] || ""}`.toUpperCase()}
               </AvatarFallback>

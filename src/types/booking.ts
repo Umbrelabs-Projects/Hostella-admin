@@ -30,6 +30,8 @@ export interface StudentBooking {
   studentId: string;
   phone: string; // 10-15 digits
   admissionLetterName?: string; // filename or display text
+  avatar?: string; // profile image URL (from API)
+  imageUrl?: string; // profile image URL (legacy support)
   hostelName: string;
   roomTitle: RoomTitle;
   price: string;
