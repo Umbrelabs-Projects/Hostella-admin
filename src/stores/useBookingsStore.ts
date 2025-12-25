@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { StudentBooking } from "@/types/booking";
 import { apiFetch, APIException } from "@/lib/api";
 import { BookingCreateRequest } from "@/app/dashboard/components/_reusable_components/add-contact-dialog/validation";
+import { transformBooking, transformBookings } from "@/lib/transformBooking";
 
 // Helper to normalize status (API returns lowercase with spaces/underscores, normalize to uppercase with underscores for internal use)
 const normalizeStatus = (status: string): string => {
@@ -54,7 +55,7 @@ export type BookingsState = {
   approveBooking: (id: string) => Promise<StudentBooking>;
   assignRoom: (id: string, roomId: string) => Promise<StudentBooking>;
   completeOnboarding: (id: string) => Promise<void>;
-  cancelBooking: (id: string, reason?: string) => Promise<StudentBooking>;
+  cancelBooking: (id: string, reason?: string) => Promise<void>;
   getPendingAssignments: (page?: number, limit?: number, hostelId?: string, preferredRoomType?: string) => Promise<{ items: StudentBooking[]; pagination: { total: number; page: number; limit: number; pages: number } }>;
   getSuitableRooms: (bookingId: string) => Promise<Array<{
     id: string;
@@ -172,7 +173,7 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
 
       const params = new URLSearchParams({
         page: page.toString(),
-        pageSize: pageSize.toString(),
+        limit: pageSize.toString(), // API uses 'limit' not 'pageSize'
         ...(filters.search && { search: filters.search }),
         ...(filters.status && filters.status !== "all" && { status: apiStatus }),
         ...(filters.gender && filters.gender !== "all" && { gender: filters.gender }),
@@ -211,9 +212,19 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
       };
 
       if (isArray(response)) {
-        // Direct array response
+        // Direct array response (legacy format)
         bookings = response;
         pagination = { page, pageSize, total: response.length, totalPages: Math.ceil(response.length / pageSize) };
+      } else if (hasData(response) && typeof response.data === "object" && response.data !== null && "pagination" in response.data && "bookings" in response.data) {
+        // New format: { success: true, data: { bookings: [...], pagination: {...} } }
+        const dataObj = response.data as { bookings: StudentBooking[]; pagination: { page: number; limit: number; total: number; pages: number } };
+        bookings = dataObj.bookings;
+        pagination = {
+          page: dataObj.pagination.page,
+          pageSize: dataObj.pagination.limit,
+          total: dataObj.pagination.total,
+          totalPages: dataObj.pagination.pages,
+        };
       } else if (hasBookings(response)) {
         // Old format: { bookings: [...], total, page, pageSize }
         bookings = response.bookings;
@@ -234,16 +245,33 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
             totalPages: response.totalPages ?? Math.ceil((response.total ?? bookings.length) / (response.pageSize ?? pageSize)),
           };
         } else if (typeof response.data === "object" && response.data !== null && "bookings" in response.data) {
-          // New backend format: { success: true, data: { bookings: [...], total, page, pageSize } }
-          const dataWithBookings = response.data as { bookings: StudentBooking[]; total?: number; page?: number; pageSize?: number };
+          // New backend format: { success: true, data: { bookings: [...], pagination: {...} } }
+          const dataWithBookings = response.data as { 
+            bookings: StudentBooking[]; 
+            pagination?: { page: number; limit: number; total: number; pages: number };
+            total?: number; 
+            page?: number; 
+            limit?: number;
+            pages?: number;
+          };
           if (Array.isArray(dataWithBookings.bookings)) {
             bookings = dataWithBookings.bookings;
-            pagination = {
-              page: dataWithBookings.page ?? response.page ?? page,
-              pageSize: dataWithBookings.pageSize ?? response.pageSize ?? pageSize,
-              total: dataWithBookings.total ?? dataWithBookings.bookings.length,
-              totalPages: response.totalPages ?? Math.ceil((dataWithBookings.total ?? dataWithBookings.bookings.length) / (dataWithBookings.pageSize ?? response.pageSize ?? pageSize)),
-            };
+            // Use pagination object if available, otherwise construct from individual fields
+            if (dataWithBookings.pagination) {
+              pagination = {
+                page: dataWithBookings.pagination.page,
+                pageSize: dataWithBookings.pagination.limit,
+                total: dataWithBookings.pagination.total,
+                totalPages: dataWithBookings.pagination.pages,
+              };
+            } else {
+              pagination = {
+                page: dataWithBookings.page ?? response.page ?? page,
+                pageSize: dataWithBookings.limit ?? response.pageSize ?? pageSize,
+                total: dataWithBookings.total ?? dataWithBookings.bookings.length,
+                totalPages: dataWithBookings.pages ?? response.totalPages ?? Math.ceil((dataWithBookings.total ?? dataWithBookings.bookings.length) / (dataWithBookings.limit ?? response.pageSize ?? pageSize)),
+              };
+            }
           } else {
             console.warn("[fetchBookings] Response.data.bookings is not an array:", response.data);
             bookings = [];
@@ -260,8 +288,8 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
         pagination = { page, pageSize, total: 0, totalPages: 0 };
       }
 
-      // Normalize status values in bookings (convert old format to new format)
-      bookings = bookings.map((booking) => ({
+      // Transform nested API response to flat structure and normalize status
+      bookings = transformBookings(bookings).map((booking) => ({
         ...booking,
         status: normalizeStatus(booking.status) as StudentBooking["status"],
       }));
@@ -317,9 +345,10 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
         body: JSON.stringify(booking),
       });
 
+      const transformed = transformBooking(response.data as any);
       const newBooking = {
-        ...response.data,
-        status: normalizeStatus(response.data.status) as StudentBooking["status"],
+        ...transformed,
+        status: normalizeStatus(transformed.status) as StudentBooking["status"],
       };
 
       // Ensure bookings is always an array before updating
@@ -359,7 +388,11 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
         body: JSON.stringify(updates),
       });
 
-      const updated = response.data;
+      const transformed = transformBooking(response.data as any);
+      const updated = {
+        ...transformed,
+        status: normalizeStatus(transformed.status) as StudentBooking["status"],
+      };
 
       set((state) => {
         const currentBookings = Array.isArray(state.bookings) ? state.bookings : [];
@@ -489,9 +522,10 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
       }>(`/bookings/${id}`);
 
       const bookingData = bookingResponse.data || (bookingResponse as unknown as StudentBooking);
+      const transformed = transformBooking(bookingData as any);
       const updated = {
-        ...bookingData,
-        status: normalizeStatus(bookingData.status) as StudentBooking["status"],
+        ...transformed,
+        status: normalizeStatus(transformed.status) as StudentBooking["status"],
       };
 
       set((state) => {
@@ -529,9 +563,10 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
         method: "POST",
       });
 
+      const transformed = transformBooking(response.data as any);
       const updated = {
-        ...response.data,
-        status: normalizeStatus(response.data.status) as StudentBooking["status"],
+        ...transformed,
+        status: normalizeStatus(transformed.status) as StudentBooking["status"],
       };
 
       set((state) => {
@@ -575,19 +610,20 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
       // Debug: Log the response to see what the backend returns
       console.log("[assignRoom] Backend response:", JSON.stringify(response, null, 2));
       console.log("[assignRoom] Response data:", response.data);
-      console.log("[assignRoom] allocatedRoomNumber:", response.data.allocatedRoomNumber);
-      console.log("[assignRoom] floorNumber:", (response.data as any).floorNumber);
       console.log("[assignRoom] Response data keys:", Object.keys(response.data));
 
+      // Transform nested API response to flat structure
+      const transformed = transformBooking(response.data);
+      
       const updated = {
-        ...response.data,
-        status: normalizeStatus(response.data.status) as StudentBooking["status"],
+        ...transformed,
+        status: normalizeStatus(transformed.status) as StudentBooking["status"],
       };
 
-      console.log("[assignRoom] Updated booking:", {
+      console.log("[assignRoom] Transformed booking:", {
         id: updated.id,
         allocatedRoomNumber: updated.allocatedRoomNumber,
-        floorNumber: (updated as any).floorNumber,
+        floorNumber: updated.floorNumber,
         status: updated.status
       });
 
@@ -665,7 +701,8 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
   cancelBooking: async (id, reason) => {
     set({ loading: true, error: null });
     try {
-      // Backend returns { success: true, data: { booking: StudentBooking } }
+      // Use the same endpoint and approach as deleteBooking
+      // Backend returns { success: true, data: { success: true, message: string } }
       const options: RequestInit = {
         method: "DELETE",
         headers: {
@@ -677,27 +714,22 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
         options.body = JSON.stringify({ reason });
       }
 
-      const response = await apiFetch<{
+      await apiFetch<{
         success: boolean;
-        data: { booking: StudentBooking };
-      }>(`/bookings/${id}/cancel`, options);
+        data: { success: boolean; message: string };
+      }>(`/bookings/${id}`, options);
 
-      const updated = {
-        ...response.data.booking,
-        status: normalizeStatus(response.data.booking.status) as StudentBooking["status"],
-      };
-
+      // Remove booking from list (same as deleteBooking)
       set((state) => {
         const currentBookings = Array.isArray(state.bookings) ? state.bookings : [];
         return {
-          bookings: currentBookings.map((b) => (b.id === id ? updated : b)),
-          selectedBooking: state.selectedBooking?.id === id ? updated : state.selectedBooking,
+          bookings: currentBookings.filter((b) => b.id !== id),
+          selectedBooking: state.selectedBooking?.id === id ? null : state.selectedBooking,
+          totalBookings: state.totalBookings - 1,
           loading: false,
           error: null,
         };
       });
-
-      return updated;
     } catch (err) {
       const message =
         err instanceof APIException
@@ -735,7 +767,7 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
 
       if (response.success && response.data) {
         // Normalize status values
-        const items = response.data.items.map((booking) => ({
+        const items = transformBookings(response.data.items).map((booking) => ({
           ...booking,
           status: normalizeStatus(booking.status) as StudentBooking["status"],
         }));

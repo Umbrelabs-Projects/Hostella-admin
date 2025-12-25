@@ -183,8 +183,10 @@ export default function Bookings() {
   const handleCancelBooking = async (id: string, reason?: string) => {
     setLoadingActions(prev => ({ ...prev, [`cancel-${id}`]: true }));
     try {
-      const updated = await cancelBooking(id, reason);
-      setViewingBooking(updated);
+      await cancelBooking(id, reason);
+      const { removeMember } = useMembersStore.getState();
+      removeMember(id);
+      setViewingBooking(null); // Close the dialog since booking is removed
       toast.success("Booking cancelled successfully");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to cancel booking", { duration: 4000 });
