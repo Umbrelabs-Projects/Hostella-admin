@@ -56,7 +56,7 @@ export default function PasswordSettings() {
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to update password";
-      toast.error(message);
+      toast.error(message, { duration: 4000 });
     }
   };
 

@@ -5,13 +5,15 @@ import ConfirmDialog from "@/components/ui/confirm-dialog";
 interface DeleteConfirmDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onConfirm: () => void;
+  onConfirm: () => void | Promise<void>;
+  loading?: boolean;
 }
 
 export default function DeleteConfirmDialog({
   open,
   onOpenChange,
   onConfirm,
+  loading = false,
 }: DeleteConfirmDialogProps) {
   return (
     <ConfirmDialog
@@ -21,6 +23,7 @@ export default function DeleteConfirmDialog({
       description="Are you sure you want to delete this contact? This action cannot be undone."
       confirmLabel="Delete"
       onConfirm={onConfirm}
+      loading={loading}
     />
   );
 }

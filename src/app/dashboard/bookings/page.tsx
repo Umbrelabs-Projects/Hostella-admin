@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import BookingsHeader from "./_components/BookingsHeader";
 import BookingsFilters from "./_components/BookingsFilters";
 import BookingsTable from "./_components/BookingsTable";
@@ -11,8 +12,10 @@ import { useMembersStore } from "@/stores/useMembersStore";
 import { toast } from "sonner";
 import { StudentBooking } from "@/types/booking";
 import { TableSkeleton } from "@/components/ui/skeleton";
+import { BookingCreateRequest } from "@/app/dashboard/components/_reusable_components/add-contact-dialog/validation";
 
 export default function Bookings() {
+  const router = useRouter();
   const {
     bookings,
     loading,
@@ -29,6 +32,7 @@ export default function Bookings() {
     completeOnboarding,
     deleteBooking: deleteBookingApi,
     cancelBooking,
+    removeStudentFromRoom,
     setFilters,
     setCurrentPage,
     clearError,
@@ -38,6 +42,7 @@ export default function Bookings() {
   const [viewingBooking, setViewingBooking] = useState<StudentBooking | null>(null);
   const [deletingBookingId, setDeletingBookingId] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [loadingActions, setLoadingActions] = useState<Record<string, boolean>>({});
 
   // Fetch bookings on mount and when filters change
   useEffect(() => {
@@ -63,41 +68,76 @@ export default function Bookings() {
     setCurrentPage(1);
   };
 
-  const handleAddBooking = async (input: Partial<StudentBooking>) => {
+  const handleAddBooking = async (input: BookingCreateRequest | Partial<StudentBooking>): Promise<void> => {
     try {
       await createBooking(input);
       setShowAddDialog(false);
-      toast.success("Booking created successfully");
+      
+      // Show success message with student account creation info
+      toast.success(
+        "Booking created successfully! Student account has been created and login credentials have been sent via email.",
+        { duration: 5000 }
+      );
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to create booking");
+      // Handle validation errors
+      if (err instanceof Error && err.message.includes("Validation")) {
+        toast.error(err.message, { duration: 4000 });
+      } else if (err instanceof Error && err.message) {
+        // Check if it's an API error with detailed messages
+        const errorMessage = err.message;
+        if (errorMessage.includes("errors")) {
+          toast.error("Please check all required fields are filled correctly", { duration: 4000 });
+        } else {
+          toast.error(errorMessage, { duration: 4000 });
+        }
+      } else {
+        toast.error("Failed to create booking. Please try again.", { duration: 4000 });
+      }
+      throw err;
     }
   };
 
   const handleApprovePayment = async (id: string) => {
+    setLoadingActions(prev => ({ ...prev, [`approvePayment-${id}`]: true }));
     try {
       const updated = await approvePayment(id);
       setViewingBooking(updated);
       toast.success("Payment approved");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to approve payment");
+      toast.error(err instanceof Error ? err.message : "Failed to approve payment", { duration: 4000 });
+    } finally {
+      setLoadingActions(prev => ({ ...prev, [`approvePayment-${id}`]: false }));
     }
   };
 
-  const handleAssignRoom = async (id: string, roomNumber: number) => {
+  const handleAssignRoom = async (id: string, roomId: string): Promise<StudentBooking> => {
+    setLoadingActions(prev => ({ ...prev, [`assignRoom-${id}`]: true }));
     try {
-      const updated = await assignRoom(id, roomNumber);
-      setViewingBooking(updated);
-      toast.success("Room assigned successfully");
+      const updated = await assignRoom(id, roomId);
+      setViewingBooking(null); // Close the dialog
+      
+      // Refresh members list to include the newly assigned member
+      const { fetchMembers } = useMembersStore.getState();
+      await fetchMembers();
+      
+      toast.success("Room assigned successfully. Student is now a member.");
+      // Navigate to members page after room assignment
+      router.push("/dashboard/members");
+      return updated;
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to assign room");
+      toast.error(err instanceof Error ? err.message : "Failed to assign room", { duration: 4000 });
+      throw err;
+    } finally {
+      setLoadingActions(prev => ({ ...prev, [`assignRoom-${id}`]: false }));
     }
   };
 
   const handleCompleteOnboarding = async (id: string) => {
+    setLoadingActions(prev => ({ ...prev, [`completeOnboarding-${id}`]: true }));
     try {
       const b = bookingsArray.find((x) => x.id === id);
       if (!b?.allocatedRoomNumber) {
-        toast.error("Cannot complete onboarding without an assigned room");
+        toast.error("Cannot complete onboarding without an assigned room", { duration: 4000 });
         return;
       }
 
@@ -105,21 +145,27 @@ export default function Bookings() {
       setViewingBooking(null);
       toast.success("Onboarding completed; booking moved to members");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to complete onboarding");
+      toast.error(err instanceof Error ? err.message : "Failed to complete onboarding", { duration: 4000 });
+    } finally {
+      setLoadingActions(prev => ({ ...prev, [`completeOnboarding-${id}`]: false }));
     }
   };
 
   const handleApprove = async (id: string) => {
+    setLoadingActions(prev => ({ ...prev, [`approve-${id}`]: true }));
     try {
       const updated = await approveBooking(id);
       setViewingBooking(updated);
       toast.success("Booking approved");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to approve booking");
+      toast.error(err instanceof Error ? err.message : "Failed to approve booking", { duration: 4000 });
+    } finally {
+      setLoadingActions(prev => ({ ...prev, [`approve-${id}`]: false }));
     }
   };
 
   const handleDeleteBooking = async (id: string) => {
+    setLoadingActions(prev => ({ ...prev, [`delete-${id}`]: true }));
     try {
       await deleteBookingApi(id);
       const { removeMember } = useMembersStore.getState();
@@ -127,17 +173,37 @@ export default function Bookings() {
       setDeletingBookingId(null);
       toast.success("Booking deleted successfully");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to delete booking");
+      toast.error(err instanceof Error ? err.message : "Failed to delete booking", { duration: 4000 });
+    } finally {
+      setLoadingActions(prev => ({ ...prev, [`delete-${id}`]: false }));
     }
   };
 
   const handleCancelBooking = async (id: string, reason?: string) => {
+    setLoadingActions(prev => ({ ...prev, [`cancel-${id}`]: true }));
     try {
-      const updated = await cancelBooking(id, reason);
-      setViewingBooking(updated);
+      await cancelBooking(id, reason);
+      const { removeMember } = useMembersStore.getState();
+      removeMember(id);
+      setViewingBooking(null); // Close the dialog since booking is removed
       toast.success("Booking cancelled successfully");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to cancel booking");
+      toast.error(err instanceof Error ? err.message : "Failed to cancel booking", { duration: 4000 });
+    } finally {
+      setLoadingActions(prev => ({ ...prev, [`cancel-${id}`]: false }));
+    }
+  };
+
+  const handleRemoveStudent = async (id: string) => {
+    setLoadingActions(prev => ({ ...prev, [`removeStudent-${id}`]: true }));
+    try {
+      const updated = await removeStudentFromRoom(id);
+      setViewingBooking(updated);
+      toast.success("Student removed from room successfully");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to remove student from room", { duration: 4000 });
+    } finally {
+      setLoadingActions(prev => ({ ...prev, [`removeStudent-${id}`]: false }));
     }
   };
 
@@ -150,20 +216,6 @@ export default function Bookings() {
         <h1 className="sr-only">Bookings</h1>
         <BookingsHeader onNew={() => setShowAddDialog(true)} />
 
-        {error && (
-          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-red-700">{error}</p>
-              <button
-                onClick={clearError}
-                className="text-sm font-medium text-red-600 hover:text-red-800"
-              >
-                Dismiss
-              </button>
-            </div>
-          </div>
-        )}
-
         <BookingsFilters
           search={filters.search}
           onSearch={(val) => setFilters({ search: val })}
@@ -174,7 +226,7 @@ export default function Bookings() {
             "PENDING_PAYMENT", // Internal format (will be converted to "pending payment" for API)
             "PENDING_APPROVAL", 
             "APPROVED", 
-            "ROOM_ALLOCATED", 
+            // ROOM_ALLOCATED removed - these students are now members and should only appear in members page
             "COMPLETED", 
             "CANCELLED", 
             "REJECTED", 
@@ -249,6 +301,8 @@ export default function Bookings() {
         onApprove={handleApprove}
         onDeleteConfirm={handleDeleteBooking}
         onCancel={handleCancelBooking}
+        onRemoveStudent={handleRemoveStudent}
+        loadingActions={loadingActions}
       />
     </main>
   );

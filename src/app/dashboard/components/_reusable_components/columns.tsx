@@ -5,7 +5,8 @@ import { StudentBooking } from "@/types/booking";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Info, Trash2 } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import Image from "next/image";
 
 interface ColumnsConfig {
   onView: (booking: StudentBooking) => void;
@@ -26,6 +27,12 @@ export const columns = ({ onView, onDelete, showStatus = true, showAssigned = fa
         return (
           <div className="flex items-center gap-3">
             <Avatar className="h-9 w-9">
+              {(b.avatar || b.imageUrl) ? (
+                <AvatarImage 
+                  src={b.avatar || b.imageUrl || ""} 
+                  alt={fullName}
+                />
+              ) : null}
               <AvatarFallback className="bg-teal-600 text-white font-semibold text-xs">
                 {`${b.firstName?.[0] || ""}${b.lastName?.[0] || ""}`.toUpperCase()}
               </AvatarFallback>
@@ -81,9 +88,9 @@ export const columns = ({ onView, onDelete, showStatus = true, showAssigned = fa
   const getStatusColor = (status: string): string => {
     const normalized = normalizeStatus(status);
     if (normalized === "PENDING_PAYMENT") return "bg-amber-100 text-amber-800";
-    if (normalized === "PENDING_APPROVAL") return "bg-orange-100 text-orange-800";
+    if (normalized === "PENDING_APPROVAL") return "bg-blue-100 text-blue-800";
     if (normalized === "APPROVED") return "bg-slate-100 text-slate-800";
-    if (normalized === "ROOM_ALLOCATED") return "bg-blue-100 text-blue-800";
+    if (normalized === "ROOM_ALLOCATED") return "bg-purple-100 text-purple-800";
     if (normalized === "COMPLETED") return "bg-green-100 text-green-800";
     if (normalized === "CANCELLED") return "bg-red-100 text-red-800";
     if (normalized === "REJECTED") return "bg-red-100 text-red-800";
@@ -129,22 +136,67 @@ export const columns = ({ onView, onDelete, showStatus = true, showAssigned = fa
         if (normalized === "PENDING_PAYMENT" || normalized === "PENDING_APPROVAL") {
           return <span className="text-muted-foreground">—</span>;
         }
-        return booking.allocatedRoomNumber != null ? String(booking.allocatedRoomNumber) : <span className="text-muted-foreground">—</span>;
+        // Handle allocatedRoomNumber which can be number, string, or null
+        // Debug logging in development
+        if (process.env.NODE_ENV === "development" && booking.allocatedRoomNumber == null) {
+          console.log("[Room Number Column] No room number for booking:", {
+            id: booking.id,
+            bookingId: booking.bookingId,
+            allocatedRoomNumber: booking.allocatedRoomNumber,
+            status: booking.status,
+            allKeys: Object.keys(booking)
+          });
+        }
+        
+        if (booking.allocatedRoomNumber == null) {
+          return <span className="text-muted-foreground">—</span>;
+        }
+        return String(booking.allocatedRoomNumber);
       },
     });
   }
 
-  // optional floor column derived from room number
+  // optional floor column - use floorNumber from API if available, otherwise calculate from room number
   if (showFloor) {
     base.push({
       id: "floor",
       header: "Floor",
       cell: ({ row }) => {
         const booking = row.original;
-        const n = booking.allocatedRoomNumber;
-        if (n == null) return <span className="text-muted-foreground">—</span>;
+        
+        // Debug logging in development
+        if (process.env.NODE_ENV === "development" && !booking.floorNumber && booking.allocatedRoomNumber) {
+          console.log("[Floor Column] Booking data:", {
+            id: booking.id,
+            allocatedRoomNumber: booking.allocatedRoomNumber,
+            floorNumber: booking.floorNumber,
+            allKeys: Object.keys(booking)
+          });
+        }
+        
+        // Use floorNumber from API if available (preferred)
+        if (booking.floorNumber != null) {
+          return String(booking.floorNumber);
+        }
+        // Fallback: Calculate floor from room number if floorNumber not provided
+        const roomNum = booking.allocatedRoomNumber;
+        if (roomNum == null) {
+          // Debug: Log why floor is not showing
+          if (process.env.NODE_ENV === "development") {
+            console.log("[Floor Column] No room number for booking:", booking.id);
+          }
+          return <span className="text-muted-foreground">—</span>;
+        }
+        // Convert to number if it's a string
+        const num = typeof roomNum === "string" ? parseInt(roomNum, 10) : roomNum;
+        if (isNaN(num)) {
+          if (process.env.NODE_ENV === "development") {
+            console.warn("[Floor Column] Invalid room number:", roomNum, "for booking:", booking.id);
+          }
+          return <span className="text-muted-foreground">—</span>;
+        }
         // Derive floor as groups of 10 rooms per floor (1-10 => floor 1, 11-20 => floor 2, etc.)
-        const floor = Math.floor((n - 1) / 10) + 1;
+        const floor = Math.floor((num - 1) / 10) + 1;
         return String(floor);
       },
     });

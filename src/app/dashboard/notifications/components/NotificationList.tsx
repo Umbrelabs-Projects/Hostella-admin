@@ -9,12 +9,14 @@ interface NotificationListProps {
   notifications: Notification[];
   markAsRead: (id: string) => void;
   deleteNotification: (id: string) => void;
+  onNavigate?: (notification: Notification) => void;
 }
 
 export const NotificationList: React.FC<NotificationListProps> = ({
   notifications,
   markAsRead,
   deleteNotification,
+  onNavigate,
 }) => {
   if (notifications.length === 0) {
     return (
@@ -39,6 +41,7 @@ export const NotificationList: React.FC<NotificationListProps> = ({
               notification={n}
               markAsRead={markAsRead}
               deleteNotification={deleteNotification}
+              onNavigate={onNavigate}
             />
           </motion.div>
         ))}

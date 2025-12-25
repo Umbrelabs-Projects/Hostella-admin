@@ -4,20 +4,24 @@ import React, { useMemo } from "react";
 import { Notification } from "@/types/notifications";
 import { Bell, CheckCheck, TrashIcon } from "lucide-react";
 import { typeConfig } from "@/stores/useNotificationsStore";
+import { useRouter } from "next/navigation";
 
 interface NotificationCardProps {
   notification: Notification;
   markAsRead: (id: string) => void;
   deleteNotification: (id: string) => void;
+  onNavigate?: (notification: Notification) => void;
 }
 
 const NotificationCard: React.FC<NotificationCardProps> = ({
   notification,
   markAsRead,
   deleteNotification,
+  onNavigate,
 }) => {
+  const router = useRouter();
   const config =
-    typeConfig[notification.type as keyof typeof typeConfig] ?? typeConfig.system_alert;
+    typeConfig[notification.type as keyof typeof typeConfig] ?? typeConfig["system-alert"];
 
   const containerClass = useMemo(
     () =>
@@ -25,14 +29,44 @@ const NotificationCard: React.FC<NotificationCardProps> = ({
         notification.read
           ? "border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"
           : `border-green-200 bg-green-50 dark:border-green-700 dark:bg-green-900/30`
-      } shadow-sm transition-colors duration-200`,
-    [notification.read]
+      } shadow-sm transition-colors duration-200 ${onNavigate ? "cursor-pointer hover:shadow-md" : ""}`,
+    [notification.read, onNavigate]
   );
 
   const Icon = config.icon ?? Bell;
 
+  const handleClick = async () => {
+    if (!onNavigate) return;
+    
+    if (!notification.read) {
+      await markAsRead(notification.id);
+    }
+    onNavigate(notification);
+  };
+
+  const handleNotificationNavigation = (notification: Notification) => {
+    if (!notification.relatedId) return;
+
+    const routes: Record<string, (id: string) => void> = {
+      "payment-received": (id) => router.push(`/dashboard/payments`),
+      "complaint-received": (id) => router.push(`/dashboard/complaints/${id}`),
+      "new-booking": (id) => router.push(`/dashboard/bookings?search=${id}`),
+      "broadcast": (id) => router.push(`/dashboard/broadcast`),
+      "booking-approved": (id) => router.push(`/dashboard/bookings?search=${id}`),
+      "booking-rejected": (id) => router.push(`/dashboard/bookings?search=${id}`),
+      "booking-cancelled": (id) => router.push(`/dashboard/bookings?search=${id}`),
+      "room-allocated": (id) => router.push(`/dashboard/bookings?search=${id}`),
+      "complaint-resolved": (id) => router.push(`/dashboard/complaints/${id}`),
+    };
+
+    const handler = routes[notification.type];
+    if (handler) {
+      handler(notification.relatedId);
+    }
+  };
+
   return (
-    <div className={containerClass}>
+    <div className={containerClass} onClick={handleClick}>
       <div className="flex justify-center items-center">
         <div className="flex items-center justify-start gap-2 flex-1 pr-2">
           <div className={`p-1 rounded-full ${config.color}`}>

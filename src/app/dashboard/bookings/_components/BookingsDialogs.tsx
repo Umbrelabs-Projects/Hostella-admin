@@ -4,6 +4,7 @@ import AddContactDialog from "../../components/_reusable_components/add-contact-
 import EditContactDialog from "../../components/_reusable_components/edit-contact-dialog";
 import DeleteConfirmDialog from "../../components/_reusable_components/delete-confirm-dialog";
 import { StudentBooking } from "@/types/booking";
+import { BookingCreateRequest } from "../../components/_reusable_components/add-contact-dialog/validation";
 
 type Props = {
   showAddDialog: boolean;
@@ -12,13 +13,15 @@ type Props = {
   setViewingBooking: (v: StudentBooking | null) => void;
   deletingBookingId: string | null;
   setDeletingBookingId: (v: string | null) => void;
-  onAdd: (input: Partial<StudentBooking>) => void;
+  onAdd: (booking: BookingCreateRequest | Partial<StudentBooking>) => void | Promise<void>;
   onApprovePayment: (id: string) => void;
-  onAssignRoom: (id: string, roomNumber: number) => void;
+  onAssignRoom: (id: string, roomId: string) => Promise<StudentBooking> | void;
   onCompleteOnboarding: (id: string) => Promise<void>;
   onApprove: (id: string) => void;
   onDeleteConfirm: (id: string) => void;
   onCancel?: (id: string, reason?: string) => void;
+  onRemoveStudent?: (id: string) => void;
+  loadingActions?: Record<string, boolean>;
 };
 
 export default function BookingsDialogs({
@@ -35,6 +38,8 @@ export default function BookingsDialogs({
   onApprove,
   onDeleteConfirm,
   onCancel,
+  onRemoveStudent,
+  loadingActions = {},
 }: Props) {
   return (
     <>
@@ -49,6 +54,8 @@ export default function BookingsDialogs({
           onCompleteOnboarding={onCompleteOnboarding}
           onApprove={onApprove}
           onCancel={onCancel}
+          onRemoveStudent={onRemoveStudent}
+          loadingActions={loadingActions}
         />
       )}
 
@@ -56,7 +63,12 @@ export default function BookingsDialogs({
         <DeleteConfirmDialog
           open={!!deletingBookingId}
           onOpenChange={(open) => !open && setDeletingBookingId(null)}
-          onConfirm={() => deletingBookingId && onDeleteConfirm(deletingBookingId)}
+          onConfirm={() => {
+            if (deletingBookingId) {
+              onDeleteConfirm(deletingBookingId);
+            }
+          }}
+          loading={loadingActions[`delete-${deletingBookingId}`] || false}
         />
       )}
     </>

@@ -96,12 +96,23 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
     }
 
     if (!res.ok) {
-      // Handle error response format: { success: false, message: "..." } or { message: "..." }
+      // Handle error response format: { success: false, message: "...", errors: [...] } or { message: "..." }
       let errorMessage = `API error: ${res.status}`;
       
       if (typeof data === "object" && data !== null) {
         const errorData = data as Record<string, unknown>;
-        if ("message" in errorData) {
+        
+        // Check for validation errors array
+        if ("errors" in errorData && Array.isArray(errorData.errors)) {
+          const errors = errorData.errors as Array<{ path?: string[]; message?: string }>;
+          if (errors.length > 0) {
+            const firstError = errors[0];
+            const fieldPath = firstError.path?.join(".") || "field";
+            errorMessage = `${fieldPath}: ${firstError.message || "Validation error"}`;
+          } else if ("message" in errorData) {
+            errorMessage = String(errorData.message);
+          }
+        } else if ("message" in errorData) {
           errorMessage = String(errorData.message);
         } else if ("error" in errorData) {
           errorMessage = String(errorData.error);

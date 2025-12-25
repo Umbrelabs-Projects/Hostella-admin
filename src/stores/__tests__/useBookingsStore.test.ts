@@ -174,24 +174,77 @@ describe('useBookingsStore', () => {
 
   describe('approvePayment', () => {
     it('should approve payment for a booking', async () => {
-      const approvedBooking = {
+      // Mock booking with payment
+      const mockBooking = {
         id: '1',
-        status: 'approved',
-      }
+        firstName: 'Test',
+        lastName: 'Student',
+        email: 'test@example.com',
+        status: 'pending payment' as const,
+        studentId: '123',
+        phone: '1234567890',
+        gender: 'male' as const,
+        level: '100' as const,
+        school: 'Test School',
+        hostelName: 'Test Hostel',
+        roomTitle: 'One-in-one' as const,
+        price: '100',
+        emergencyContactName: 'Contact',
+        emergencyContactNumber: '1234567890',
+        relation: 'Parent',
+        hasMedicalCondition: false,
+        payment: {
+          id: 'payment-1',
+          status: 'AWAITING_VERIFICATION',
+        },
+      } as StudentBooking & { payment?: { id: string; status: string } }
+
+      // Mock the payment verification (approvePayment now uses PATCH /payments/:id/status)
       ;(apiFetch as jest.Mock).mockResolvedValueOnce({
         success: true,
-        data: approvedBooking,
+        data: {
+          payment: {
+            id: 'payment-1',
+            status: 'CONFIRMED',
+            booking: {
+              id: '1',
+              bookingId: 'BK-123',
+            },
+          },
+        },
+      })
+
+      // Mock the booking refresh after payment verification (approvePayment fetches booking again)
+      ;(apiFetch as jest.Mock).mockResolvedValueOnce({
+        success: true,
+        data: {
+          ...mockBooking,
+          status: 'pending approval',
+          payment: {
+            id: 'payment-1',
+            status: 'CONFIRMED',
+          },
+        },
       })
 
       const { result } = renderHook(() => useBookingsStore())
+
+      // Set up the booking in the store first with payment data
+      act(() => {
+        result.current.setBookings([mockBooking as StudentBooking])
+      })
 
       await act(async () => {
         await result.current.approvePayment('1')
       })
 
+      // Should call payment status update endpoint
       expect(apiFetch).toHaveBeenCalledWith(
-        '/bookings/1/approve-payment',
-        expect.objectContaining({ method: 'POST' })
+        '/payments/payment-1/status',
+        expect.objectContaining({
+          method: 'PATCH',
+          body: expect.stringContaining('"status":"CONFIRMED"'),
+        })
       )
     })
   })
@@ -201,6 +254,22 @@ describe('useBookingsStore', () => {
       const updatedBooking = {
         id: '1',
         allocatedRoomNumber: 101,
+        firstName: 'Test',
+        lastName: 'Student',
+        email: 'test@example.com',
+        status: 'room_allocated' as const,
+        studentId: '123',
+        phone: '1234567890',
+        gender: 'male' as const,
+        level: '100' as const,
+        school: 'Test School',
+        hostelName: 'Test Hostel',
+        roomTitle: 'One-in-one' as const,
+        price: '100',
+        emergencyContactName: 'Contact',
+        emergencyContactNumber: '1234567890',
+        relation: 'Parent',
+        hasMedicalCondition: false,
       }
       ;(apiFetch as jest.Mock).mockResolvedValueOnce({
         success: true,
@@ -210,16 +279,17 @@ describe('useBookingsStore', () => {
       const { result } = renderHook(() => useBookingsStore())
 
       await act(async () => {
-        await result.current.assignRoom('1', 101)
+        await result.current.assignRoom('1', 'room-id-101')
       })
 
-      expect(apiFetch).toHaveBeenCalledWith(
-        '/bookings/1/assign-room',
-        expect.objectContaining({
-          method: 'PATCH',
-          body: JSON.stringify({ roomNumber: 101 }),
-        })
-      )
+      const calls = (apiFetch as jest.Mock).mock.calls
+      expect(calls.length).toBeGreaterThan(0)
+      const assignRoomCall = calls.find((call: any[]) => call[0] === '/bookings/1/assign-room')
+      expect(assignRoomCall).toBeDefined()
+      expect(assignRoomCall[1]).toMatchObject({
+        method: 'PATCH',
+        body: JSON.stringify({ roomId: 'room-id-101' }),
+      })
     })
   })
 

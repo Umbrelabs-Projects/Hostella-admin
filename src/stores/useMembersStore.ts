@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { StudentBooking } from "@/types/booking";
 import { apiFetch, APIException } from "@/lib/api";
+import { transformBooking, transformBookings } from "@/lib/transformBooking";
 
 export type MembersState = {
   members: StudentBooking[];
@@ -161,15 +162,27 @@ export const useMembersStore = create<MembersState>((set, get) => ({
         pagination = { page, pageSize, total: 0, totalPages: 0 };
       }
 
+      // Transform nested API response to flat structure
+      const transformedMembers = transformBookings(members);
+
+      // Debug: Log member data to check for room number and floor
+      if (transformedMembers.length > 0) {
+        console.log("[fetchMembers] First member sample:", JSON.stringify(transformedMembers[0], null, 2));
+        console.log("[fetchMembers] First member allocatedRoomNumber:", transformedMembers[0].allocatedRoomNumber);
+        console.log("[fetchMembers] First member floorNumber:", transformedMembers[0].floorNumber);
+        console.log("[fetchMembers] First member keys:", Object.keys(transformedMembers[0]));
+      }
+
       if (process.env.NODE_ENV === "development") {
         console.log("[fetchMembers] Full response:", JSON.stringify(response, null, 2));
-        console.log("[fetchMembers] Extracted members:", members);
-        console.log("[fetchMembers] Members is array:", Array.isArray(members));
+        console.log("[fetchMembers] Extracted members (before transform):", members);
+        console.log("[fetchMembers] Transformed members:", transformedMembers);
+        console.log("[fetchMembers] Members is array:", Array.isArray(transformedMembers));
         console.log("[fetchMembers] Pagination:", pagination);
       }
 
       set({
-        members,
+        members: transformedMembers,
         totalMembers: pagination.total,
         currentPage: pagination.page,
         pageSize: pagination.pageSize,
@@ -200,7 +213,28 @@ export const useMembersStore = create<MembersState>((set, get) => ({
         body: JSON.stringify(updates),
       });
 
-      const updated = response.data;
+      // Helper to normalize status
+      const normalizeStatus = (status: string): string => {
+        const normalized = status.toLowerCase().trim();
+        const statusMap: Record<string, string> = {
+          "pending payment": "PENDING_PAYMENT",
+          "pending approval": "PENDING_APPROVAL",
+          "approved": "APPROVED",
+          "room_allocated": "ROOM_ALLOCATED",
+          "room allocated": "ROOM_ALLOCATED",
+          "completed": "COMPLETED",
+          "cancelled": "CANCELLED",
+          "rejected": "REJECTED",
+          "expired": "EXPIRED",
+        };
+        return statusMap[normalized] || normalized.toUpperCase().replace(/\s+/g, "_");
+      };
+      
+      const transformed = transformBooking(response.data as any);
+      const updated = {
+        ...transformed,
+        status: normalizeStatus(transformed.status) as StudentBooking["status"],
+      };
 
       set((state) => {
         const currentMembers = Array.isArray(state.members) ? state.members : [];

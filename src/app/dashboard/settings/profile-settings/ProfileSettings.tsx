@@ -65,7 +65,7 @@ export default function ProfileSettings() {
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to save profile";
-      toast.error(message);
+      toast.error(message, { duration: 4000 });
     }
   };
 

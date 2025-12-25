@@ -1,31 +1,36 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import AssignRoomDialog from "./assign-room-dialog";
-import { Label } from "@/components/ui/label";
 import { StudentBooking } from "@/types/booking";
-import { Badge } from "@/components/ui/badge";
-import { Copy, Home, User, Phone, Check, CreditCard, X, Key } from "lucide-react";
 import { toast } from "sonner";
 import { useMembersStore } from "@/stores/useMembersStore";
+import { apiFetch } from "@/lib/api";
+import BookingDialogHeader from "./booking-dialog/BookingDialogHeader";
+import PersonalInfoCard from "./booking-dialog/PersonalInfoCard";
+import AccommodationCard from "./booking-dialog/AccommodationCard";
+import PaymentReceiptCard from "./booking-dialog/PaymentReceiptCard";
+import EmergencyContactCard from "./booking-dialog/EmergencyContactCard";
+import BookingActionButtons from "./booking-dialog/BookingActionButtons";
+import ReceiptModal from "./booking-dialog/ReceiptModal";
+import {
+  normalizeStatus,
+  getDisplayStatus,
+  getDisplayVariant,
+} from "./booking-dialog/utils";
 
 interface BookingDetailsDialogProps {
   booking: StudentBooking;
   onOpenChange: (open: boolean) => void;
   onUpdate?: (b: StudentBooking) => void;
   onApprovePayment?: (id: string) => void;
-  onAssignRoom?: (id: string, roomNumber: number) => void;
+  onAssignRoom?: (id: string, roomId: string) => Promise<StudentBooking> | void;
   onCompleteOnboarding?: (id: string) => void;
   onApprove?: (id: string) => void;
   onCancel?: (id: string, reason?: string) => void;
+  onRemoveStudent?: (id: string) => void;
+  loadingActions?: Record<string, boolean>;
 }
 
 export default function EditContactDialog({
@@ -37,6 +42,8 @@ export default function EditContactDialog({
   onCompleteOnboarding,
   onApprove,
   onCancel,
+  onRemoveStudent,
+  loadingActions = {},
 }: BookingDetailsDialogProps) {
   const [local, setLocal] = useState<StudentBooking>(booking);
 
@@ -44,6 +51,10 @@ export default function EditContactDialog({
 
   const [openAssign, setOpenAssign] = useState(false);
   const [assignedNow, setAssignedNow] = useState(false);
+  const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
+  const [receiptLoading, setReceiptLoading] = useState(false);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [userAvatar, setUserAvatar] = useState<string | null>(null);
 
   const handleAssign = () => setOpenAssign(true);
 
@@ -52,204 +63,315 @@ export default function EditContactDialog({
       await navigator.clipboard.writeText(local.bookingId ?? local.id);
       toast.success("Booking ID copied");
     } catch {
-      toast.error("Failed to copy");
+      toast.error("Failed to copy", { duration: 4000 });
     }
-  };
-
-  // Normalize status for comparison (API returns lowercase with spaces/underscores, normalize to uppercase with underscores)
-  const normalizeStatus = (status: string): string => {
-    const normalized = status.toLowerCase().trim();
-    const statusMap: Record<string, string> = {
-      "pending payment": "PENDING_PAYMENT",
-      "pending approval": "PENDING_APPROVAL",
-      "approved": "APPROVED",
-      "room_allocated": "ROOM_ALLOCATED",
-      "room allocated": "ROOM_ALLOCATED",
-      "completed": "COMPLETED",
-      "cancelled": "CANCELLED",
-      "rejected": "REJECTED",
-      "expired": "EXPIRED",
-    };
-    return statusMap[normalized] || normalized.toUpperCase().replace(/\s+/g, "_");
   };
 
   const normalizedStatus = normalizeStatus(local.status);
-
-  const statusVariant = (status: string) => {
-    const norm = normalizeStatus(status);
-    if (norm === "PENDING_PAYMENT") return "secondary";
-    if (norm === "PENDING_APPROVAL") return "outline";
-    if (norm === "APPROVED") return "default";
-    if (norm === "ROOM_ALLOCATED") return "default";
-    if (norm === "COMPLETED") return "default";
-    if (norm === "CANCELLED") return "destructive";
-    if (norm === "REJECTED") return "destructive";
-    if (norm === "EXPIRED") return "secondary";
-    return "default";
-  };
-
-  // derive display label: membership is explicit in members store
   const explicitMembers = useMembersStore((s) => s.members);
   const isMember = explicitMembers.some((m) => m.id === local.id);
-
-  const displayStatus = (() => {
-    if (isMember) {
-      return normalizedStatus === "COMPLETED" ? "Member" : "Member";
-    }
-    if (normalizedStatus === "APPROVED") return "Approved (Unassigned)";
-    if (normalizedStatus === "ROOM_ALLOCATED") return "Room Allocated";
-    if (normalizedStatus === "COMPLETED") return "Completed";
-    if (normalizedStatus === "CANCELLED") return "Cancelled";
-    if (normalizedStatus === "REJECTED") return "Rejected";
-    if (normalizedStatus === "EXPIRED") return "Expired";
-    // Convert to readable format
-    return normalizedStatus.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
-  })();
-
-  const displayVariant = (() => {
-    if (displayStatus === "unassigned") return "outline";
-    if (displayStatus.startsWith("Member")) return "default";
-    return statusVariant(local.status);
-  })();
-
-  const floorNumber = local.allocatedRoomNumber != null ? Math.floor((local.allocatedRoomNumber - 1) / 10) + 1 : null;
+  const displayStatus = getDisplayStatus(normalizedStatus, isMember);
+  const displayVariant = getDisplayVariant(displayStatus, local.status);
 
   useEffect(() => {
     // reset assignedNow when switching bookings
     setAssignedNow(false);
+    setReceiptUrl(null);
+    setShowReceiptModal(false);
+    setUserAvatar(null);
   }, [local.id]);
+
+  // Fetch user avatar - API returns avatar directly in booking response per API docs
+  // Refresh booking data periodically when dialog is open to catch external updates
+  useEffect(() => {
+    const refreshBooking = async () => {
+      if (!local.id) return;
+      
+      try {
+        type BookingDetailResponse = {
+          success?: boolean;
+          data?: StudentBooking & {
+            payment?: {
+              id: string;
+              status: string;
+              provider?: string;
+              receiptUrl?: string;
+              reference?: string;
+            };
+          };
+        };
+        
+        const response = await apiFetch<BookingDetailResponse>(`/bookings/${local.id}`);
+        const bookingData = response.data || (response as unknown as StudentBooking);
+        
+        if (bookingData) {
+          // Update local state with fresh booking data including payment info
+          setLocal(prev => ({
+            ...prev,
+            ...bookingData,
+            status: bookingData.status || prev.status,
+            avatar: bookingData.avatar || prev.avatar,
+            // Include payment data if available
+            ...((bookingData as any).payment && { payment: (bookingData as any).payment }),
+          }));
+        }
+      } catch (error) {
+        // Silently fail - booking might not be accessible
+      }
+    };
+
+    // Refresh immediately when dialog opens
+    refreshBooking();
+    
+    // Refresh every 5 seconds while dialog is open to catch external updates
+    const interval = setInterval(refreshBooking, 5000);
+    
+    return () => clearInterval(interval);
+  }, [local.id]);
+
+  useEffect(() => {
+    // According to API docs: "The booking response includes the student's 'avatar' field"
+    // Check if booking has avatar directly (should be in API response)
+    if (local.avatar) {
+      setUserAvatar(local.avatar);
+      return;
+    }
+    
+    // Legacy support: check imageUrl
+    if (local.imageUrl) {
+      setUserAvatar(local.imageUrl);
+      return;
+    }
+
+    // Check original booking object (might have avatar from initial API call)
+    if (booking.avatar) {
+      setUserAvatar(booking.avatar);
+      return;
+    }
+
+    // If not in local state, fetch booking detail (API includes avatar in response)
+    const fetchBookingDetail = async () => {
+      try {
+        type BookingDetailResponse = {
+          success?: boolean;
+          data?: StudentBooking;
+        };
+        
+        const response = await apiFetch<BookingDetailResponse>(`/bookings/${local.id}`);
+        
+        // API returns avatar directly in booking object: { data: { avatar: "...", ... } }
+        const bookingData = response.data || (response as unknown as StudentBooking);
+        const avatar = (bookingData as StudentBooking).avatar;
+          
+        if (avatar) {
+          if (process.env.NODE_ENV === "development") {
+            console.log("[BookingDialog] Found avatar from booking detail:", avatar);
+          }
+          setUserAvatar(avatar);
+          // Also update local state so we don't need to fetch again
+          setLocal(prev => ({ ...prev, avatar }));
+        } else {
+          if (process.env.NODE_ENV === "development") {
+            console.log("[BookingDialog] No avatar field in booking response - student may not have uploaded one");
+          }
+        }
+      } catch (error) {
+        if (process.env.NODE_ENV === "development") {
+          console.log("[BookingDialog] Error fetching booking detail:", error);
+        }
+      }
+    };
+
+    fetchBookingDetail();
+  }, [local.id, local.avatar, local.imageUrl, booking]);
+
+  // Fetch payment information and receipt when booking is in PENDING_PAYMENT or PENDING_APPROVAL status
+  useEffect(() => {
+    const fetchPaymentInfo = async () => {
+      const isPendingPayment = normalizedStatus === "PENDING_PAYMENT" || local.status.toLowerCase() === "pending payment";
+      const isPendingApproval = normalizedStatus === "PENDING_APPROVAL" || local.status.toLowerCase() === "pending approval";
+      
+      if (isPendingPayment || isPendingApproval) {
+        setReceiptLoading(true);
+        try {
+          // First, check if payment info is already in the booking object
+          const bookingPayment = (local as any)?.payment || (booking as any)?.payment;
+          if (bookingPayment?.receiptUrl) {
+            setReceiptUrl(bookingPayment.receiptUrl);
+            // Update local state with payment info if not already there
+            if (bookingPayment && !(local as any)?.payment) {
+              setLocal(prev => ({ ...prev, payment: bookingPayment } as any));
+            }
+            setReceiptLoading(false);
+            return;
+          }
+
+          // Fetch pending receipts to get payment info and receipt URL
+          const pendingResponse = await apiFetch<{
+            success: boolean;
+            data?: Array<{
+              id: string;
+              bookingId: string;
+              receiptUrl?: string;
+              status: string;
+              provider?: string;
+              booking?: { id: string; bookingId?: string };
+            }>;
+            items?: Array<{
+              id: string;
+              bookingId: string;
+              receiptUrl?: string;
+              status: string;
+              provider?: string;
+              booking?: { id: string; bookingId?: string };
+            }>;
+          }>("/payments/admin/pending-receipts?limit=100");
+          
+          let receipts: Array<{
+            id: string;
+            bookingId: string;
+            receiptUrl?: string;
+            status: string;
+            provider?: string;
+            booking?: { id: string; bookingId?: string };
+          }> = [];
+
+          if (pendingResponse.success) {
+            if (Array.isArray(pendingResponse.data)) {
+              receipts = pendingResponse.data;
+            } else if (Array.isArray(pendingResponse.items)) {
+              receipts = pendingResponse.items;
+            } else if (pendingResponse.data && typeof pendingResponse.data === "object" && "items" in pendingResponse.data) {
+              receipts = Array.isArray((pendingResponse.data as any).items) ? (pendingResponse.data as any).items : [];
+            }
+          }
+
+          // Find receipt for this booking - match by booking ID or internal ID
+          // Try multiple matching strategies
+          const bookingReceipt = receipts.find(
+            (payment) => {
+              // Match by internal booking ID
+              if (payment.booking?.id === local.id) return true;
+              // Match by display booking ID
+              if (payment.booking?.bookingId === local.bookingId) return true;
+              // Match by payment.bookingId (could be internal ID or display ID)
+              if (payment.bookingId === local.id || payment.bookingId === local.bookingId) return true;
+              return false;
+            }
+          );
+
+          if (bookingReceipt) {
+            // Set receipt URL if available
+            if (bookingReceipt.receiptUrl) {
+              setReceiptUrl(bookingReceipt.receiptUrl);
+            }
+            
+            // Update local state with payment info so Approve Payment button can show
+            if (!(local as any)?.payment) {
+              setLocal(prev => ({
+                ...prev,
+                payment: {
+                  id: bookingReceipt.id,
+                  status: bookingReceipt.status,
+                  provider: bookingReceipt.provider,
+                  receiptUrl: bookingReceipt.receiptUrl,
+                }
+              } as any));
+            }
+          }
+        } catch (error) {
+          // Silently fail - receipt might not exist
+          console.warn("Failed to fetch payment info:", error);
+        } finally {
+          setReceiptLoading(false);
+        }
+      } else {
+        // Clear receipt URL if status changed away from pending payment/approval
+        setReceiptUrl(null);
+      }
+    };
+
+    fetchPaymentInfo();
+  }, [local.id, local.bookingId, normalizedStatus, local.status, (local as any)?.payment, (booking as any)?.payment]);
 
   return (
     <Dialog open={true} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <DialogTitle className="flex items-center gap-3">
-                <User className="size-5 opacity-80" />
-                <span>{local.firstName} {local.lastName}</span>
-              </DialogTitle>
-              <DialogDescription className="mt-1 text-sm flex items-center gap-2">
-                <span>Booking ID:</span>
-                <span className="font-mono bg-muted/10 px-2 py-0.5 rounded">{local.bookingId}</span>
-                <Button variant="ghost" size="sm" className="h-7" onClick={copyBookingId}>
-                  <Copy className="size-4" />
-                </Button>
-              </DialogDescription>
-            </div>
-            <div className="text-right">
-              <Badge variant={displayVariant} className="text-sm px-3">{displayStatus}</Badge>
-            </div>
-          </div>
-        </DialogHeader>
+      <DialogContent className="max-w-4xl max-h-[95vh] overflow-hidden p-0 gap-0 flex flex-col">
+        <BookingDialogHeader
+          booking={local}
+          userAvatar={userAvatar}
+          displayStatus={displayStatus}
+          displayVariant={displayVariant}
+          normalizedStatus={normalizedStatus}
+          onCopyBookingId={copyBookingId}
+        />
 
-        <div className="space-y-6 mt-3">
-          <div className="grid grid-cols-2 gap-6">
-            <div className="space-y-1">
-              <Label>Name</Label>
-              <div className="font-semibold">{local.firstName} {local.lastName}</div>
-            </div>
-            <div className="space-y-1">
-              <Label>Student ID</Label>
-              <div className="text-sm">{local.studentId}</div>
-            </div>
+        {/* Scrollable Content Area */}
+        <div className="p-6 space-y-5 bg-linear-to-b from-gray-50/50 to-white dark:from-gray-950/50 dark:to-gray-900 overflow-y-auto flex-1 min-h-0">
+          <PersonalInfoCard booking={local} />
+          <AccommodationCard booking={local} isMember={isMember} assignedNow={assignedNow} />
 
-            <div className="space-y-1">
-              <Label>Phone</Label>
-              <div className="text-sm flex items-center gap-2"><Phone className="size-4 opacity-70" />{local.phone}</div>
-            </div>
-            <div className="space-y-1">
-              <Label>Gender</Label>
-              <div className="text-sm">{local.gender}</div>
-            </div>
-
-            <div className="space-y-1">
-              <Label>Room Type</Label>
-              <div className="text-sm">{local.roomTitle}</div>
-            </div>
-            <div className="space-y-1">
-              <Label>Hostel</Label>
-              <div className="text-sm flex items-center gap-2"><Home className="size-4 opacity-70" />{local.hostelName}</div>
-            </div>
-
-            <div className="space-y-1">
-              <Label>Assigned Room</Label>
-              <div className="text-lg font-medium">{(isMember || assignedNow) ? (local.allocatedRoomNumber ?? "—") : "—"}</div>
-            </div>
-            {(isMember || assignedNow) && floorNumber != null && (
-              <div className="space-y-1">
-                <Label>Floor</Label>
-                <div className="text-sm">{String(floorNumber)}</div>
-              </div>
-            )}
-            <div />
-          </div>
-
-          {(isMember) && (
-            <div className="space-y-2 pt-2 border-t">
-              <Label>Emergency Contact</Label>
-              <div className="grid grid-cols-2 gap-2">
-                <div>{local.emergencyContactName}</div>
-                <div>{local.emergencyContactNumber}</div>
-              </div>
-            </div>
+          {/* Payment Receipt Card - Show when receipt is available or loading for PENDING_PAYMENT or PENDING_APPROVAL */}
+          {(normalizedStatus === "PENDING_PAYMENT" || local.status.toLowerCase() === "pending payment" ||
+            normalizedStatus === "PENDING_APPROVAL" || local.status.toLowerCase() === "pending approval") && (
+            <PaymentReceiptCard
+              receiptUrl={receiptUrl}
+              receiptLoading={receiptLoading}
+              onViewFullSize={() => setShowReceiptModal(true)}
+            />
           )}
 
-          <div className="flex gap-3 justify-end pt-4 border-t">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              <X className="size-4 mr-2" />Close
-            </Button>
-
-            {/* Approve Payment - only for PENDING_PAYMENT */}
-            {(normalizedStatus === "PENDING_PAYMENT" || local.status.toLowerCase() === "pending payment") && (
-              <Button onClick={() => onApprovePayment?.(local.id)}>
-                <CreditCard className="size-4 mr-2" />Approve Payment
-              </Button>
-            )}
-
-            {/* Approve Booking - only for PENDING_APPROVAL */}
-            {(normalizedStatus === "PENDING_APPROVAL" || local.status.toLowerCase() === "pending approval") && (
-              <Button onClick={() => onApprove?.(local.id)}>
-                <Check className="size-4 mr-2" />Approve Booking
-              </Button>
-            )}
-
-            {/* Assign Room - only for APPROVED status */}
-            {(normalizedStatus === "APPROVED" || local.status.toLowerCase() === "approved") && !isMember && (
-              <Button onClick={handleAssign}><Key className="size-4 mr-2" />Assign Room</Button>
-            )}
-
-            {/* Complete Onboarding - only for ROOM_ALLOCATED status */}
-            {normalizedStatus === "ROOM_ALLOCATED" && !isMember && (
-              <Button className="bg-teal-600 hover:bg-teal-700" onClick={() => onCompleteOnboarding?.(local.id)}>
-                <Check className="size-4 mr-2" />Complete Onboarding
-              </Button>
-            )}
-
-            {/* Cancel Booking - available for all statuses except COMPLETED */}
-            {normalizedStatus !== "COMPLETED" && onCancel && (
-              <Button 
-                variant="destructive" 
-                onClick={() => {
-                  const reason = prompt("Reason for cancellation (optional):");
-                  onCancel(local.id, reason || undefined);
-                }}
-              >
-                <X className="size-4 mr-2" />Cancel Booking
-              </Button>
-            )}
-          </div>
+          {/* Emergency Contact Card */}
+          {isMember && <EmergencyContactCard booking={local} />}
         </div>
+
+        {/* Fixed Footer with Action Buttons */}
+        <BookingActionButtons
+          booking={local}
+          normalizedStatus={normalizedStatus}
+          isMember={isMember}
+          onClose={() => onOpenChange(false)}
+          onApprovePayment={onApprovePayment}
+          onApprove={onApprove}
+          onAssignRoom={handleAssign}
+          onCompleteOnboarding={onCompleteOnboarding}
+          onCancel={onCancel}
+          onRemoveStudent={onRemoveStudent}
+          loadingActions={loadingActions}
+        />
       </DialogContent>
+
       <AssignRoomDialog
         open={openAssign}
-        bookingId={local.bookingId ?? local.id}
+        bookingId={local.id} // Use internal ID for API calls
         onOpenChange={(o) => setOpenAssign(o)}
-        onAssign={(id, room) => {
-          onAssignRoom?.(id, room);
-          setAssignedNow(true);
+        onAssign={async (id, roomId) => {
+          try {
+            const updated = await onAssignRoom?.(id, roomId);
+            // Update local state immediately with the updated booking
+            if (updated) {
+              setLocal(updated);
+            }
+            setAssignedNow(true);
+          } catch (error) {
+            // Error handling is done by the parent component
+            throw error;
+          }
         }}
       />
+
+      {/* Receipt Modal */}
+      {showReceiptModal && receiptUrl && (
+        <ReceiptModal
+          open={showReceiptModal}
+          receiptUrl={receiptUrl}
+          onClose={() => setShowReceiptModal(false)}
+          onApprovePayment={() => {
+            onApprovePayment?.(local.id);
+            setShowReceiptModal(false);
+          }}
+        />
+      )}
     </Dialog>
   );
 }

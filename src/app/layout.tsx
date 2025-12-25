@@ -39,7 +39,11 @@ export default function RootLayout({
           </div>
         </AuthSessionProvider>
 
-        <Toaster position="top-right" richColors />
+        <Toaster 
+          position="top-right" 
+          richColors 
+          duration={4000}
+        />
       </body>
     </html>
   );

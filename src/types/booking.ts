@@ -30,6 +30,8 @@ export interface StudentBooking {
   studentId: string;
   phone: string; // 10-15 digits
   admissionLetterName?: string; // filename or display text
+  avatar?: string; // profile image URL (from API)
+  imageUrl?: string; // profile image URL (legacy support)
   hostelName: string;
   roomTitle: RoomTitle;
   price: string;
@@ -39,6 +41,7 @@ export interface StudentBooking {
   hasMedicalCondition: boolean;
   medicalCondition?: string;
   status: BookingStatus;
-  allocatedRoomNumber?: number | null;
+  allocatedRoomNumber?: number | string | null; // Room number can be number, string, or null
+  floorNumber?: number | null; // Floor number from API (optional, can be calculated if not provided)
   date?: string; // ISO date string for booking/created date
 }
