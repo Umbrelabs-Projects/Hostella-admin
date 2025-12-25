@@ -145,6 +145,12 @@ export const usePaymentsStore = create<PaymentsState>((set, get) => ({
         // If payment was confirmed, refresh bookings to reflect status change
         // According to the guide: When payment status is updated to "CONFIRMED", 
         // booking status automatically changes to "pending approval" (backend handles this)
+        // 
+        // Note: "Verify & Approve" (PATCH /payments/:id/status) and "Approve Payment" 
+        // (POST /bookings/:id/approve-payment) perform similar functions:
+        // - Both confirm the payment if it's AWAITING_VERIFICATION
+        // - Both update booking status to "pending approval"
+        // - They use different endpoints but achieve the same result
         if (status === "CONFIRMED" && typeof window !== "undefined") {
           try {
             // Dynamically import to avoid circular dependency
@@ -153,6 +159,7 @@ export const usePaymentsStore = create<PaymentsState>((set, get) => ({
             
             // Refresh bookings list to reflect the automatic status change
             // The backend automatically updates booking status to "pending approval" when payment is confirmed
+            // This ensures the booking dialog will show the updated status (polling will also catch it)
             await fetchBookings();
           } catch (err) {
             // Log but don't fail payment verification

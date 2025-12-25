@@ -88,19 +88,29 @@ export default function EditContactDialog({
       try {
         type BookingDetailResponse = {
           success?: boolean;
-          data?: StudentBooking;
+          data?: StudentBooking & {
+            payment?: {
+              id: string;
+              status: string;
+              provider?: string;
+              receiptUrl?: string;
+              reference?: string;
+            };
+          };
         };
         
         const response = await apiFetch<BookingDetailResponse>(`/bookings/${local.id}`);
         const bookingData = response.data || (response as unknown as StudentBooking);
         
         if (bookingData) {
-          // Update local state with fresh booking data
+          // Update local state with fresh booking data including payment info
           setLocal(prev => ({
             ...prev,
             ...bookingData,
             status: bookingData.status || prev.status,
             avatar: bookingData.avatar || prev.avatar,
+            // Include payment data if available
+            ...((bookingData as any).payment && { payment: (bookingData as any).payment }),
           }));
         }
       } catch (error) {
@@ -173,16 +183,28 @@ export default function EditContactDialog({
     fetchBookingDetail();
   }, [local.id, local.avatar, local.imageUrl, booking]);
 
-  // Fetch payment receipt when booking is in PENDING_PAYMENT or PENDING_APPROVAL status
+  // Fetch payment information and receipt when booking is in PENDING_PAYMENT or PENDING_APPROVAL status
   useEffect(() => {
-    const fetchReceipt = async () => {
+    const fetchPaymentInfo = async () => {
       const isPendingPayment = normalizedStatus === "PENDING_PAYMENT" || local.status.toLowerCase() === "pending payment";
       const isPendingApproval = normalizedStatus === "PENDING_APPROVAL" || local.status.toLowerCase() === "pending approval";
       
       if (isPendingPayment || isPendingApproval) {
         setReceiptLoading(true);
         try {
-          // Try to fetch pending receipts first
+          // First, check if payment info is already in the booking object
+          const bookingPayment = (local as any)?.payment || (booking as any)?.payment;
+          if (bookingPayment?.receiptUrl) {
+            setReceiptUrl(bookingPayment.receiptUrl);
+            // Update local state with payment info if not already there
+            if (bookingPayment && !(local as any)?.payment) {
+              setLocal(prev => ({ ...prev, payment: bookingPayment } as any));
+            }
+            setReceiptLoading(false);
+            return;
+          }
+
+          // Fetch pending receipts to get payment info and receipt URL
           const pendingResponse = await apiFetch<{
             success: boolean;
             data?: Array<{
@@ -190,6 +212,7 @@ export default function EditContactDialog({
               bookingId: string;
               receiptUrl?: string;
               status: string;
+              provider?: string;
               booking?: { id: string; bookingId?: string };
             }>;
             items?: Array<{
@@ -197,6 +220,7 @@ export default function EditContactDialog({
               bookingId: string;
               receiptUrl?: string;
               status: string;
+              provider?: string;
               booking?: { id: string; bookingId?: string };
             }>;
           }>("/payments/admin/pending-receipts?limit=100");
@@ -206,6 +230,7 @@ export default function EditContactDialog({
             bookingId: string;
             receiptUrl?: string;
             status: string;
+            provider?: string;
             booking?: { id: string; bookingId?: string };
           }> = [];
 
@@ -214,28 +239,47 @@ export default function EditContactDialog({
               receipts = pendingResponse.data;
             } else if (Array.isArray(pendingResponse.items)) {
               receipts = pendingResponse.items;
+            } else if (pendingResponse.data && typeof pendingResponse.data === "object" && "items" in pendingResponse.data) {
+              receipts = Array.isArray((pendingResponse.data as any).items) ? (pendingResponse.data as any).items : [];
             }
           }
 
           // Find receipt for this booking - match by booking ID or internal ID
+          // Try multiple matching strategies
           const bookingReceipt = receipts.find(
-            (payment) => 
-              payment.bookingId === local.id || 
-              payment.bookingId === local.bookingId ||
-              payment.booking?.id === local.id ||
-              payment.booking?.bookingId === local.bookingId
+            (payment) => {
+              // Match by internal booking ID
+              if (payment.booking?.id === local.id) return true;
+              // Match by display booking ID
+              if (payment.booking?.bookingId === local.bookingId) return true;
+              // Match by payment.bookingId (could be internal ID or display ID)
+              if (payment.bookingId === local.id || payment.bookingId === local.bookingId) return true;
+              return false;
+            }
           );
 
-          if (bookingReceipt?.receiptUrl) {
-            setReceiptUrl(bookingReceipt.receiptUrl);
-          } else if (isPendingApproval) {
-            // If status is PENDING_APPROVAL, payment was verified but receipt might still be in the payment record
-            // Try to get receipt from the booking's payment relationship if available
-            // For now, we'll leave it empty - the receipt should have been shown before verification
-            // If needed, backend could include payment.receiptUrl in booking response
+          if (bookingReceipt) {
+            // Set receipt URL if available
+            if (bookingReceipt.receiptUrl) {
+              setReceiptUrl(bookingReceipt.receiptUrl);
+            }
+            
+            // Update local state with payment info so Approve Payment button can show
+            if (!(local as any)?.payment) {
+              setLocal(prev => ({
+                ...prev,
+                payment: {
+                  id: bookingReceipt.id,
+                  status: bookingReceipt.status,
+                  provider: bookingReceipt.provider,
+                  receiptUrl: bookingReceipt.receiptUrl,
+                }
+              } as any));
+            }
           }
-        } catch {
+        } catch (error) {
           // Silently fail - receipt might not exist
+          console.warn("Failed to fetch payment info:", error);
         } finally {
           setReceiptLoading(false);
         }
@@ -245,8 +289,8 @@ export default function EditContactDialog({
       }
     };
 
-    fetchReceipt();
-  }, [local.id, local.bookingId, normalizedStatus, local.status]);
+    fetchPaymentInfo();
+  }, [local.id, local.bookingId, normalizedStatus, local.status, (local as any)?.payment, (booking as any)?.payment]);
 
   return (
     <Dialog open={true} onOpenChange={onOpenChange}>
@@ -265,8 +309,9 @@ export default function EditContactDialog({
           <PersonalInfoCard booking={local} />
           <AccommodationCard booking={local} isMember={isMember} assignedNow={assignedNow} />
 
-          {/* Payment Receipt Card - Show when receipt is available */}
-          {(normalizedStatus === "PENDING_PAYMENT" || local.status.toLowerCase() === "pending payment") && (
+          {/* Payment Receipt Card - Show when receipt is available or loading for PENDING_PAYMENT or PENDING_APPROVAL */}
+          {(normalizedStatus === "PENDING_PAYMENT" || local.status.toLowerCase() === "pending payment" ||
+            normalizedStatus === "PENDING_APPROVAL" || local.status.toLowerCase() === "pending approval") && (
             <PaymentReceiptCard
               receiptUrl={receiptUrl}
               receiptLoading={receiptLoading}
@@ -295,7 +340,7 @@ export default function EditContactDialog({
 
       <AssignRoomDialog
         open={openAssign}
-        bookingId={local.bookingId ?? local.id}
+        bookingId={local.id} // Use internal ID for API calls
         onOpenChange={(o) => setOpenAssign(o)}
         onAssign={(id, room) => {
           onAssignRoom?.(id, room);

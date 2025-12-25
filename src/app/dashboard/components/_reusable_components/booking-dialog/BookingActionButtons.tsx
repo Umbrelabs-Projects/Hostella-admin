@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { Check, CreditCard, X, Key, UserMinus } from "lucide-react";
 import { StudentBooking } from "@/types/booking";
 import ActionButton from "./ActionButton";
+import CancelBookingDialog from "./CancelBookingDialog";
 
 interface BookingActionButtonsProps {
   booking: StudentBooking;
@@ -29,12 +31,29 @@ export default function BookingActionButtons({
   onCancel,
   onRemoveStudent,
 }: BookingActionButtonsProps) {
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
   // Check payment status to determine if Approve Payment button should be shown
-  // According to guide: Show "Approve Payment" if booking.status === "PENDING_PAYMENT" AND payment.status === "CONFIRMED"
+  // UNIFIED IMPLEMENTATION: Both "Verify & Approve" and "Approve Payment" now use
+  // the same endpoint: PATCH /payments/:id/status
+  // 
+  // The button should only show if:
+  // 1. Booking is PENDING_PAYMENT (not already PENDING_APPROVAL - that means payment was already verified)
+  // 2. Payment exists and is CONFIRMED or AWAITING_VERIFICATION
   const paymentStatus = (booking as any)?.payment?.status;
-  const showApprovePayment = 
-    (normalizedStatus === "PENDING_PAYMENT" || booking.status.toLowerCase() === "pending payment") &&
-    (paymentStatus === "CONFIRMED" || paymentStatus === "AWAITING_VERIFICATION");
+  const paymentId = (booking as any)?.payment?.id;
+  const isPendingPayment = normalizedStatus === "PENDING_PAYMENT" || booking.status.toLowerCase() === "pending payment";
+  const isPendingApproval = normalizedStatus === "PENDING_APPROVAL" || booking.status.toLowerCase() === "pending approval";
+  
+  // Show button ONLY if:
+  // - Booking is still PENDING_PAYMENT (not already moved to PENDING_APPROVAL by "Verify & Approve")
+  // - Payment exists (has payment ID)
+  // - Payment status is CONFIRMED or AWAITING_VERIFICATION
+  // - Payment status might not be loaded yet, but booking is still pending payment
+  const showApprovePayment = isPendingPayment && !isPendingApproval && paymentId && (
+    paymentStatus === "CONFIRMED" || 
+    paymentStatus === "AWAITING_VERIFICATION" || 
+    paymentStatus === undefined // Show if payment status not loaded yet (will be fetched)
+  );
 
   return (
     <div className="flex gap-3 justify-end px-6 py-4 border-t border-gray-200 dark:border-gray-800 shrink-0 mt-auto bg-white dark:bg-gray-900">
@@ -107,16 +126,21 @@ export default function BookingActionButtons({
 
       {/* Cancel Booking - available for all statuses except COMPLETED */}
       {normalizedStatus !== "COMPLETED" && onCancel && (
-        <ActionButton
-          icon={X}
-          variant="destructive"
-          onClick={() => {
-            const reason = prompt("Reason for cancellation (optional):");
-            onCancel(booking.id, reason || undefined);
-          }}
-        >
-          Cancel Booking
-        </ActionButton>
+        <>
+          <ActionButton
+            icon={X}
+            variant="destructive"
+            onClick={() => setShowCancelDialog(true)}
+          >
+            Cancel Booking
+          </ActionButton>
+          <CancelBookingDialog
+            open={showCancelDialog}
+            onOpenChange={setShowCancelDialog}
+            onConfirm={(reason) => onCancel(booking.id, reason)}
+            bookingId={booking.bookingId}
+          />
+        </>
       )}
     </div>
   );

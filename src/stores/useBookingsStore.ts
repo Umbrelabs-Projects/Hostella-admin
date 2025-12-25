@@ -403,21 +403,70 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
   approvePayment: async (id) => {
     set({ loading: true, error: null });
     try {
-      // According to the guide:
-      // - If payment status is "AWAITING_VERIFICATION", it's automatically confirmed
-      // - Booking status changes to "pending approval"
-      // Backend returns { success: true, data: StudentBooking, message: string }
-      const response = await apiFetch<{
+      // UNIFIED IMPLEMENTATION: Both "Verify & Approve" and "Approve Payment" now use
+      // the same endpoint: PATCH /payments/:id/status
+      // This ensures consistency and single source of truth.
+      
+      // First, get the booking to find the payment ID
+      // If payment data is not in the booking object, fetch booking details first
+      let booking = get().bookings.find((b) => b.id === id) || get().selectedBooking;
+      let paymentId = (booking as any)?.payment?.id;
+      
+      // If payment ID is not available, fetch booking details to get it
+      if (!paymentId) {
+        const bookingResponse = await apiFetch<{
+          success?: boolean;
+          data?: StudentBooking & {
+            payment?: {
+              id: string;
+              status: string;
+            };
+          };
+        }>(`/bookings/${id}`);
+        
+        const bookingData = bookingResponse.data || (bookingResponse as unknown as StudentBooking);
+        paymentId = (bookingData as any)?.payment?.id;
+        
+        if (!paymentId) {
+          throw new Error("No payment found for this booking. Payment must exist to approve it.");
+        }
+      }
+
+      // Call the unified payment status endpoint (same as "Verify & Approve")
+      // This confirms the payment and automatically updates booking status to "pending approval"
+      const paymentResponse = await apiFetch<{
         success: boolean;
-        data: StudentBooking;
+        data: {
+          payment: {
+            id: string;
+            status: string;
+            booking?: {
+              id: string;
+              status: string;
+            };
+          };
+        };
         message?: string;
-      }>(`/bookings/${id}/approve-payment`, {
-        method: "POST",
+      }>(`/payments/${paymentId}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "CONFIRMED" }),
       });
 
+      if (!paymentResponse.success) {
+        throw new Error("Failed to confirm payment");
+      }
+
+      // After payment is confirmed, booking status automatically changes to "pending approval"
+      // Refresh the booking to get the updated status
+      const bookingResponse = await apiFetch<{
+        success?: boolean;
+        data?: StudentBooking;
+      }>(`/bookings/${id}`);
+
+      const bookingData = bookingResponse.data || (bookingResponse as unknown as StudentBooking);
       const updated = {
-        ...response.data,
-        status: normalizeStatus(response.data.status) as StudentBooking["status"],
+        ...bookingData,
+        status: normalizeStatus(bookingData.status) as StudentBooking["status"],
       };
 
       set((state) => {
