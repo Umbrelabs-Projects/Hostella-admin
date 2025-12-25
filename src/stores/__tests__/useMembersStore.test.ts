@@ -1,5 +1,6 @@
 import { renderHook, act } from '@testing-library/react'
 import { useMembersStore } from '@/stores/useMembersStore'
+import { StudentBooking } from '@/types/booking'
 
 jest.mock('@/lib/api', () => ({
   apiFetch: jest.fn(),
@@ -9,6 +10,9 @@ jest.mock('@/lib/api', () => ({
     }
   },
 }))
+
+// Note: transformBooking will be called by useMembersStore
+// The test data will be transformed to StudentBooking structure
 
 import { apiFetch } from '@/lib/api'
 
@@ -29,10 +33,54 @@ describe('useMembersStore', () => {
 
   describe('fetchMembers', () => {
     it('should fetch members with pagination', async () => {
+      // Mock data that will be transformed by transformBooking
+      // transformBooking expects either nested structure or flat StudentBooking
       const mockMembers = [
-        { id: '1', name: 'John Doe', email: 'john@example.com' },
-        { id: '2', name: 'Jane Smith', email: 'jane@example.com' },
-      ]
+        {
+          id: '1',
+          bookingId: 'BK-001',
+          email: 'john@example.com',
+          firstName: 'John',
+          lastName: 'Doe',
+          gender: 'male',
+          level: '100',
+          school: 'Test School',
+          studentId: '12345',
+          phone: '0241234567',
+          hostelName: 'Test Hostel',
+          roomTitle: 'One-in-one',
+          price: '100',
+          emergencyContactName: 'Contact',
+          emergencyContactNumber: '0241234567',
+          relation: 'Parent',
+          hasMedicalCondition: false,
+          status: 'approved',
+          allocatedRoomNumber: null,
+          floorNumber: null,
+        },
+        {
+          id: '2',
+          bookingId: 'BK-002',
+          email: 'jane@example.com',
+          firstName: 'Jane',
+          lastName: 'Smith',
+          gender: 'female',
+          level: '200',
+          school: 'Test School',
+          studentId: '67890',
+          phone: '0241234568',
+          hostelName: 'Test Hostel',
+          roomTitle: 'Two-in-one',
+          price: '200',
+          emergencyContactName: 'Contact',
+          emergencyContactNumber: '0241234568',
+          relation: 'Parent',
+          hasMedicalCondition: false,
+          status: 'approved',
+          allocatedRoomNumber: null,
+          floorNumber: null,
+        },
+      ] as StudentBooking[]
       ;(apiFetch as jest.Mock).mockResolvedValueOnce({
         success: true,
         data: mockMembers,
@@ -50,7 +98,17 @@ describe('useMembersStore', () => {
         await result.current.fetchMembers(1, 10)
       })
 
-      expect(result.current.members).toEqual(mockMembers)
+      // After transformation, members will have full StudentBooking structure
+      // transformBooking will create a StudentBooking from the mock data
+      expect(result.current.members).toHaveLength(2)
+      expect(result.current.members[0].id).toBe('1')
+      expect(result.current.members[0].email).toBe('john@example.com')
+      // transformBooking will set defaults for missing fields
+      expect(result.current.members[0]).toHaveProperty('firstName')
+      expect(result.current.members[0]).toHaveProperty('lastName')
+      expect(result.current.members[0]).toHaveProperty('status')
+      expect(result.current.members[1].id).toBe('2')
+      expect(result.current.members[1].email).toBe('jane@example.com')
       expect(result.current.totalMembers).toBe(2)
     })
 

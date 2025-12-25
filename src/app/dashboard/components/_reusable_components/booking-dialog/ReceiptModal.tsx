@@ -62,7 +62,7 @@ export default function ReceiptModal({
           {onApprovePayment && (
             <Button
               onClick={onApprovePayment}
-              className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white"
+              className="bg-linear-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white"
             >
               <Check className="size-4 mr-2" />
               Approve Payment
