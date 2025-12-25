@@ -4,6 +4,7 @@ import AddContactDialog from "../../components/_reusable_components/add-contact-
 import EditContactDialog from "../../components/_reusable_components/edit-contact-dialog";
 import DeleteConfirmDialog from "../../components/_reusable_components/delete-confirm-dialog";
 import { StudentBooking } from "@/types/booking";
+import { BookingCreateRequest } from "../../components/_reusable_components/add-contact-dialog/validation";
 
 type Props = {
   showAddDialog: boolean;
@@ -12,7 +13,7 @@ type Props = {
   setViewingBooking: (v: StudentBooking | null) => void;
   deletingBookingId: string | null;
   setDeletingBookingId: (v: string | null) => void;
-  onAdd: (input: Partial<StudentBooking>) => void;
+  onAdd: (booking: BookingCreateRequest | Partial<StudentBooking>) => void | Promise<void>;
   onApprovePayment: (id: string) => void;
   onAssignRoom: (id: string, roomId: string) => Promise<StudentBooking> | void;
   onCompleteOnboarding: (id: string) => Promise<void>;
