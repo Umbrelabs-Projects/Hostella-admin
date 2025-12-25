@@ -62,7 +62,11 @@ export default function BookingsDialogs({
         <DeleteConfirmDialog
           open={!!deletingBookingId}
           onOpenChange={(open) => !open && setDeletingBookingId(null)}
-          onConfirm={() => deletingBookingId && onDeleteConfirm(deletingBookingId)}
+          onConfirm={() => {
+            if (deletingBookingId) {
+              onDeleteConfirm(deletingBookingId);
+            }
+          }}
           loading={loadingActions[`delete-${deletingBookingId}`] || false}
         />
       )}
