@@ -20,6 +20,7 @@ type Props = {
   onDeleteConfirm: (id: string) => void;
   onCancel?: (id: string, reason?: string) => void;
   onRemoveStudent?: (id: string) => void;
+  loadingActions?: Record<string, boolean>;
 };
 
 export default function BookingsDialogs({
@@ -37,6 +38,7 @@ export default function BookingsDialogs({
   onDeleteConfirm,
   onCancel,
   onRemoveStudent,
+  loadingActions = {},
 }: Props) {
   return (
     <>
@@ -52,6 +54,7 @@ export default function BookingsDialogs({
           onApprove={onApprove}
           onCancel={onCancel}
           onRemoveStudent={onRemoveStudent}
+          loadingActions={loadingActions}
         />
       )}
 
@@ -60,6 +63,7 @@ export default function BookingsDialogs({
           open={!!deletingBookingId}
           onOpenChange={(open) => !open && setDeletingBookingId(null)}
           onConfirm={() => deletingBookingId && onDeleteConfirm(deletingBookingId)}
+          loading={loadingActions[`delete-${deletingBookingId}`] || false}
         />
       )}
     </>

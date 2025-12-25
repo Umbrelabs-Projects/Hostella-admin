@@ -17,6 +17,7 @@ interface BookingActionButtonsProps {
   onCompleteOnboarding?: (id: string) => void;
   onCancel?: (id: string, reason?: string) => void;
   onRemoveStudent?: (id: string) => void;
+  loadingActions?: Record<string, boolean>;
 }
 
 export default function BookingActionButtons({
@@ -30,8 +31,17 @@ export default function BookingActionButtons({
   onCompleteOnboarding,
   onCancel,
   onRemoveStudent,
+  loadingActions = {},
 }: BookingActionButtonsProps) {
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  
+  // Get loading states for each action
+  const isApprovingPayment = loadingActions[`approvePayment-${booking.id}`] || false;
+  const isApproving = loadingActions[`approve-${booking.id}`] || false;
+  const isAssigningRoom = loadingActions[`assignRoom-${booking.id}`] || false;
+  const isCompletingOnboarding = loadingActions[`completeOnboarding-${booking.id}`] || false;
+  const isCancelling = loadingActions[`cancel-${booking.id}`] || false;
+  const isRemovingStudent = loadingActions[`removeStudent-${booking.id}`] || false;
   // Check payment status to determine if Approve Payment button should be shown
   // UNIFIED IMPLEMENTATION: Both "Verify & Approve" and "Approve Payment" now use
   // the same endpoint: PATCH /payments/:id/status
@@ -71,6 +81,7 @@ export default function BookingActionButtons({
           icon={CreditCard}
           variant="success"
           onClick={() => onApprovePayment?.(booking.id)}
+          loading={isApprovingPayment}
         >
           Approve Payment
         </ActionButton>
@@ -82,6 +93,7 @@ export default function BookingActionButtons({
           icon={Check}
           variant="primary"
           onClick={() => onApprove?.(booking.id)}
+          loading={isApproving}
         >
           Approve Booking
         </ActionButton>
@@ -93,6 +105,7 @@ export default function BookingActionButtons({
           icon={Key}
           variant="info"
           onClick={onAssignRoom}
+          loading={isAssigningRoom}
         >
           Assign Room
         </ActionButton>
@@ -104,6 +117,7 @@ export default function BookingActionButtons({
           icon={Check}
           variant="teal"
           onClick={() => onCompleteOnboarding?.(booking.id)}
+          loading={isCompletingOnboarding}
         >
           Complete Onboarding
         </ActionButton>
@@ -119,6 +133,7 @@ export default function BookingActionButtons({
               onRemoveStudent(booking.id);
             }
           }}
+          loading={isRemovingStudent}
         >
           Remove Student
         </ActionButton>
@@ -131,6 +146,7 @@ export default function BookingActionButtons({
             icon={X}
             variant="destructive"
             onClick={() => setShowCancelDialog(true)}
+            loading={isCancelling}
           >
             Cancel Booking
           </ActionButton>

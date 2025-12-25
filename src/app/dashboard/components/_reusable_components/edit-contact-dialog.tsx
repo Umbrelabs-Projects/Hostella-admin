@@ -30,6 +30,7 @@ interface BookingDetailsDialogProps {
   onApprove?: (id: string) => void;
   onCancel?: (id: string, reason?: string) => void;
   onRemoveStudent?: (id: string) => void;
+  loadingActions?: Record<string, boolean>;
 }
 
 export default function EditContactDialog({
@@ -42,6 +43,7 @@ export default function EditContactDialog({
   onApprove,
   onCancel,
   onRemoveStudent,
+  loadingActions = {},
 }: BookingDetailsDialogProps) {
   const [local, setLocal] = useState<StudentBooking>(booking);
 
@@ -335,6 +337,7 @@ export default function EditContactDialog({
           onCompleteOnboarding={onCompleteOnboarding}
           onCancel={onCancel}
           onRemoveStudent={onRemoveStudent}
+          loadingActions={loadingActions}
         />
       </DialogContent>
 
@@ -342,8 +345,8 @@ export default function EditContactDialog({
         open={openAssign}
         bookingId={local.id} // Use internal ID for API calls
         onOpenChange={(o) => setOpenAssign(o)}
-        onAssign={(id, room) => {
-          onAssignRoom?.(id, room);
+        onAssign={async (id, room) => {
+          await onAssignRoom?.(id, room);
           setAssignedNow(true);
         }}
       />

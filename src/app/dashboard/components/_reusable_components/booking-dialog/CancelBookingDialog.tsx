@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Loader2 } from "lucide-react";
 
 interface CancelBookingDialogProps {
   open: boolean;
@@ -28,11 +28,17 @@ export default function CancelBookingDialog({
   bookingId,
 }: CancelBookingDialogProps) {
   const [reason, setReason] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleConfirm = () => {
-    onConfirm(reason.trim() || undefined);
-    setReason(""); // Reset reason when dialog closes
-    onOpenChange(false);
+  const handleConfirm = async () => {
+    setIsLoading(true);
+    try {
+      await onConfirm(reason.trim() || undefined);
+      setReason(""); // Reset reason when dialog closes
+      onOpenChange(false);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleCancel = () => {
@@ -80,11 +86,18 @@ export default function CancelBookingDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleCancel}>
+          <Button variant="outline" onClick={handleCancel} disabled={isLoading}>
             Keep Booking
           </Button>
-          <Button variant="destructive" onClick={handleConfirm}>
-            Cancel Booking
+          <Button variant="destructive" onClick={handleConfirm} disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <Loader2 className="size-4 mr-2 animate-spin" />
+                Cancelling...
+              </>
+            ) : (
+              "Cancel Booking"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

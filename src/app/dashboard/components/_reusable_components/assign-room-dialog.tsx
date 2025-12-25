@@ -37,6 +37,7 @@ export default function AssignRoomDialog({ open, bookingId, onOpenChange, onAssi
   const [rooms, setRooms] = useState<Room[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
+  const [assigning, setAssigning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { getSuitableRooms } = useBookingsStore();
 
@@ -62,7 +63,7 @@ export default function AssignRoomDialog({ open, bookingId, onOpenChange, onAssi
     }
   }, [open, bookingId, getSuitableRooms]);
 
-  const handleAssign = () => {
+  const handleAssign = async () => {
     if (!bookingId) {
       setError("Missing booking ID");
       return;
@@ -73,11 +74,18 @@ export default function AssignRoomDialog({ open, bookingId, onOpenChange, onAssi
       return;
     }
 
-    onAssign(bookingId, selectedRoom);
-    setSelectedRoom(null);
+    setAssigning(true);
     setError(null);
-    onOpenChange(false);
-    toast.success(`Assigned room ${selectedRoom}`);
+    try {
+      await onAssign(bookingId, selectedRoom);
+      setSelectedRoom(null);
+      onOpenChange(false);
+      toast.success(`Assigned room ${selectedRoom}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to assign room");
+    } finally {
+      setAssigning(false);
+    }
   };
 
   const getRoomStatus = (room: Room) => {
@@ -282,10 +290,19 @@ export default function AssignRoomDialog({ open, bookingId, onOpenChange, onAssi
               <Button
                 type="button"
                 onClick={handleAssign}
-                disabled={!selectedRoom || loading}
+                disabled={!selectedRoom || loading || assigning}
               >
-                <Key className="size-4 mr-2" />
-                Assign Room
+                {assigning ? (
+                  <>
+                    <Loader2 className="size-4 mr-2 animate-spin" />
+                    Assigning...
+                  </>
+                ) : (
+                  <>
+                    <Key className="size-4 mr-2" />
+                    Assign Room
+                  </>
+                )}
               </Button>
             </div>
           </div>
