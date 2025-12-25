@@ -33,7 +33,7 @@ export const statusVariant = (status: string) => {
 export const getStatusColor = (normalizedStatus: string) => {
   if (normalizedStatus === "PENDING_PAYMENT") return "from-amber-500 to-orange-500";
   if (normalizedStatus === "PENDING_APPROVAL") return "from-blue-500 to-indigo-500";
-  if (normalizedStatus === "APPROVED") return "from-emerald-500 to-teal-500";
+  if (normalizedStatus === "APPROVED") return "from-slate-500 to-gray-600";
   if (normalizedStatus === "ROOM_ALLOCATED") return "from-purple-500 to-pink-500";
   if (normalizedStatus === "COMPLETED") return "from-green-500 to-emerald-500";
   if (normalizedStatus === "CANCELLED" || normalizedStatus === "REJECTED") return "from-red-500 to-rose-500";

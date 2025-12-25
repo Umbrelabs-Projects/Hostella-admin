@@ -105,10 +105,10 @@ export default function PaymentNotificationCard({
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-start gap-3 flex-1 min-w-0">
               <div
-                className={`p-2.5 rounded-xl flex-shrink-0 ${
+                className={`p-2.5 rounded-xl shrink-0 ${
                   isBankTransfer
-                    ? "bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30"
-                    : "bg-gradient-to-br from-purple-50 to-violet-50 dark:from-purple-950/30 dark:to-violet-950/30"
+                    ? "bg-linear-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30"
+                    : "bg-linear-to-br from-purple-50 to-violet-50 dark:from-purple-950/30 dark:to-violet-950/30"
                 }`}
               >
                 {isBankTransfer ? (
@@ -137,7 +137,7 @@ export default function PaymentNotificationCard({
                       : "Paystack Payment Received"}
                   </h3>
                   <span
-                    className={`px-2.5 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ${
+                    className={`px-2.5 py-0.5 rounded-full text-xs font-medium shrink-0 ${
                       payment.status === "AWAITING_VERIFICATION"
                         ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
                         : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
@@ -153,7 +153,7 @@ export default function PaymentNotificationCard({
                 </p>
               </div>
             </div>
-            <div className="text-right flex-shrink-0">
+            <div className="text-right shrink-0">
               <p className="text-2xl font-bold text-gray-900 dark:text-gray-50">
                 GHS {payment.amount.toLocaleString()}
               </p>
@@ -168,9 +168,9 @@ export default function PaymentNotificationCard({
           <div className="space-y-4">
             {/* Student & Booking Info */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="p-3 rounded-lg bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 border border-blue-100 dark:border-blue-900/30">
+              <div className="p-3 rounded-lg bg-linear-to-br from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 border border-blue-100 dark:border-blue-900/30">
                 <div className="flex items-start gap-3">
-                  <div className="p-1.5 rounded-lg bg-blue-100 dark:bg-blue-900/40 flex-shrink-0">
+                  <div className="p-1.5 rounded-lg bg-blue-100 dark:bg-blue-900/40 shrink-0">
                     <User className="size-4 text-blue-600 dark:text-blue-400" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -187,9 +187,9 @@ export default function PaymentNotificationCard({
                 </div>
               </div>
 
-              <div className="p-3 rounded-lg bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/20 dark:to-purple-950/20 border border-indigo-100 dark:border-indigo-900/30">
+              <div className="p-3 rounded-lg bg-linear-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/20 dark:to-purple-950/20 border border-indigo-100 dark:border-indigo-900/30">
                 <div className="flex items-start gap-3">
-                  <div className="p-1.5 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 flex-shrink-0">
+                  <div className="p-1.5 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 shrink-0">
                     <Building2 className="size-4 text-indigo-600 dark:text-indigo-400" />
                   </div>
                   <div className="flex-1 min-w-0">
