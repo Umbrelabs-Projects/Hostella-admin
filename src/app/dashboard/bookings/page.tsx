@@ -182,20 +182,6 @@ export default function Bookings() {
         <h1 className="sr-only">Bookings</h1>
         <BookingsHeader onNew={() => setShowAddDialog(true)} />
 
-        {error && (
-          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-red-700">{error}</p>
-              <button
-                onClick={clearError}
-                className="text-sm font-medium text-red-600 hover:text-red-800"
-              >
-                Dismiss
-              </button>
-            </div>
-          </div>
-        )}
-
         <BookingsFilters
           search={filters.search}
           onSearch={(val) => setFilters({ search: val })}

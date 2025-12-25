@@ -60,3 +60,62 @@ export const getDisplayVariant = (displayStatus: string, status: string) => {
   return statusVariant(status);
 };
 
+// Get card header colors based on status
+export const getStatusCardColors = (normalizedStatus: string) => {
+  if (normalizedStatus === "PENDING_PAYMENT") {
+    return {
+      bg: "from-amber-50 via-orange-50 to-yellow-50 dark:from-amber-950/30 dark:via-orange-950/30 dark:to-yellow-950/30",
+      border: "border-amber-200 dark:border-amber-800",
+      iconBg: "bg-amber-100 dark:bg-amber-900/30",
+      iconColor: "text-amber-600 dark:text-amber-400",
+    };
+  }
+  if (normalizedStatus === "PENDING_APPROVAL") {
+    return {
+      bg: "from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-950/30 dark:via-indigo-950/30 dark:to-purple-950/30",
+      border: "border-blue-200 dark:border-blue-800",
+      iconBg: "bg-blue-100 dark:bg-blue-900/30",
+      iconColor: "text-blue-600 dark:text-blue-400",
+    };
+  }
+  if (normalizedStatus === "APPROVED") {
+    return {
+      bg: "from-emerald-50 via-teal-50 to-green-50 dark:from-emerald-950/30 dark:via-teal-950/30 dark:to-green-950/30",
+      border: "border-emerald-200 dark:border-emerald-800",
+      iconBg: "bg-emerald-100 dark:bg-emerald-900/30",
+      iconColor: "text-emerald-600 dark:text-emerald-400",
+    };
+  }
+  if (normalizedStatus === "ROOM_ALLOCATED") {
+    return {
+      bg: "from-purple-50 via-pink-50 to-rose-50 dark:from-purple-950/30 dark:via-pink-950/30 dark:to-rose-950/30",
+      border: "border-purple-200 dark:border-purple-800",
+      iconBg: "bg-purple-100 dark:bg-purple-900/30",
+      iconColor: "text-purple-600 dark:text-purple-400",
+    };
+  }
+  if (normalizedStatus === "COMPLETED") {
+    return {
+      bg: "from-green-50 via-emerald-50 to-teal-50 dark:from-green-950/30 dark:via-emerald-950/30 dark:to-teal-950/30",
+      border: "border-green-200 dark:border-green-800",
+      iconBg: "bg-green-100 dark:bg-green-900/30",
+      iconColor: "text-green-600 dark:text-green-400",
+    };
+  }
+  if (normalizedStatus === "CANCELLED" || normalizedStatus === "REJECTED") {
+    return {
+      bg: "from-red-50 via-rose-50 to-pink-50 dark:from-red-950/30 dark:via-rose-950/30 dark:to-pink-950/30",
+      border: "border-red-200 dark:border-red-800",
+      iconBg: "bg-red-100 dark:bg-red-900/30",
+      iconColor: "text-red-600 dark:text-red-400",
+    };
+  }
+  // Default gray
+  return {
+    bg: "from-gray-50 via-slate-50 to-zinc-50 dark:from-gray-950/30 dark:via-slate-950/30 dark:to-zinc-950/30",
+    border: "border-gray-200 dark:border-gray-800",
+    iconBg: "bg-gray-100 dark:bg-gray-900/30",
+    iconColor: "text-gray-600 dark:text-gray-400",
+  };
+};
+

@@ -93,20 +93,6 @@ export default function PaymentsPage() {
           paystackCount={paystackPayments.length}
         />
 
-        {error && (
-          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-red-700">{error}</p>
-              <button
-                onClick={clearError}
-                className="text-sm font-medium text-red-600 hover:text-red-800"
-              >
-                Dismiss
-              </button>
-            </div>
-          </div>
-        )}
-
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="mt-6">
           <TabsList className="grid w-full max-w-md grid-cols-3">
             <TabsTrigger value="all">
