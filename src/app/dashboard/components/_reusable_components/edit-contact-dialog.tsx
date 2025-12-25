@@ -345,8 +345,8 @@ export default function EditContactDialog({
         open={openAssign}
         bookingId={local.id} // Use internal ID for API calls
         onOpenChange={(o) => setOpenAssign(o)}
-        onAssign={async (id, room) => {
-          await onAssignRoom?.(id, room);
+        onAssign={async (id, roomId) => {
+          await onAssignRoom?.(id, roomId);
           setAssignedNow(true);
         }}
       />

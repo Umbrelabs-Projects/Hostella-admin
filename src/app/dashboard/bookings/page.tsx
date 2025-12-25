@@ -109,10 +109,10 @@ export default function Bookings() {
     }
   };
 
-  const handleAssignRoom = async (id: string, roomNumber: number) => {
+  const handleAssignRoom = async (id: string, roomId: string) => {
     setLoadingActions(prev => ({ ...prev, [`assignRoom-${id}`]: true }));
     try {
-      const updated = await assignRoom(id, roomNumber);
+      const updated = await assignRoom(id, roomId);
       setViewingBooking(updated);
       toast.success("Room assigned successfully");
     } catch (err) {

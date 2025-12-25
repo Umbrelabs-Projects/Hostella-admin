@@ -52,11 +52,36 @@ export type BookingsState = {
   deleteBooking: (id: string) => Promise<void>;
   approvePayment: (id: string) => Promise<StudentBooking>;
   approveBooking: (id: string) => Promise<StudentBooking>;
-  assignRoom: (id: string, roomNumber: number) => Promise<StudentBooking>;
+  assignRoom: (id: string, roomId: string) => Promise<StudentBooking>;
   completeOnboarding: (id: string) => Promise<void>;
   cancelBooking: (id: string, reason?: string) => Promise<StudentBooking>;
   getPendingAssignments: (page?: number, limit?: number, hostelId?: string, preferredRoomType?: string) => Promise<{ items: StudentBooking[]; pagination: { total: number; page: number; limit: number; pages: number } }>;
-  getSuitableRooms: (bookingId: string) => Promise<Array<{ id: string; roomNumber: number; roomType: string; price: number; capacity: number; currentOccupancy: number; isAvailable: boolean; hostelId: string }>>;
+  getSuitableRooms: (bookingId: string) => Promise<Array<{
+    id: string;
+    roomNumber: string;
+    floorNumber: number;
+    capacity: number;
+    price: number;
+    status: string;
+    genderType: string | null;
+    type: string | null;
+    currentOccupants: number;
+    availableSpots: number;
+    occupancyStatus: "available" | "partially_available" | "full";
+    colorCode: "default" | "green" | "red";
+    allocatedBookings: Array<{
+      id: string;
+      bookingId: string;
+      user: {
+        id: string;
+        firstName: string;
+        lastName: string;
+        gender: string;
+        studentRefNumber: string;
+      };
+    }>;
+    images: string[];
+  }>>;
   removeStudentFromRoom: (bookingId: string) => Promise<StudentBooking>;
   getBookingStats: (hostelId?: string) => Promise<{ total: number; pendingPayment: number; pendingApproval: number; approved: number; roomAllocated: number; completed: number; cancelled: number }>;
 
@@ -532,18 +557,19 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
     }
   },
 
-  assignRoom: async (id, roomNumber) => {
+  assignRoom: async (id, roomId) => {
     set({ loading: true, error: null });
     try {
       // Backend returns { success: true, data: StudentBooking, message: string }
       // Status changes to ROOM_ALLOCATED after room assignment
+      // Backend expects roomId (string) not roomNumber
       const response = await apiFetch<{
         success: boolean;
         data: StudentBooking;
         message?: string;
       }>(`/bookings/${id}/assign-room`, {
         method: "PATCH",
-        body: JSON.stringify({ roomNumber }),
+        body: JSON.stringify({ roomId }),
       });
 
       const updated = {
@@ -728,13 +754,29 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
         data: {
           rooms: Array<{
             id: string;
-            roomNumber: number;
-            roomType: string;
-            price: number;
+            roomNumber: string;
+            floorNumber: number;
             capacity: number;
-            currentOccupancy: number;
-            isAvailable: boolean;
-            hostelId: string;
+            price: number;
+            status: string;
+            genderType: string | null;
+            type: string | null;
+            currentOccupants: number;
+            availableSpots: number;
+            occupancyStatus: "available" | "partially_available" | "full";
+            colorCode: "default" | "green" | "red";
+            allocatedBookings: Array<{
+              id: string;
+              bookingId: string;
+              user: {
+                id: string;
+                firstName: string;
+                lastName: string;
+                gender: string;
+                studentRefNumber: string;
+              };
+            }>;
+            images: string[];
           }>;
         };
       }>(`/bookings/${bookingId}/suitable-rooms`);
