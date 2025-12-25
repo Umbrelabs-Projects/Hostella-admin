@@ -88,9 +88,9 @@ export const columns = ({ onView, onDelete, showStatus = true, showAssigned = fa
   const getStatusColor = (status: string): string => {
     const normalized = normalizeStatus(status);
     if (normalized === "PENDING_PAYMENT") return "bg-amber-100 text-amber-800";
-    if (normalized === "PENDING_APPROVAL") return "bg-orange-100 text-orange-800";
+    if (normalized === "PENDING_APPROVAL") return "bg-blue-100 text-blue-800";
     if (normalized === "APPROVED") return "bg-slate-100 text-slate-800";
-    if (normalized === "ROOM_ALLOCATED") return "bg-blue-100 text-blue-800";
+    if (normalized === "ROOM_ALLOCATED") return "bg-purple-100 text-purple-800";
     if (normalized === "COMPLETED") return "bg-green-100 text-green-800";
     if (normalized === "CANCELLED") return "bg-red-100 text-red-800";
     if (normalized === "REJECTED") return "bg-red-100 text-red-800";
