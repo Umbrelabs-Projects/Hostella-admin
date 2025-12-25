@@ -1,5 +1,5 @@
 // lib/routes.ts
 export const ROUTES = {
-    dashboard: "/dashboard",
+    dashboard: "/dashboard/bookings",
   };
   
