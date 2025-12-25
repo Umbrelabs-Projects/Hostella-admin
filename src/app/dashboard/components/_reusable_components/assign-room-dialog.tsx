@@ -97,6 +97,13 @@ export default function AssignRoomDialog({ open, bookingId, onOpenChange, onAssi
       return;
     }
 
+    // Double-check room is still available (defensive check)
+    // Backend will also validate using actual booking count, but this provides immediate feedback
+    if (selectedRoom.occupancyStatus === "full") {
+      setError("This room is now full. Please select another room.");
+      return;
+    }
+
     setAssigning(true);
     setError(null);
     try {
@@ -112,6 +119,8 @@ export default function AssignRoomDialog({ open, bookingId, onOpenChange, onAssi
   };
 
   // Use backend's colorCode and occupancyStatus directly
+  // Backend calculates occupancyStatus based on actual booking count (bookings with status "ROOM_ALLOCATED")
+  // This ensures frontend and backend are in sync - both use the same calculation method
   // Backend provides: "default" | "green" | "red"
   const getRoomColor = (room: Room) => {
     switch (room.colorCode) {
@@ -129,6 +138,9 @@ export default function AssignRoomDialog({ open, bookingId, onOpenChange, onAssi
   };
 
 
+  // Check if room is selectable based on backend's occupancyStatus
+  // Backend calculates this by counting actual bookings with status "ROOM_ALLOCATED"
+  // This ensures consistency between frontend display and backend validation
   const isRoomSelectable = (room: Room): boolean => {
     return room.occupancyStatus !== "full";
   };
