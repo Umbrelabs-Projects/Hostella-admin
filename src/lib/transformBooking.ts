@@ -140,7 +140,7 @@ export function transformBooking(apiBooking: ApiBookingResponse): StudentBooking
     avatar: user.avatar || apiBooking.avatar || apiBooking.imageUrl,
     imageUrl: user.avatar || apiBooking.avatar || apiBooking.imageUrl, // Legacy support
     hostelName: hostel.name || apiBooking.hostelName || "",
-    roomTitle: roomTitle as "One-in-one" | "Two-in-one" | undefined,
+    roomTitle: (roomTitle || "One-in-one") as "One-in-one" | "Two-in-one",
     price: apiBooking.price || String(apiBooking.totalAmount || ""),
     emergencyContactName: apiBooking.emergencyContactName || "",
     emergencyContactNumber: apiBooking.emergencyContactNumber || "",
