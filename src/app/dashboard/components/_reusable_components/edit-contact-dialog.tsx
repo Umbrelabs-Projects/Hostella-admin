@@ -25,7 +25,7 @@ interface BookingDetailsDialogProps {
   onOpenChange: (open: boolean) => void;
   onUpdate?: (b: StudentBooking) => void;
   onApprovePayment?: (id: string) => void;
-  onAssignRoom?: (id: string, roomNumber: number) => void;
+  onAssignRoom?: (id: string, roomId: string) => void;
   onCompleteOnboarding?: (id: string) => void;
   onApprove?: (id: string) => void;
   onCancel?: (id: string, reason?: string) => void;

@@ -91,14 +91,19 @@ export default function AssignRoomDialog({ open, bookingId, onOpenChange, onAssi
       return;
     }
 
+    const selectedRoom = rooms.find(r => r.id === selectedRoomId);
+    if (!selectedRoom) {
+      setError("Selected room not found");
+      return;
+    }
+
     setAssigning(true);
     setError(null);
     try {
       await onAssign(bookingId, selectedRoomId);
       setSelectedRoomId(null);
-    onOpenChange(false);
-      const selectedRoom = rooms.find(r => r.id === selectedRoomId);
-      toast.success(`Assigned room ${selectedRoom?.roomNumber || selectedRoomId}`);
+      onOpenChange(false);
+      toast.success(`Assigned room ${selectedRoom.roomNumber}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to assign room");
     } finally {

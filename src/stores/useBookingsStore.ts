@@ -562,7 +562,7 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
     try {
       // Backend returns { success: true, data: StudentBooking, message: string }
       // Status changes to ROOM_ALLOCATED after room assignment
-      // Backend expects roomId (string) not roomNumber
+      // Backend expects roomId (string) in the request body
       const response = await apiFetch<{
         success: boolean;
         data: StudentBooking;
