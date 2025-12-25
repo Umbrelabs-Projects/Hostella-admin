@@ -68,9 +68,9 @@ export default function Bookings() {
     setCurrentPage(1);
   };
 
-  const handleAddBooking = async (input: BookingCreateRequest | Partial<StudentBooking>) => {
+  const handleAddBooking = async (input: BookingCreateRequest | Partial<StudentBooking>): Promise<void> => {
     try {
-      const result = await createBooking(input);
+      await createBooking(input);
       setShowAddDialog(false);
       
       // Show success message with student account creation info
@@ -78,8 +78,6 @@ export default function Bookings() {
         "Booking created successfully! Student account has been created and login credentials have been sent via email.",
         { duration: 5000 }
       );
-      
-      return result;
     } catch (err) {
       // Handle validation errors
       if (err instanceof Error && err.message.includes("Validation")) {
