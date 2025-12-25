@@ -12,6 +12,7 @@ import { useMembersStore } from "@/stores/useMembersStore";
 import { toast } from "sonner";
 import { StudentBooking } from "@/types/booking";
 import { TableSkeleton } from "@/components/ui/skeleton";
+import { BookingCreateRequest } from "@/app/dashboard/components/_reusable_components/add-contact-dialog/validation";
 
 export default function Bookings() {
   const router = useRouter();
@@ -67,7 +68,7 @@ export default function Bookings() {
     setCurrentPage(1);
   };
 
-  const handleAddBooking = async (input: Partial<StudentBooking>) => {
+  const handleAddBooking = async (input: BookingCreateRequest | Partial<StudentBooking>) => {
     try {
       const result = await createBooking(input);
       setShowAddDialog(false);

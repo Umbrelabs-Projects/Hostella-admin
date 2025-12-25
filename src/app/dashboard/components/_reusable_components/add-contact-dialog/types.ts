@@ -1,10 +1,11 @@
 import { StudentBooking } from "@/types/booking";
 import { LucideIcon } from "lucide-react";
+import { BookingCreateRequest } from "./validation";
 
 export interface AddBookingDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAdd: (booking: Partial<StudentBooking>) => void;
+  onAdd: (booking: BookingCreateRequest | Partial<StudentBooking>) => void | Promise<void>;
 }
 
 export interface FieldConfig {
