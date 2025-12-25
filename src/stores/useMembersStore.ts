@@ -27,6 +27,34 @@ export type MembersState = {
   fetchMembers: (page?: number, pageSize?: number) => Promise<void>;
   updateMemberApi: (id: string, updates: Partial<StudentBooking>) => Promise<StudentBooking>;
   deleteMember: (id: string) => Promise<void>;
+  unassignRoom: (id: string) => Promise<StudentBooking>;
+  reassignRoom: (id: string, roomId: string) => Promise<StudentBooking>;
+  getSuitableRoomsForMember: (memberId: string) => Promise<Array<{
+    id: string;
+    roomNumber: string;
+    floorNumber: number;
+    capacity: number;
+    price: number;
+    status: string;
+    genderType: string | null;
+    type: string | null;
+    currentOccupants: number;
+    availableSpots: number;
+    occupancyStatus: "available" | "partially_available" | "full";
+    colorCode: "default" | "green" | "red";
+    allocatedBookings: Array<{
+      id: string;
+      bookingId: string;
+      user: {
+        id: string;
+        firstName: string;
+        lastName: string;
+        gender: string;
+        studentRefNumber: string;
+      };
+    }>;
+    images: string[];
+  }>>;
 
   // Pagination & Filter
   setCurrentPage: (page: number) => void;
@@ -287,6 +315,226 @@ export const useMembersStore = create<MembersState>((set, get) => ({
           : err instanceof Error
             ? err.message
             : "Failed to delete member";
+      set({ error: message, loading: false });
+      throw err;
+    }
+  },
+
+  unassignRoom: async (id) => {
+    set({ loading: true, error: null });
+    try {
+      // Backend returns { success: true, data: Member, message: string }
+      const response = await apiFetch<{
+        success: boolean;
+        data: StudentBooking;
+        message?: string;
+      }>(`/members/${id}/unassign-room`, {
+        method: "PATCH",
+      });
+
+      // Helper to normalize status
+      const normalizeStatus = (status: string): string => {
+        const normalized = status.toLowerCase().trim();
+        const statusMap: Record<string, string> = {
+          "pending payment": "PENDING_PAYMENT",
+          "pending approval": "PENDING_APPROVAL",
+          "approved": "APPROVED",
+          "room_allocated": "ROOM_ALLOCATED",
+          "room allocated": "ROOM_ALLOCATED",
+          "completed": "COMPLETED",
+          "cancelled": "CANCELLED",
+          "rejected": "REJECTED",
+          "expired": "EXPIRED",
+        };
+        return statusMap[normalized] || normalized.toUpperCase().replace(/\s+/g, "_");
+      };
+
+      const transformed = transformBooking(response.data as any);
+      const updated = {
+        ...transformed,
+        status: normalizeStatus(transformed.status) as StudentBooking["status"],
+        allocatedRoomNumber: null,
+        floorNumber: null,
+      };
+
+      set((state) => {
+        const currentMembers = Array.isArray(state.members) ? state.members : [];
+        return {
+          members: currentMembers.map((m) => (m.id === id ? updated : m)),
+          selectedMember: state.selectedMember?.id === id ? updated : state.selectedMember,
+          loading: false,
+          error: null,
+        };
+      });
+
+      return updated;
+    } catch (err) {
+      const message =
+        err instanceof APIException
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Failed to unassign room";
+      set({ error: message, loading: false });
+      throw err;
+    }
+  },
+
+  reassignRoom: async (id, roomId) => {
+    set({ loading: true, error: null });
+    try {
+      // Backend returns { success: true, data: Member, message: string }
+      const response = await apiFetch<{
+        success: boolean;
+        data: StudentBooking;
+        message?: string;
+      }>(`/members/${id}/reassign-room`, {
+        method: "PATCH",
+        body: JSON.stringify({ roomId }),
+      });
+
+      // Helper to normalize status
+      const normalizeStatus = (status: string): string => {
+        const normalized = status.toLowerCase().trim();
+        const statusMap: Record<string, string> = {
+          "pending payment": "PENDING_PAYMENT",
+          "pending approval": "PENDING_APPROVAL",
+          "approved": "APPROVED",
+          "room_allocated": "ROOM_ALLOCATED",
+          "room allocated": "ROOM_ALLOCATED",
+          "completed": "COMPLETED",
+          "cancelled": "CANCELLED",
+          "rejected": "REJECTED",
+          "expired": "EXPIRED",
+        };
+        return statusMap[normalized] || normalized.toUpperCase().replace(/\s+/g, "_");
+      };
+
+      const transformed = transformBooking(response.data as any);
+      const updated = {
+        ...transformed,
+        status: normalizeStatus(transformed.status) as StudentBooking["status"],
+      };
+
+      set((state) => {
+        const currentMembers = Array.isArray(state.members) ? state.members : [];
+        return {
+          members: currentMembers.map((m) => (m.id === id ? updated : m)),
+          selectedMember: state.selectedMember?.id === id ? updated : state.selectedMember,
+          loading: false,
+          error: null,
+        };
+      });
+
+      return updated;
+    } catch (err) {
+      const message =
+        err instanceof APIException
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Failed to reassign room";
+      set({ error: message, loading: false });
+      throw err;
+    }
+  },
+
+  getSuitableRoomsForMember: async (memberId) => {
+    set({ loading: true, error: null });
+    try {
+      // Backend returns { success: true, data: { rooms: [...], member: {...} } }
+      const response = await apiFetch<{
+        success: boolean;
+        data: {
+          rooms: Array<{
+            id: string;
+            roomNumber: string;
+            floorNumber: number;
+            capacity: number;
+            price: number;
+            status: string;
+            genderType: string | null;
+            type: string | null;
+            currentOccupants: number;
+            availableSpots: number;
+            isAvailable: boolean;
+            isFull: boolean;
+            images: string[];
+            occupants: Array<unknown>;
+            hostel: {
+              id: string;
+              name: string;
+              location: string;
+            };
+          }>;
+          member: {
+            id: string;
+            bookingId: string;
+            preferredRoomType: string;
+            userGender: string;
+          };
+        };
+      }>(`/members/${memberId}/suitable-rooms`, {
+        method: "GET",
+      });
+
+      set({ loading: false, error: null });
+
+      // Transform rooms to match the expected format
+      const rooms = response.data.rooms.map((room) => {
+        // Safely transform occupants to allocatedBookings format
+        const allocatedBookings = Array.isArray(room.occupants)
+          ? room.occupants.map((occ: any) => {
+              // Handle different possible occupant structures
+              const user = occ.user || {};
+              return {
+                id: occ.id || occ.memberId || "",
+                bookingId: occ.bookingId || "",
+                user: {
+                  id: user.id || occ.userId || "",
+                  firstName: user.firstName || occ.firstName || "",
+                  lastName: user.lastName || occ.lastName || "",
+                  gender: user.gender || occ.gender || "",
+                  studentRefNumber: user.studentRefNumber || occ.studentRefNumber || "",
+                },
+              };
+            })
+          : [];
+
+        return {
+          id: room.id,
+          roomNumber: room.roomNumber,
+          floorNumber: room.floorNumber,
+          capacity: room.capacity,
+          price: room.price,
+          status: room.status,
+          genderType: room.genderType,
+          type: room.type,
+          currentOccupants: room.currentOccupants,
+          availableSpots: room.availableSpots,
+          occupancyStatus: room.isFull
+            ? ("full" as const)
+            : room.currentOccupants > 0
+              ? ("partially_available" as const)
+              : ("available" as const),
+          colorCode: room.isFull
+            ? ("red" as const)
+            : room.currentOccupants > 0
+              ? ("green" as const)
+              : ("default" as const),
+          allocatedBookings,
+          images: room.images || [],
+        };
+      });
+
+      return rooms;
+    } catch (err) {
+      const message =
+        err instanceof APIException
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Failed to get suitable rooms";
       set({ error: message, loading: false });
       throw err;
     }

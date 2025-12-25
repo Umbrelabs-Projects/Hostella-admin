@@ -30,6 +30,8 @@ interface BookingDetailsDialogProps {
   onApprove?: (id: string) => void;
   onCancel?: (id: string, reason?: string) => void;
   onRemoveStudent?: (id: string) => void;
+  onUnassignRoom?: (id: string) => void | Promise<void>;
+  onReassignRoom?: (id: string, roomId?: string) => Promise<StudentBooking | undefined> | void;
   loadingActions?: Record<string, boolean>;
 }
 
@@ -43,6 +45,8 @@ export default function EditContactDialog({
   onApprove,
   onCancel,
   onRemoveStudent,
+  onUnassignRoom,
+  onReassignRoom,
   loadingActions = {},
 }: BookingDetailsDialogProps) {
   const [local, setLocal] = useState<StudentBooking>(booking);
@@ -337,22 +341,41 @@ export default function EditContactDialog({
           onCompleteOnboarding={onCompleteOnboarding}
           onCancel={onCancel}
           onRemoveStudent={onRemoveStudent}
+          onUnassignRoom={onUnassignRoom}
+          onReassignRoom={onReassignRoom ? () => setOpenAssign(true) : undefined}
           loadingActions={loadingActions}
         />
       </DialogContent>
 
       <AssignRoomDialog
         open={openAssign}
-        bookingId={local.id} // Use internal ID for API calls
-        onOpenChange={(o) => setOpenAssign(o)}
-        onAssign={async (id, roomId) => {
+        bookingId={local.id} // Always use internal ID for both bookings and members (API expects internal ID)
+        isMember={isMember} // Pass isMember prop to use correct API endpoint
+        onOpenChange={(o) => {
+          setOpenAssign(o);
+          if (!o) {
+            // Reset state when dialog closes
+            setAssignedNow(false);
+          }
+        }}
+        onAssign={async (bookingId, roomId) => {
           try {
-            const updated = await onAssignRoom?.(id, roomId);
-            // Update local state immediately with the updated booking
-            if (updated) {
-              setLocal(updated);
+            // If onReassignRoom is provided (for members), use it; otherwise use onAssignRoom
+            if (isMember && onReassignRoom) {
+              const updated = await onReassignRoom(local.id, roomId);
+              // Update local state if updated booking is returned
+              if (updated) {
+                setLocal(updated);
+              }
+              setOpenAssign(false);
+            } else {
+              const updated = await onAssignRoom?.(local.id, roomId);
+              // Update local state immediately with the updated booking
+              if (updated) {
+                setLocal(updated);
+              }
+              setAssignedNow(true);
             }
-            setAssignedNow(true);
           } catch (error) {
             // Error handling is done by the parent component
             throw error;

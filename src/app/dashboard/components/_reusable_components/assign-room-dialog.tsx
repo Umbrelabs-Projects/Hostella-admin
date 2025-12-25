@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Key, Loader2, Home } from "lucide-react";
 import { useBookingsStore } from "@/stores/useBookingsStore";
+import { useMembersStore } from "@/stores/useMembersStore";
 import { cn } from "@/lib/utils";
 
 // Room interface matching backend API response
@@ -48,15 +49,17 @@ interface AssignRoomDialogProps {
   bookingId: string | undefined;
   onOpenChange: (open: boolean) => void;
   onAssign: (bookingId: string, roomId: string) => void;
+  isMember?: boolean; // If true, use member endpoint; if false/undefined, use booking endpoint
 }
 
-export default function AssignRoomDialog({ open, bookingId, onOpenChange, onAssign }: AssignRoomDialogProps) {
+export default function AssignRoomDialog({ open, bookingId, onOpenChange, onAssign, isMember = false }: AssignRoomDialogProps) {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [assigning, setAssigning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { getSuitableRooms } = useBookingsStore();
+  const { getSuitableRoomsForMember } = useMembersStore();
 
   // Fetch suitable rooms when dialog opens
   useEffect(() => {
@@ -65,20 +68,43 @@ export default function AssignRoomDialog({ open, bookingId, onOpenChange, onAssi
       setError(null);
       setSelectedRoomId(null);
       
-      getSuitableRooms(bookingId)
+      // Log for debugging
+      if (process.env.NODE_ENV === "development") {
+        console.log("[AssignRoomDialog] Fetching suitable rooms for", isMember ? "memberId" : "bookingId", ":", bookingId);
+      }
+      
+      // Use member endpoint if isMember is true, otherwise use booking endpoint
+      const fetchRooms = isMember 
+        ? getSuitableRoomsForMember(bookingId)
+        : getSuitableRooms(bookingId);
+      
+      fetchRooms
         .then((fetchedRooms) => {
+          if (process.env.NODE_ENV === "development") {
+            console.log("[AssignRoomDialog] Fetched rooms:", fetchedRooms.length);
+          }
           setRooms(fetchedRooms);
           setLoading(false);
         })
         .catch((err) => {
-          setError(err instanceof Error ? err.message : "Failed to load rooms");
+          const errorMessage = err instanceof Error ? err.message : "Failed to load rooms";
+          if (process.env.NODE_ENV === "development") {
+            console.error("[AssignRoomDialog] Error fetching rooms:", err);
+          }
+          // If booking/member not found, show a helpful message
+          if (errorMessage.includes("not found") || errorMessage.includes("Member not found") || errorMessage.includes("Booking not found")) {
+            const entityType = isMember ? "member" : "booking";
+            setError(`Unable to fetch available rooms. The ${entityType} ID "${bookingId}" was not found. Please check if the ${entityType} exists.`);
+          } else {
+            setError(errorMessage);
+          }
           setLoading(false);
         });
     } else {
       setRooms([]);
       setSelectedRoomId(null);
     }
-  }, [open, bookingId, getSuitableRooms]);
+  }, [open, bookingId, isMember, getSuitableRooms, getSuitableRoomsForMember]);
 
   const handleAssign = async () => {
     if (!bookingId) {
@@ -215,7 +241,7 @@ export default function AssignRoomDialog({ open, bookingId, onOpenChange, onAssi
             Select a room from the available rooms matching the student&apos;s preference.
             {bookingId && (
               <span className="inline-block mt-2 font-mono text-xs bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
-                Booking ID: {bookingId}
+                {isMember ? "Member ID" : "Booking ID"}: {bookingId}
               </span>
             )}
           </DialogDescription>
@@ -302,7 +328,7 @@ export default function AssignRoomDialog({ open, bookingId, onOpenChange, onAssi
               ) : (
                 <span>No room selected</span>
               )}
-          </div>
+            </div>
             <div className="flex gap-2">
               <Button className="cursor-pointer" variant="outline" type="button" onClick={() => onOpenChange(false)}>
                 Cancel
@@ -326,8 +352,8 @@ export default function AssignRoomDialog({ open, bookingId, onOpenChange, onAssi
                 )}
               </Button>
             </div>
-            </div>
-          </DialogFooter>
+          </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

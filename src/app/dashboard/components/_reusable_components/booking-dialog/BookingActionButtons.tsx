@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Check, CreditCard, X, Key, UserMinus } from "lucide-react";
+import { Check, CreditCard, X, Key, UserMinus, LogOut, RefreshCw } from "lucide-react";
 import { StudentBooking } from "@/types/booking";
 import ActionButton from "./ActionButton";
 import CancelBookingDialog from "./CancelBookingDialog";
+import DeleteConfirmDialog from "../delete-confirm-dialog";
 
 interface BookingActionButtonsProps {
   booking: StudentBooking;
@@ -17,6 +18,8 @@ interface BookingActionButtonsProps {
   onCompleteOnboarding?: (id: string) => void;
   onCancel?: (id: string, reason?: string) => void;
   onRemoveStudent?: (id: string) => void;
+  onUnassignRoom?: (id: string) => void;
+  onReassignRoom?: (id: string) => void;
   loadingActions?: Record<string, boolean>;
 }
 
@@ -31,9 +34,12 @@ export default function BookingActionButtons({
   onCompleteOnboarding,
   onCancel,
   onRemoveStudent,
+  onUnassignRoom,
+  onReassignRoom,
   loadingActions = {},
 }: BookingActionButtonsProps) {
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [showUnassignDialog, setShowUnassignDialog] = useState(false);
   
   // Get loading states for each action
   const isApprovingPayment = loadingActions[`approvePayment-${booking.id}`] || false;
@@ -42,6 +48,10 @@ export default function BookingActionButtons({
   const isCompletingOnboarding = loadingActions[`completeOnboarding-${booking.id}`] || false;
   const isCancelling = loadingActions[`cancel-${booking.id}`] || false;
   const isRemovingStudent = loadingActions[`removeStudent-${booking.id}`] || false;
+  const isUnassigningRoom = loadingActions[`unassign-${booking.id}`] || false;
+  const isReassigningRoom = loadingActions[`reassign-${booking.id}`] || false;
+  
+  const hasRoom = booking.allocatedRoomNumber != null;
   // Check payment status to determine if Approve Payment button should be shown
   // UNIFIED IMPLEMENTATION: Both "Verify & Approve" and "Approve Payment" now use
   // the same endpoint: PATCH /payments/:id/status
@@ -124,7 +134,7 @@ export default function BookingActionButtons({
       )}
 
       {/* Remove Student from Room - only for ROOM_ALLOCATED status */}
-      {normalizedStatus === "ROOM_ALLOCATED" && onRemoveStudent && (
+      {normalizedStatus === "ROOM_ALLOCATED" && onRemoveStudent && !isMember && (
         <ActionButton
           icon={UserMinus}
           variant="destructive"
@@ -136,6 +146,41 @@ export default function BookingActionButtons({
           loading={isRemovingStudent}
         >
           Remove Student
+        </ActionButton>
+      )}
+
+      {/* Unassign Room - for members with assigned room */}
+      {isMember && hasRoom && onUnassignRoom && (
+        <>
+          <ActionButton
+            icon={LogOut}
+            variant="warning"
+            onClick={() => setShowUnassignDialog(true)}
+            loading={isUnassigningRoom}
+          >
+            Unassign Room
+          </ActionButton>
+          <DeleteConfirmDialog
+            open={showUnassignDialog}
+            onOpenChange={setShowUnassignDialog}
+            onConfirm={() => onUnassignRoom(booking.id)}
+            loading={isUnassigningRoom}
+            title="Unassign Room"
+            description="Are you sure you want to unassign this room? The member will remain active but without a room assignment."
+            confirmLabel="Unassign"
+          />
+        </>
+      )}
+
+      {/* Reassign Room - for members */}
+      {isMember && onReassignRoom && (
+        <ActionButton
+          icon={RefreshCw}
+          variant="info"
+          onClick={() => onReassignRoom(booking.id)}
+          loading={isReassigningRoom}
+        >
+          {hasRoom ? "Reassign Room" : "Assign Room"}
         </ActionButton>
       )}
 
