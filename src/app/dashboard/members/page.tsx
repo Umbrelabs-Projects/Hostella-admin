@@ -83,7 +83,7 @@ export default function MembersPage() {
     }
   };
 
-  const handleReassignRoom = async (id: string, roomId?: string): Promise<StudentBooking | void> => {
+  const handleReassignRoom = async (id: string, roomId?: string): Promise<StudentBooking | undefined> => {
     // If roomId is provided, perform the reassignment
     if (roomId) {
       setLoadingActions(prev => ({ ...prev, [`reassign-${id}`]: true }));
@@ -102,10 +102,10 @@ export default function MembersPage() {
       } finally {
         setLoadingActions(prev => ({ ...prev, [`reassign-${id}`]: false }));
       }
-    } else {
-      // No roomId means we need to open the dialog to select a room
-      // This is handled by EditContactDialog opening its own AssignRoomDialog
     }
+    // No roomId means we need to open the dialog to select a room
+    // This is handled by EditContactDialog opening its own AssignRoomDialog
+    return undefined;
   };
 
   const handleDeleteMember = async (id: string) => {

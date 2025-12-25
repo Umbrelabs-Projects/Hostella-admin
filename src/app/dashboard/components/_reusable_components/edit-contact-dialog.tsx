@@ -31,7 +31,7 @@ interface BookingDetailsDialogProps {
   onCancel?: (id: string, reason?: string) => void;
   onRemoveStudent?: (id: string) => void;
   onUnassignRoom?: (id: string) => void | Promise<void>;
-  onReassignRoom?: (id: string, roomId?: string) => Promise<StudentBooking> | void;
+  onReassignRoom?: (id: string, roomId?: string) => Promise<StudentBooking | undefined> | void;
   loadingActions?: Record<string, boolean>;
 }
 
