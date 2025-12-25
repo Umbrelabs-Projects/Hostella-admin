@@ -287,7 +287,7 @@ export default function EditContactDialog({
         }
       } else {
         // Clear receipt URL if status changed away from pending payment/approval
-        setReceiptUrl(undefined);
+        setReceiptUrl(null);
       }
     };
 
