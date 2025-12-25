@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { usePaymentsStore } from "@/stores/usePaymentsStore";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -10,6 +11,7 @@ import { TableSkeleton } from "@/components/ui/skeleton";
 import { useBookingsStore } from "@/stores/useBookingsStore";
 
 export default function PaymentsPage() {
+  const router = useRouter();
   const {
     pendingReceipts,
     loading,
@@ -71,6 +73,14 @@ export default function PaymentsPage() {
       );
       // Refresh bookings to update status
       await fetchBookings();
+      
+      // Navigate to bookings page after successful verification (only for CONFIRMED)
+      if (status === "CONFIRMED") {
+        // Small delay to let user see the toast
+        setTimeout(() => {
+          router.push("/dashboard/bookings");
+        }, 500);
+      }
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : "Failed to verify payment",
