@@ -7,7 +7,7 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import { toast } from "sonner";
 import { AddBookingDialogProps } from "./add-contact-dialog/types";
 import { FORM_SECTIONS, DEFAULT_FORM_DATA } from "./add-contact-dialog/constants";
-import { validateBookingForm, formatBookingForAPI } from "./add-contact-dialog/validation";
+import { validateBookingForm, formatBookingForAPI, BookingCreateRequest } from "./add-contact-dialog/validation";
 import AddBookingDialogHeader from "./add-contact-dialog/AddBookingDialogHeader";
 import FormSectionCard from "./add-contact-dialog/FormSectionCard";
 import AddBookingDialogFooter from "./add-contact-dialog/AddBookingDialogFooter";
@@ -87,8 +87,8 @@ export default function AddContactDialog({
       // Format data for API
       const formattedData = formatBookingForAPI(formData);
       
-      // Call onAdd callback
-      await onAdd(formattedData);
+      // Call onAdd callback - formattedData is BookingCreateRequest which is compatible
+      await onAdd(formattedData as BookingCreateRequest | Partial<StudentBooking>);
       
       // Success message will be shown by the parent component
       onOpenChange(false);
