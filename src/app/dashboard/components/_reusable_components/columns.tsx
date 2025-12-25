@@ -14,9 +14,10 @@ interface ColumnsConfig {
   showStatus?: boolean; // whether to show status column
   showAssigned?: boolean; // whether to show assigned room column
   showFloor?: boolean; // whether to include floor column (derived from room number)
+  isMember?: boolean; // whether this is the members page (to show delete button)
 }
 
-export const columns = ({ onView, onDelete, showStatus = true, showAssigned = false, showFloor = false }: ColumnsConfig): ColumnDef<StudentBooking>[] => {
+export const columns = ({ onView, onDelete, showStatus = true, showAssigned = false, showFloor = false, isMember = false }: ColumnsConfig): ColumnDef<StudentBooking>[] => {
   const base: ColumnDef<StudentBooking>[] = [
     {
       accessorKey: "firstName",
@@ -220,15 +221,17 @@ export const columns = ({ onView, onDelete, showStatus = true, showAssigned = fa
             size="icon"
             onClick={() => onView(booking)}
             className="h-8 w-8 cursor-pointer"
+            title="View details"
           >
             <Info className="h-4 w-4" />
           </Button>
-          {onDelete && (
+          {isMember && onDelete && (
             <Button
               variant="ghost"
               size="icon"
               onClick={() => onDelete(booking.id)}
               className="h-8 cursor-pointer w-8 text-destructive hover:text-destructive"
+              title="Delete"
             >
               <Trash2 className="h-4 w-4" />
             </Button>

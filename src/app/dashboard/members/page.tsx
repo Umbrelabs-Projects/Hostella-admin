@@ -5,17 +5,25 @@ import { useState, useEffect } from "react";
 import DataTable from "../components/_reusable_components/data-table";
 import { columns } from "../components/_reusable_components/columns";
 import EditContactDialog from "../components/_reusable_components/edit-contact-dialog";
+import DeleteConfirmDialog from "../components/_reusable_components/delete-confirm-dialog";
 import { useMembersStore } from "@/stores/useMembersStore";
 import { StudentBooking } from "@/types/booking";
 import TableFilters from "../components/_reusable_components/table-filters";
 import { TableSkeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
 
 export default function MembersPage() {
   const members = useMembersStore((s) => s.members);
   const loading = useMembersStore((s) => s.loading);
   const fetchMembers = useMembersStore((s) => s.fetchMembers);
+  const unassignRoom = useMembersStore((s) => s.unassignRoom);
+  const reassignRoom = useMembersStore((s) => s.reassignRoom);
+  const deleteMember = useMembersStore((s) => s.deleteMember);
+  
   const [viewingBooking, setViewingBooking] = useState<StudentBooking | null>(null);
+  const [deletingMemberId, setDeletingMemberId] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [loadingActions, setLoadingActions] = useState<Record<string, boolean>>({});
 
   // Filters
   const [search, setSearch] = useState("");
@@ -57,6 +65,64 @@ export default function MembersPage() {
     );
   });
 
+  const handleUnassignRoom = async (id: string): Promise<void> => {
+    setLoadingActions(prev => ({ ...prev, [`unassign-${id}`]: true }));
+    try {
+      const updated = await unassignRoom(id);
+      toast.success("Room unassigned successfully");
+      // Update viewing booking if it's the same member
+      if (viewingBooking?.id === id && updated) {
+        setViewingBooking(updated);
+      }
+      await fetchMembers(); // Refresh the list
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to unassign room", { duration: 4000 });
+      throw err;
+    } finally {
+      setLoadingActions(prev => ({ ...prev, [`unassign-${id}`]: false }));
+    }
+  };
+
+  const handleReassignRoom = async (id: string, roomId?: string): Promise<StudentBooking | void> => {
+    // If roomId is provided, perform the reassignment
+    if (roomId) {
+      setLoadingActions(prev => ({ ...prev, [`reassign-${id}`]: true }));
+      try {
+        const updated = await reassignRoom(id, roomId);
+        toast.success("Room reassigned successfully");
+        // Update viewing booking if it's the same member
+        if (viewingBooking?.id === id && updated) {
+          setViewingBooking(updated);
+        }
+        await fetchMembers(); // Refresh the list
+        return updated;
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed to reassign room", { duration: 4000 });
+        throw err;
+      } finally {
+        setLoadingActions(prev => ({ ...prev, [`reassign-${id}`]: false }));
+      }
+    } else {
+      // No roomId means we need to open the dialog to select a room
+      // This is handled by EditContactDialog opening its own AssignRoomDialog
+    }
+  };
+
+  const handleDeleteMember = async (id: string) => {
+    setLoadingActions(prev => ({ ...prev, [`delete-${id}`]: true }));
+    try {
+      await deleteMember(id);
+      setDeletingMemberId(null);
+      toast.success("Member deleted successfully");
+      await fetchMembers(); // Refresh the list
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete member", { duration: 4000 });
+    } finally {
+      setLoadingActions(prev => ({ ...prev, [`delete-${id}`]: false }));
+    }
+  };
+
+
   return (
     <main className="p-3 md:px-6">
       <div className=" mx-auto">
@@ -75,12 +141,43 @@ export default function MembersPage() {
         {(loading && !isInitialized) && !membersArray.length ? (
           <TableSkeleton rows={8} />
         ) : (
-          <DataTable columns={columns({ onView: setViewingBooking, showStatus: false, showAssigned: true, showFloor: true })} data={filteredMembers} />
+          <DataTable 
+            columns={columns({ 
+              onView: setViewingBooking, 
+              onDelete: (id) => setDeletingMemberId(id),
+              showStatus: false, 
+              showAssigned: true, 
+              showFloor: true,
+              isMember: true
+            })} 
+            data={filteredMembers} 
+          />
         )}
       </div>
 
       {viewingBooking && (
-        <EditContactDialog booking={viewingBooking} onOpenChange={(open) => !open && setViewingBooking(null)} />
+        <EditContactDialog 
+          booking={viewingBooking} 
+          onOpenChange={(open) => !open && setViewingBooking(null)}
+          onUnassignRoom={handleUnassignRoom}
+          onReassignRoom={handleReassignRoom}
+          loadingActions={loadingActions}
+        />
+      )}
+
+      {deletingMemberId && (
+        <DeleteConfirmDialog
+          open={!!deletingMemberId}
+          onOpenChange={(open) => !open && setDeletingMemberId(null)}
+          onConfirm={() => {
+            if (deletingMemberId) {
+              handleDeleteMember(deletingMemberId);
+            }
+          }}
+          loading={loadingActions[`delete-${deletingMemberId}`] || false}
+          title="Delete Member"
+          description="Are you sure you want to delete this member? This will also unassign their room if one is assigned. This action cannot be undone."
+        />
       )}
     </main>
   );
