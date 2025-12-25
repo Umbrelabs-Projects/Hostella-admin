@@ -41,6 +41,7 @@ export interface StudentBooking {
   hasMedicalCondition: boolean;
   medicalCondition?: string;
   status: BookingStatus;
-  allocatedRoomNumber?: number | null;
+  allocatedRoomNumber?: number | string | null; // Room number can be number, string, or null
+  floorNumber?: number | null; // Floor number from API (optional, can be calculated if not provided)
   date?: string; // ISO date string for booking/created date
 }

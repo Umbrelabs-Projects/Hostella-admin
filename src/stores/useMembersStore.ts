@@ -161,6 +161,14 @@ export const useMembersStore = create<MembersState>((set, get) => ({
         pagination = { page, pageSize, total: 0, totalPages: 0 };
       }
 
+      // Debug: Log member data to check for room number and floor
+      if (members.length > 0) {
+        console.log("[fetchMembers] First member sample:", JSON.stringify(members[0], null, 2));
+        console.log("[fetchMembers] First member allocatedRoomNumber:", members[0].allocatedRoomNumber);
+        console.log("[fetchMembers] First member floorNumber:", members[0].floorNumber);
+        console.log("[fetchMembers] First member keys:", Object.keys(members[0]));
+      }
+
       if (process.env.NODE_ENV === "development") {
         console.log("[fetchMembers] Full response:", JSON.stringify(response, null, 2));
         console.log("[fetchMembers] Extracted members:", members);

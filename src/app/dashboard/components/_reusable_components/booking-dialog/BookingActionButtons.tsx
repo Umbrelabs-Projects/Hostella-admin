@@ -139,8 +139,8 @@ export default function BookingActionButtons({
         </ActionButton>
       )}
 
-      {/* Cancel Booking - available for all statuses except COMPLETED */}
-      {normalizedStatus !== "COMPLETED" && onCancel && (
+      {/* Cancel Booking - available for all statuses except COMPLETED and ROOM_ALLOCATED */}
+      {normalizedStatus !== "COMPLETED" && normalizedStatus !== "ROOM_ALLOCATED" && onCancel && (
         <>
           <ActionButton
             icon={X}

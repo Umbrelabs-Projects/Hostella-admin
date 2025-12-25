@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import BookingsHeader from "./_components/BookingsHeader";
 import BookingsFilters from "./_components/BookingsFilters";
 import BookingsTable from "./_components/BookingsTable";
@@ -13,6 +14,7 @@ import { StudentBooking } from "@/types/booking";
 import { TableSkeleton } from "@/components/ui/skeleton";
 
 export default function Bookings() {
+  const router = useRouter();
   const {
     bookings,
     loading,
@@ -109,14 +111,23 @@ export default function Bookings() {
     }
   };
 
-  const handleAssignRoom = async (id: string, roomId: string) => {
+  const handleAssignRoom = async (id: string, roomId: string): Promise<StudentBooking> => {
     setLoadingActions(prev => ({ ...prev, [`assignRoom-${id}`]: true }));
     try {
       const updated = await assignRoom(id, roomId);
-      setViewingBooking(updated);
-      toast.success("Room assigned successfully");
+      setViewingBooking(null); // Close the dialog
+      
+      // Refresh members list to include the newly assigned member
+      const { fetchMembers } = useMembersStore.getState();
+      await fetchMembers();
+      
+      toast.success("Room assigned successfully. Student is now a member.");
+      // Navigate to members page after room assignment
+      router.push("/dashboard/members");
+      return updated;
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to assign room", { duration: 4000 });
+      throw err;
     } finally {
       setLoadingActions(prev => ({ ...prev, [`assignRoom-${id}`]: false }));
     }
@@ -214,7 +225,7 @@ export default function Bookings() {
             "PENDING_PAYMENT", // Internal format (will be converted to "pending payment" for API)
             "PENDING_APPROVAL", 
             "APPROVED", 
-            "ROOM_ALLOCATED", 
+            // ROOM_ALLOCATED removed - these students are now members and should only appear in members page
             "COMPLETED", 
             "CANCELLED", 
             "REJECTED", 

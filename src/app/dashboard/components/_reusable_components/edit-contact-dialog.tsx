@@ -25,7 +25,7 @@ interface BookingDetailsDialogProps {
   onOpenChange: (open: boolean) => void;
   onUpdate?: (b: StudentBooking) => void;
   onApprovePayment?: (id: string) => void;
-  onAssignRoom?: (id: string, roomId: string) => void;
+  onAssignRoom?: (id: string, roomId: string) => Promise<StudentBooking> | void;
   onCompleteOnboarding?: (id: string) => void;
   onApprove?: (id: string) => void;
   onCancel?: (id: string, reason?: string) => void;
@@ -346,8 +346,17 @@ export default function EditContactDialog({
         bookingId={local.id} // Use internal ID for API calls
         onOpenChange={(o) => setOpenAssign(o)}
         onAssign={async (id, roomId) => {
-          await onAssignRoom?.(id, roomId);
-          setAssignedNow(true);
+          try {
+            const updated = await onAssignRoom?.(id, roomId);
+            // Update local state immediately with the updated booking
+            if (updated) {
+              setLocal(updated);
+            }
+            setAssignedNow(true);
+          } catch (error) {
+            // Error handling is done by the parent component
+            throw error;
+          }
         }}
       />
 

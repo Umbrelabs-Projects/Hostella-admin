@@ -136,22 +136,67 @@ export const columns = ({ onView, onDelete, showStatus = true, showAssigned = fa
         if (normalized === "PENDING_PAYMENT" || normalized === "PENDING_APPROVAL") {
           return <span className="text-muted-foreground">—</span>;
         }
-        return booking.allocatedRoomNumber != null ? String(booking.allocatedRoomNumber) : <span className="text-muted-foreground">—</span>;
+        // Handle allocatedRoomNumber which can be number, string, or null
+        // Debug logging in development
+        if (process.env.NODE_ENV === "development" && booking.allocatedRoomNumber == null) {
+          console.log("[Room Number Column] No room number for booking:", {
+            id: booking.id,
+            bookingId: booking.bookingId,
+            allocatedRoomNumber: booking.allocatedRoomNumber,
+            status: booking.status,
+            allKeys: Object.keys(booking)
+          });
+        }
+        
+        if (booking.allocatedRoomNumber == null) {
+          return <span className="text-muted-foreground">—</span>;
+        }
+        return String(booking.allocatedRoomNumber);
       },
     });
   }
 
-  // optional floor column derived from room number
+  // optional floor column - use floorNumber from API if available, otherwise calculate from room number
   if (showFloor) {
     base.push({
       id: "floor",
       header: "Floor",
       cell: ({ row }) => {
         const booking = row.original;
-        const n = booking.allocatedRoomNumber;
-        if (n == null) return <span className="text-muted-foreground">—</span>;
+        
+        // Debug logging in development
+        if (process.env.NODE_ENV === "development" && !booking.floorNumber && booking.allocatedRoomNumber) {
+          console.log("[Floor Column] Booking data:", {
+            id: booking.id,
+            allocatedRoomNumber: booking.allocatedRoomNumber,
+            floorNumber: booking.floorNumber,
+            allKeys: Object.keys(booking)
+          });
+        }
+        
+        // Use floorNumber from API if available (preferred)
+        if (booking.floorNumber != null) {
+          return String(booking.floorNumber);
+        }
+        // Fallback: Calculate floor from room number if floorNumber not provided
+        const roomNum = booking.allocatedRoomNumber;
+        if (roomNum == null) {
+          // Debug: Log why floor is not showing
+          if (process.env.NODE_ENV === "development") {
+            console.log("[Floor Column] No room number for booking:", booking.id);
+          }
+          return <span className="text-muted-foreground">—</span>;
+        }
+        // Convert to number if it's a string
+        const num = typeof roomNum === "string" ? parseInt(roomNum, 10) : roomNum;
+        if (isNaN(num)) {
+          if (process.env.NODE_ENV === "development") {
+            console.warn("[Floor Column] Invalid room number:", roomNum, "for booking:", booking.id);
+          }
+          return <span className="text-muted-foreground">—</span>;
+        }
         // Derive floor as groups of 10 rooms per floor (1-10 => floor 1, 11-20 => floor 2, etc.)
-        const floor = Math.floor((n - 1) / 10) + 1;
+        const floor = Math.floor((num - 1) / 10) + 1;
         return String(floor);
       },
     });

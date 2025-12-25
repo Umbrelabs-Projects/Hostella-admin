@@ -572,10 +572,24 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
         body: JSON.stringify({ roomId }),
       });
 
+      // Debug: Log the response to see what the backend returns
+      console.log("[assignRoom] Backend response:", JSON.stringify(response, null, 2));
+      console.log("[assignRoom] Response data:", response.data);
+      console.log("[assignRoom] allocatedRoomNumber:", response.data.allocatedRoomNumber);
+      console.log("[assignRoom] floorNumber:", (response.data as any).floorNumber);
+      console.log("[assignRoom] Response data keys:", Object.keys(response.data));
+
       const updated = {
         ...response.data,
         status: normalizeStatus(response.data.status) as StudentBooking["status"],
       };
+
+      console.log("[assignRoom] Updated booking:", {
+        id: updated.id,
+        allocatedRoomNumber: updated.allocatedRoomNumber,
+        floorNumber: (updated as any).floorNumber,
+        status: updated.status
+      });
 
       set((state) => {
         const currentBookings = Array.isArray(state.bookings) ? state.bookings : [];

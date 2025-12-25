@@ -3,6 +3,7 @@
 import { Label } from "@/components/ui/label";
 import { Home, Calendar } from "lucide-react";
 import { StudentBooking } from "@/types/booking";
+import { normalizeStatus } from "./utils";
 
 interface AssignedRoomFieldProps {
   booking: StudentBooking;
@@ -15,9 +16,25 @@ export default function AssignedRoomField({
   isMember, 
   assignedNow 
 }: AssignedRoomFieldProps) {
-  const floorNumber = booking.allocatedRoomNumber != null 
-    ? Math.floor((booking.allocatedRoomNumber - 1) / 10) + 1 
-    : null;
+  // Use floorNumber from API if available (preferred), otherwise calculate from room number
+  const floorNumber = booking.floorNumber != null 
+    ? booking.floorNumber 
+    : booking.allocatedRoomNumber != null
+      ? (() => {
+          const roomNum = typeof booking.allocatedRoomNumber === "string" 
+            ? parseInt(booking.allocatedRoomNumber, 10) 
+            : booking.allocatedRoomNumber;
+          return isNaN(roomNum) ? null : Math.floor((roomNum - 1) / 10) + 1;
+        })()
+      : null;
+
+  // Check if room is assigned: either has allocatedRoomNumber or status is ROOM_ALLOCATED
+  const normalizedStatus = normalizeStatus(booking.status);
+  const hasRoomAssigned = booking.allocatedRoomNumber != null || normalizedStatus === "ROOM_ALLOCATED";
+  // Show room if: (is member OR just assigned OR status is ROOM_ALLOCATED) AND (has room number OR status is ROOM_ALLOCATED)
+  // But only display room number if it actually exists
+  const shouldShowRoom = (isMember || assignedNow || normalizedStatus === "ROOM_ALLOCATED") && hasRoomAssigned;
+  const hasRoomNumber = booking.allocatedRoomNumber != null;
 
   return (
     <div className="md:col-span-2">
@@ -25,7 +42,7 @@ export default function AssignedRoomField({
         <Label className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-4 block">
           Assigned Room
         </Label>
-        {(isMember || assignedNow) && booking.allocatedRoomNumber ? (
+        {shouldShowRoom && hasRoomNumber ? (
           <div className="flex items-center gap-4">
             <div className="relative">
               <div className="absolute inset-0 bg-blue-400 rounded-2xl blur-lg opacity-50"></div>
@@ -49,6 +66,13 @@ export default function AssignedRoomField({
                 </span>
               </div>
             )}
+          </div>
+        ) : shouldShowRoom && !hasRoomNumber ? (
+          <div className="flex items-center gap-3 text-blue-600 dark:text-blue-400">
+            <div className="p-3 rounded-lg bg-blue-100 dark:bg-blue-900/30">
+              <Home className="size-3" />
+            </div>
+            <span className="text-sm font-medium">Room assigned, details loading...</span>
           </div>
         ) : (
           <div className="flex items-center gap-3 text-gray-400 dark:text-gray-500">

@@ -53,10 +53,13 @@ export default function BookingsTable({
   };
 
   const filtered = normalized.filter((b) => {
+    // Exclude ROOM_ALLOCATED bookings - they should only appear in members page
+    const normalizedBookingStatus = normalizeStatusForComparison(b.status);
+    if (normalizedBookingStatus === "ROOM_ALLOCATED") return false;
+    
     // status filter - normalize both filter and booking status for comparison
     if (statusFilter !== "all") {
       const normalizedFilter = normalizeStatusForComparison(statusFilter);
-      const normalizedBookingStatus = normalizeStatusForComparison(b.status);
       if (normalizedFilter !== normalizedBookingStatus) return false;
     }
     // gender filter
