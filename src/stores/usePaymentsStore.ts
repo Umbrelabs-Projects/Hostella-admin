@@ -6,11 +6,21 @@ export interface PaymentReceipt {
   bookingId: string;
   amount: number;
   provider: "BANK_TRANSFER" | "PAYSTACK";
-  status: "AWAITING_VERIFICATION" | "CONFIRMED" | "FAILED" | "REFUNDED";
+  status: "INITIATED" | "AWAITING_VERIFICATION" | "CONFIRMED" | "FAILED" | "REFUNDED";
   receiptUrl?: string;
   reference: string;
   createdAt: string;
   updatedAt: string;
+  payerPhone?: string;
+  verificationData?: {
+    status?: string;
+    gateway_response?: string;
+    channel?: string;
+    authorization?: {
+      channel?: string;
+      mobile_money_number?: string;
+    };
+  };
   booking?: {
     id: string;
     bookingId: string;
@@ -52,7 +62,47 @@ interface PaymentsState {
   
   // Actions
   fetchPendingReceipts: (page?: number, limit?: number) => Promise<void>;
+  fetchPayments: (filters?: {
+    provider?: "PAYSTACK" | "BANK_TRANSFER";
+    status?: "INITIATED" | "AWAITING_VERIFICATION" | "CONFIRMED" | "FAILED";
+    page?: number;
+    limit?: number;
+  }) => Promise<PaymentReceipt[]>;
+  fetchPaymentByBookingId: (bookingId: string) => Promise<PaymentReceipt | null>;
+  fetchPaymentDetails: (paymentId: string) => Promise<PaymentReceipt>;
   verifyPayment: (paymentId: string, status: "CONFIRMED" | "FAILED") => Promise<void>;
+  verifyPaystackPayment: (reference: string) => Promise<{
+    success: boolean;
+    data: {
+      paystackVerification: {
+        status: boolean;
+        data: {
+          status: string;
+          gateway_response?: string;
+          channel?: string;
+          reference?: string;
+          amount?: number;
+          authorization?: {
+            channel: string;
+            mobile_money_number?: string;
+          };
+        };
+      };
+      paymentUpdate?: {
+        payment: {
+          id: string;
+          status: string;
+          reference: string;
+          amount: number;
+          provider: string;
+        };
+        booking: {
+          id: string;
+          status: string;
+        };
+      };
+    };
+  }>;
   clearError: () => void;
 }
 
@@ -67,37 +117,71 @@ export const usePaymentsStore = create<PaymentsState>((set, get) => ({
   fetchPendingReceipts: async (page = 1, limit = 10) => {
     set({ loading: true, error: null, currentPage: page, pageSize: limit });
     try {
-      const response = await apiFetch<{
+      // Use new unified endpoint for bank transfers
+      // Get bank transfers awaiting verification
+      const bankResponse = await apiFetch<{
         success: boolean;
-        data?: PaymentReceipt[] | { items: PaymentReceipt[]; pagination?: PaymentPagination };
+        data?: {
+          items: PaymentReceipt[];
+          pagination?: PaymentPagination;
+        };
         items?: PaymentReceipt[];
         pagination?: PaymentPagination;
-      }>(`/payments/admin/pending-receipts?page=${page}&limit=${limit}`);
+      }>(`/payments?provider=BANK_TRANSFER&status=AWAITING_VERIFICATION&page=${page}&limit=${limit}`);
 
-      // Handle different response formats
-      let receipts: PaymentReceipt[] = [];
-      let paginationData: PaymentPagination | null = null;
+      // Get Paystack payments that need verification (INITIATED and AWAITING_VERIFICATION)
+      const paystackInitiatedResponse = await apiFetch<{
+        success: boolean;
+        data?: {
+          items: PaymentReceipt[];
+          pagination?: PaymentPagination;
+        };
+        items?: PaymentReceipt[];
+        pagination?: PaymentPagination;
+      }>(`/payments?provider=PAYSTACK&status=INITIATED&page=${page}&limit=${limit}`);
 
-      if (response.success) {
-        // Format 1: { success: true, data: { items: [...], pagination: {...} } }
+      const paystackAwaitingResponse = await apiFetch<{
+        success: boolean;
+        data?: {
+          items: PaymentReceipt[];
+          pagination?: PaymentPagination;
+        };
+        items?: PaymentReceipt[];
+        pagination?: PaymentPagination;
+      }>(`/payments?provider=PAYSTACK&status=AWAITING_VERIFICATION&page=${page}&limit=${limit}`);
+
+      // Helper function to extract items from response
+      const extractItems = (response: any): PaymentReceipt[] => {
+        if (!response.success) return [];
         if (response.data && typeof response.data === "object" && "items" in response.data) {
-          receipts = Array.isArray(response.data.items) ? response.data.items : [];
-          paginationData = response.data.pagination || null;
+          return Array.isArray(response.data.items) ? response.data.items : [];
         }
-        // Format 2: { success: true, data: [...] }
-        else if (Array.isArray(response.data)) {
-          receipts = response.data;
-          paginationData = response.pagination || null;
+        if (Array.isArray(response.items)) {
+          return response.items;
         }
-        // Format 3: { success: true, items: [...], pagination: {...} }
-        else if (Array.isArray(response.items)) {
-          receipts = response.items;
-          paginationData = response.pagination || null;
+        if (Array.isArray(response.data)) {
+          return response.data;
         }
+        return [];
+      };
+
+      // Combine all pending payments
+      const bankReceipts = extractItems(bankResponse);
+      const paystackInitiated = extractItems(paystackInitiatedResponse);
+      const paystackAwaiting = extractItems(paystackAwaitingResponse);
+      
+      const allReceipts = [...bankReceipts, ...paystackInitiated, ...paystackAwaiting];
+
+      // Get pagination from the first response (or combine if needed)
+      let paginationData: PaymentPagination | null = null;
+      if (bankResponse.data && typeof bankResponse.data === "object" && "pagination" in bankResponse.data) {
+        paginationData = bankResponse.data.pagination || null;
+      } else if (bankResponse.pagination) {
+        paginationData = bankResponse.pagination;
       }
 
       set({
-        pendingReceipts: Array.isArray(receipts) ? receipts : [],
+        pendingReceipts: allReceipts,
         pagination: paginationData,
         loading: false,
       });
@@ -108,6 +192,140 @@ export const usePaymentsStore = create<PaymentsState>((set, get) => ({
         loading: false,
         pendingReceipts: [], // Ensure it's always an array
       });
+    }
+  },
+
+  fetchPayments: async (filters = {}) => {
+    set({ loading: true, error: null });
+    try {
+      const params = new URLSearchParams();
+      if (filters.provider) params.append("provider", filters.provider);
+      if (filters.status) params.append("status", filters.status);
+      params.append("page", (filters.page || 1).toString());
+      params.append("limit", (filters.limit || 50).toString());
+
+      const response = await apiFetch<{
+        success: boolean;
+        data?: {
+          items: PaymentReceipt[];
+          pagination?: PaymentPagination;
+        };
+        items?: PaymentReceipt[];
+        pagination?: PaymentPagination;
+      }>(`/payments?${params.toString()}`);
+
+      let payments: PaymentReceipt[] = [];
+
+      if (response.success) {
+        if (response.data && typeof response.data === "object" && "items" in response.data) {
+          payments = Array.isArray(response.data.items) ? response.data.items : [];
+        } else if (Array.isArray(response.items)) {
+          payments = response.items;
+        } else if (Array.isArray(response.data)) {
+          payments = response.data;
+        }
+      }
+
+      set({ loading: false });
+      return payments;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to fetch payments";
+      set({ error: errorMessage, loading: false });
+      throw err;
+    }
+  },
+
+  fetchPaymentByBookingId: async (bookingId: string) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<{
+        success: boolean;
+        data?: {
+          payment: PaymentReceipt;
+        };
+        payment?: PaymentReceipt;
+      }>(`/payments/booking/${bookingId}`);
+
+      if (response.success) {
+        const payment = response.data?.payment || response.payment;
+        set({ loading: false });
+        return payment || null;
+      } else {
+        set({ loading: false });
+        return null;
+      }
+    } catch (err) {
+      // If payment not found, return null (not an error)
+      set({ loading: false });
+      return null;
+    }
+  },
+
+  fetchPaymentDetails: async (paymentId: string) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<{
+        success: boolean;
+        data: {
+          payment: PaymentReceipt;
+        };
+      }>(`/payments/${paymentId}`);
+
+      if (response.success) {
+        set({ loading: false });
+        return response.data.payment;
+      } else {
+        throw new Error("Failed to fetch payment details");
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to fetch payment details";
+      set({ error: errorMessage, loading: false });
+      throw err;
+    }
+  },
+
+  verifyPaystackPayment: async (reference: string) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiFetch<{
+        success: boolean;
+        data: {
+          paystackVerification: {
+            status: boolean;
+            data: {
+              status: string;
+              gateway_response?: string;
+              channel?: string;
+              reference?: string;
+              amount?: number;
+              authorization?: {
+                channel: string;
+                mobile_money_number?: string;
+              };
+            };
+          };
+          paymentUpdate?: {
+            payment: {
+              id: string;
+              status: string;
+              reference: string;
+              amount: number;
+              provider: string;
+            };
+            booking: {
+              id: string;
+              status: string;
+            };
+          };
+        };
+      }>(`/payments/verify/paystack/${reference}`);
+
+      set({ loading: false });
+      return response;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to verify Paystack payment";
+      set({ error: errorMessage, loading: false });
+      throw err;
     }
   },
 

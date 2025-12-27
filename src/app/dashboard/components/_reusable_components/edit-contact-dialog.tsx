@@ -210,60 +210,95 @@ export default function EditContactDialog({
             return;
           }
 
-          // Fetch pending receipts to get payment info and receipt URL
-          const pendingResponse = await apiFetch<{
-            success: boolean;
-            data?: Array<{
-              id: string;
-              bookingId: string;
-              receiptUrl?: string;
-              status: string;
-              provider?: string;
-              booking?: { id: string; bookingId?: string };
-            }>;
-            items?: Array<{
-              id: string;
-              bookingId: string;
-              receiptUrl?: string;
-              status: string;
-              provider?: string;
-              booking?: { id: string; bookingId?: string };
-            }>;
-          }>("/payments/admin/pending-receipts?limit=100");
-          
-          let receipts: Array<{
-            id: string;
-            bookingId: string;
-            receiptUrl?: string;
-            status: string;
-            provider?: string;
-            booking?: { id: string; bookingId?: string };
-          }> = [];
-
-          if (pendingResponse.success) {
-            if (Array.isArray(pendingResponse.data)) {
-              receipts = pendingResponse.data;
-            } else if (Array.isArray(pendingResponse.items)) {
-              receipts = pendingResponse.items;
-            } else if (pendingResponse.data && typeof pendingResponse.data === "object" && "items" in pendingResponse.data) {
-              receipts = Array.isArray((pendingResponse.data as any).items) ? (pendingResponse.data as any).items : [];
+          // Fetch payment for this booking using the new unified endpoint
+          // Use the booking-specific endpoint first (more efficient)
+          let bookingReceipt: any = null;
+          try {
+            const paymentResponse = await apiFetch<{
+              success: boolean;
+              data?: {
+                payment: {
+                  id: string;
+                  bookingId: string;
+                  receiptUrl?: string;
+                  status: string;
+                  provider?: string;
+                  booking?: { id: string; bookingId?: string };
+                };
+              };
+              payment?: {
+                id: string;
+                bookingId: string;
+                receiptUrl?: string;
+                status: string;
+                provider?: string;
+                booking?: { id: string; bookingId?: string };
+              };
+            }>(`/payments/booking/${local.id}`);
+            
+            if (paymentResponse.success) {
+              bookingReceipt = paymentResponse.data?.payment || paymentResponse.payment;
+            }
+          } catch (error) {
+            // If booking-specific endpoint fails, try fetching all payments and filter
+            // This is a fallback for edge cases
+            try {
+              const allPaymentsResponse = await apiFetch<{
+                success: boolean;
+                data?: {
+                  items: Array<{
+                    id: string;
+                    bookingId: string;
+                    receiptUrl?: string;
+                    status: string;
+                    provider?: string;
+                    booking?: { id: string; bookingId?: string };
+                  }>;
+                };
+                items?: Array<{
+                  id: string;
+                  bookingId: string;
+                  receiptUrl?: string;
+                  status: string;
+                  provider?: string;
+                  booking?: { id: string; bookingId?: string };
+                }>;
+              }>("/payments?limit=100");
+              
+              if (allPaymentsResponse.success) {
+                const receipts: Array<{
+                  id: string;
+                  bookingId: string;
+                  receiptUrl?: string;
+                  status: string;
+                  provider?: string;
+                  booking?: { id: string; bookingId?: string };
+                }> = [];
+                
+                if (allPaymentsResponse.data && typeof allPaymentsResponse.data === "object" && "items" in allPaymentsResponse.data) {
+                  receipts.push(...(Array.isArray(allPaymentsResponse.data.items) ? allPaymentsResponse.data.items : []));
+                } else if (Array.isArray(allPaymentsResponse.items)) {
+                  receipts.push(...allPaymentsResponse.items);
+                }
+                
+                // Find receipt for this booking
+                bookingReceipt = receipts.find(
+                  (payment) => {
+                    // Match by internal booking ID
+                    if (payment.booking?.id === local.id) return true;
+                    // Match by display booking ID
+                    if (payment.booking?.bookingId === local.bookingId) return true;
+                    // Match by payment.bookingId (could be internal ID or display ID)
+                    if (payment.bookingId === local.id || payment.bookingId === local.bookingId) return true;
+                    return false;
+                  }
+                );
+              }
+            } catch (fallbackError) {
+              // Silently fail - payment might not exist
+              console.warn("Failed to fetch payment info:", fallbackError);
             }
           }
-
-          // Find receipt for this booking - match by booking ID or internal ID
-          // Try multiple matching strategies
-          const bookingReceipt = receipts.find(
-            (payment) => {
-              // Match by internal booking ID
-              if (payment.booking?.id === local.id) return true;
-              // Match by display booking ID
-              if (payment.booking?.bookingId === local.bookingId) return true;
-              // Match by payment.bookingId (could be internal ID or display ID)
-              if (payment.bookingId === local.id || payment.bookingId === local.bookingId) return true;
-              return false;
-            }
-          );
-
           if (bookingReceipt) {
             // Set receipt URL if available
             if (bookingReceipt.receiptUrl) {

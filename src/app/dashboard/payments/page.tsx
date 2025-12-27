@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { usePaymentsStore } from "@/stores/usePaymentsStore";
+import { usePaymentsStore, PaymentReceipt } from "@/stores/usePaymentsStore";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import PaymentNotificationCard from "./_components/PaymentNotificationCard";
@@ -20,12 +20,14 @@ export default function PaymentsPage() {
     currentPage,
     pageSize,
     fetchPendingReceipts,
+    fetchPayments,
     verifyPayment,
     clearError,
   } = usePaymentsStore();
 
   const { fetchBookings } = useBookingsStore();
   const [activeTab, setActiveTab] = useState<"all" | "bank" | "paystack">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "INITIATED" | "AWAITING_VERIFICATION" | "CONFIRMED">("all");
   const [isInitialized, setIsInitialized] = useState(false);
 
   // Load bookings when page loads so payment cards can access booking details
@@ -36,23 +38,39 @@ export default function PaymentsPage() {
   }, [fetchBookings]);
 
   // Filter payments by type - ensure pendingReceipts is always an array
+  // fetchPendingReceipts now uses the new /payments endpoint and includes all pending payments
   const receiptsArray = Array.isArray(pendingReceipts) ? pendingReceipts : [];
-  const bankReceipts = receiptsArray.filter(
+  const allPayments = receiptsArray;
+
+  const bankReceipts = allPayments.filter(
     (p) => p.provider === "BANK_TRANSFER"
   );
-  const paystackPayments = receiptsArray.filter(
+  const paystackPayments = allPayments.filter(
     (p) => p.provider === "PAYSTACK"
   );
 
-  const displayedPayments =
+  // Filter by status if needed
+  const filterByStatus = (payments: PaymentReceipt[]) => {
+    if (statusFilter === "all") return payments;
+    return payments.filter((p) => p.status === statusFilter);
+  };
+
+  // Get INITIATED payments count (urgent - need verification)
+  const initiatedPayments = paystackPayments.filter((p) => p.status === "INITIATED");
+  const initiatedCount = initiatedPayments.length;
+
+  const displayedPayments = filterByStatus(
     activeTab === "bank"
       ? bankReceipts
       : activeTab === "paystack"
       ? paystackPayments
-      : receiptsArray;
+      : receiptsArray
+  );
 
   useEffect(() => {
     const loadPayments = async () => {
+      // Use the unified fetchPendingReceipts which now uses the new /payments endpoint
+      // It fetches both bank transfers and Paystack payments (INITIATED and AWAITING_VERIFICATION)
       await fetchPendingReceipts(1, 20);
       setIsInitialized(true);
     };
@@ -73,6 +91,10 @@ export default function PaymentsPage() {
       );
       // Refresh bookings to update status
       await fetchBookings();
+      
+      // Refresh payments list to remove verified payment
+      // Use the new unified endpoint which fetches all pending payments
+      await fetchPendingReceipts(currentPage, pageSize);
       
       // Navigate to bookings page after successful verification (only for CONFIRMED)
       if (status === "CONFIRMED") {
@@ -104,17 +126,43 @@ export default function PaymentsPage() {
         />
 
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="mt-6">
-          <TabsList className="grid w-full max-w-md grid-cols-3">
-            <TabsTrigger value="all">
-              All ({receiptsArray.length})
-            </TabsTrigger>
-            <TabsTrigger value="bank">
-              Bank Receipts ({bankReceipts.length})
-            </TabsTrigger>
-            <TabsTrigger value="paystack">
-              Paystack ({paystackPayments.length})
-            </TabsTrigger>
-          </TabsList>
+          <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between mb-4">
+            <TabsList className="grid w-full max-w-md grid-cols-3">
+              <TabsTrigger value="all">
+                All ({allPayments.length})
+              </TabsTrigger>
+              <TabsTrigger value="bank">
+                Bank Receipts ({bankReceipts.length})
+              </TabsTrigger>
+              <TabsTrigger value="paystack">
+                Paystack ({paystackPayments.length})
+                {initiatedCount > 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-red-500 text-white">
+                    {initiatedCount}
+                  </span>
+                )}
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Status Filter - Only show for Paystack tab */}
+            {activeTab === "paystack" && (
+              <div className="flex gap-2 items-center">
+                <label className="text-sm text-gray-600 dark:text-gray-400">Status:</label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
+                  className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                >
+                  <option value="all">All Statuses</option>
+                  <option value="INITIATED">
+                    Initiated ({initiatedCount}) ⚠️
+                  </option>
+                  <option value="AWAITING_VERIFICATION">Awaiting Verification</option>
+                  <option value="CONFIRMED">Confirmed</option>
+                </select>
+              </div>
+            )}
+          </div>
 
           <TabsContent value={activeTab} className="mt-6">
             {loading && !isInitialized ? (
@@ -154,6 +202,10 @@ export default function PaymentsPage() {
                     key={payment.id}
                     payment={payment}
                     onVerify={handleVerifyPayment}
+                    onRefresh={async () => {
+                      // Refresh all pending payments using the new unified endpoint
+                      await fetchPendingReceipts(currentPage, pageSize);
+                    }}
                   />
                 ))}
               </div>

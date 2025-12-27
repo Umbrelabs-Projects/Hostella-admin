@@ -461,12 +461,57 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
   approvePayment: async (id) => {
     set({ loading: true, error: null });
     try {
-      // UNIFIED IMPLEMENTATION: Both "Verify & Approve" and "Approve Payment" now use
-      // the same endpoint: PATCH /payments/:id/status
-      // This ensures consistency and single source of truth.
-      
+      // Try POST /bookings/:id/approve-payment first (as per docs)
+      // Falls back to PATCH /payments/:id/status if POST fails
+      try {
+        const bookingResponse = await apiFetch<{
+          success: boolean;
+          data: {
+            booking: {
+              id: string;
+              status: string;
+            };
+            payment: {
+              id: string;
+              status: string;
+            };
+          };
+          message?: string;
+        }>(`/bookings/${id}/approve-payment`, {
+          method: "POST",
+        });
+
+        if (bookingResponse.success) {
+          // Successfully approved using POST endpoint
+          const bookingData = bookingResponse.data.booking;
+          const transformed = transformBooking({
+            ...(get().bookings.find((b) => b.id === id) || get().selectedBooking || {}),
+            ...bookingData,
+          } as any);
+          const updated = {
+            ...transformed,
+            status: normalizeStatus(bookingData.status) as StudentBooking["status"],
+          };
+
+          set((state) => {
+            const currentBookings = Array.isArray(state.bookings) ? state.bookings : [];
+            return {
+              bookings: currentBookings.map((b) => (b.id === id ? updated : b)),
+              selectedBooking: state.selectedBooking?.id === id ? updated : state.selectedBooking,
+              loading: false,
+              error: null,
+            };
+          });
+
+          return updated;
+        }
+      } catch (postError) {
+        // If POST endpoint doesn't exist or fails, fall back to PATCH endpoint
+        console.warn("POST /bookings/:id/approve-payment failed, trying PATCH /payments/:id/status:", postError);
+      }
+
+      // Fallback: Use PATCH /payments/:id/status (unified implementation)
       // First, get the booking to find the payment ID
-      // If payment data is not in the booking object, fetch booking details first
       let booking = get().bookings.find((b) => b.id === id) || get().selectedBooking;
       let paymentId = (booking as any)?.payment?.id;
       

@@ -12,11 +12,15 @@ import {
   Check,
   X,
   ExternalLink,
+  Shield,
+  Phone,
 } from "lucide-react";
-import { PaymentReceipt } from "@/stores/usePaymentsStore";
+import { PaymentReceipt, usePaymentsStore } from "@/stores/usePaymentsStore";
 import { useState, useEffect } from "react";
 import { useBookingsStore } from "@/stores/useBookingsStore";
 import ReceiptModal from "@/app/dashboard/components/_reusable_components/booking-dialog/ReceiptModal";
+import { useNotificationsStore } from "@/stores/useNotificationsStore";
+import { toast } from "sonner";
 // Simple date formatting function
 const formatTimeAgo = (dateString: string): string => {
   const date = new Date(dateString);
@@ -33,15 +37,21 @@ const formatTimeAgo = (dateString: string): string => {
 interface PaymentNotificationCardProps {
   payment: PaymentReceipt;
   onVerify: (paymentId: string, status: "CONFIRMED" | "FAILED") => Promise<void>;
+  onRefresh?: () => void;
 }
 
 export default function PaymentNotificationCard({
   payment,
   onVerify,
+  onRefresh,
 }: PaymentNotificationCardProps) {
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [verifyingPaystack, setVerifyingPaystack] = useState(false);
+  const [paymentDetails, setPaymentDetails] = useState<PaymentReceipt | null>(null);
   const { bookings, fetchBookings } = useBookingsStore();
+  const { verifyPaystackPayment, fetchPaymentDetails } = usePaymentsStore();
+  const { fetchNotifications } = useNotificationsStore();
 
   // Find the booking from the bookings store using the payment's bookingId (which is the internal ID)
   // payment.bookingId could be either the internal ID or display ID, so we check both
@@ -96,11 +106,92 @@ export default function PaymentNotificationCard({
     }
   };
 
+  const handleVerifyPaystack = async () => {
+    if (!payment.reference) {
+      toast.error("Payment reference not found");
+      return;
+    }
+
+    setVerifyingPaystack(true);
+    try {
+      const verificationResult = await verifyPaystackPayment(payment.reference);
+      
+      if (verificationResult.success && 
+          verificationResult.data.paystackVerification?.data?.status === "success") {
+        toast.success("Payment verified successfully! Notifications sent to admins.");
+        
+        // Update payment details from response if available
+        if (verificationResult.data.paymentUpdate?.payment) {
+          const updatedPayment = verificationResult.data.paymentUpdate.payment;
+          setPaymentDetails({
+            ...payment,
+            ...updatedPayment,
+            status: updatedPayment.status as PaymentReceipt["status"],
+          });
+        } else {
+          // Fallback: Refresh payment details to get updated verification data
+          const updatedPayment = await fetchPaymentDetails(payment.id);
+          setPaymentDetails(updatedPayment);
+        }
+        
+        // Refresh bookings to reflect status changes
+        await fetchBookings();
+        
+        // Refresh notifications immediately (backend automatically created them)
+        // Call multiple times to ensure we catch the new notifications
+        try {
+          // Immediate refresh
+          await fetchNotifications({ page: 1, pageSize: 50, unreadOnly: false });
+          // Also refresh unread count specifically
+          await fetchNotifications({ page: 1, pageSize: 10, unreadOnly: true });
+          // Final refresh to ensure badge updates
+          await fetchNotifications({ page: 1, pageSize: 10, unreadOnly: false });
+        } catch (err) {
+          // Silently fail - notifications will be picked up on next poll
+          console.warn("Failed to refresh notifications:", err);
+        }
+        
+        // Refresh payments list to show updated status
+        if (onRefresh) {
+          onRefresh();
+        }
+      } else {
+        toast.error("Payment verification failed. Please check the reference number.");
+      }
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to verify payment with Paystack"
+      );
+    } finally {
+      setVerifyingPaystack(false);
+    }
+  };
+
+  // Load payment details if not already loaded
+  useEffect(() => {
+    if (payment.provider === "PAYSTACK" && !paymentDetails && payment.id) {
+      fetchPaymentDetails(payment.id)
+        .then(setPaymentDetails)
+        .catch(() => {
+          // Silently fail - payment details might not be available
+        });
+    }
+  }, [payment.provider, payment.id, paymentDetails, fetchPaymentDetails]);
+
+  // Use payment details if available, otherwise use payment prop
+  const displayPayment = paymentDetails || payment;
+  const verificationData = displayPayment.verificationData;
+  const payerPhone = displayPayment.payerPhone || payment.booking?.user?.phone;
+
   const timeAgo = formatTimeAgo(payment.createdAt);
 
   return (
     <>
-      <Card className="border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover:border-gray-300 dark:hover:border-gray-700 transition-all shadow-sm hover:shadow-md">
+      <Card className={`border ${
+        payment.status === "INITIATED" && !isBankTransfer
+          ? "border-orange-300 dark:border-orange-700 bg-orange-50/30 dark:bg-orange-950/20"
+          : "border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900"
+      } hover:border-gray-300 dark:hover:border-gray-700 transition-all shadow-sm hover:shadow-md`}>
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-start gap-3 flex-1 min-w-0">
@@ -134,17 +225,25 @@ export default function PaymentNotificationCard({
                   <h3 className="text-base font-semibold text-gray-900 dark:text-gray-50 truncate">
                     {isBankTransfer
                       ? "Bank Receipt Uploaded"
-                      : "Paystack Payment Received"}
+                      : "Mobile Money Payment Received"}
                   </h3>
                   <span
                     className={`px-2.5 py-0.5 rounded-full text-xs font-medium shrink-0 ${
-                      payment.status === "AWAITING_VERIFICATION"
-                        ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                      payment.status === "AWAITING_VERIFICATION" || payment.status === "INITIATED"
+                        ? payment.status === "INITIATED"
+                          ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 animate-pulse"
+                          : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                        : payment.status === "CONFIRMED"
+                        ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                        : payment.status === "FAILED"
+                        ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
                         : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
                     }`}
                   >
                     {payment.status === "AWAITING_VERIFICATION"
                       ? "Pending"
+                      : payment.status === "INITIATED"
+                      ? "⚠️ Initiated - Verify Now"
                       : payment.status}
                   </span>
                 </div>
@@ -207,7 +306,7 @@ export default function PaymentNotificationCard({
               </div>
             </div>
 
-            {/* Payment Reference */}
+            {/* Payment Reference & Method */}
             <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700">
               <div className="flex items-center gap-2 mb-2">
                 <Calendar className="size-4 text-gray-500 dark:text-gray-400" />
@@ -215,10 +314,94 @@ export default function PaymentNotificationCard({
                   Payment Reference
                 </span>
               </div>
-              <p className="text-sm font-mono font-semibold text-gray-900 dark:text-gray-50 break-all">
+              <p className="text-sm font-mono font-semibold text-gray-900 dark:text-gray-50 break-all mb-2">
                 {payment.reference}
               </p>
+              {!isBankTransfer && (
+                <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                  {verificationData?.authorization?.channel ? (
+                    <p className="text-xs text-gray-600 dark:text-gray-400">
+                      <span className="font-medium">Payment Method:</span>{" "}
+                      <span className="uppercase font-semibold text-gray-900 dark:text-gray-50">
+                        {verificationData.authorization.channel === "mtn" ? "MTN" :
+                         verificationData.authorization.channel === "airtel" || verificationData.authorization.channel === "airteltigo" ? "AirtelTigo" :
+                         verificationData.authorization.channel === "vodafone" || verificationData.authorization.channel === "telecel" ? "Telecel" :
+                         verificationData.authorization.channel.toUpperCase()} Mobile Money
+                      </span>
+                    </p>
+                  ) : (
+                    <p className="text-xs text-purple-600 dark:text-purple-400 font-medium">
+                      Mobile Money payment received. Please verify and approve payment.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
+
+            {/* Paystack Payment Details */}
+            {!isBankTransfer && (
+              <div className="space-y-2">
+                {payerPhone && (
+                  <div className="p-3 rounded-lg bg-purple-50 dark:bg-purple-950/20 border border-purple-100 dark:border-purple-900/30">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Phone className="size-4 text-purple-600 dark:text-purple-400" />
+                      <span className="text-xs font-semibold text-purple-700 dark:text-purple-300 uppercase tracking-wide">
+                        Payer Phone
+                      </span>
+                    </div>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-50">
+                      {payerPhone}
+                    </p>
+                  </div>
+                )}
+
+                {verificationData && (
+                  <div className="p-3 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-100 dark:border-green-900/30">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Shield className="size-4 text-green-600 dark:text-green-400" />
+                      <span className="text-xs font-semibold text-green-700 dark:text-green-300 uppercase tracking-wide">
+                        Verification Details
+                      </span>
+                    </div>
+                    <div className="space-y-1">
+                      {verificationData.channel && (
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                          <span className="font-medium">Channel:</span>{" "}
+                          <span className="uppercase">{verificationData.channel}</span>
+                        </p>
+                      )}
+                      {verificationData.authorization?.channel && (
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                          <span className="font-medium">Provider:</span>{" "}
+                          <span className="uppercase">{verificationData.authorization.channel}</span>
+                        </p>
+                      )}
+                      {verificationData.authorization?.mobile_money_number && (
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                          <span className="font-medium">Mobile Money:</span>{" "}
+                          {verificationData.authorization.mobile_money_number}
+                        </p>
+                      )}
+                      {verificationData.gateway_response && (
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                          <span className="font-medium">Status:</span>{" "}
+                          {verificationData.gateway_response}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Info Message for Paystack Payments */}
+            {!isBankTransfer && payment.status === "INITIATED" && (
+              <div className="p-3 rounded-lg bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-900/30">
+                <p className="text-sm text-orange-800 dark:text-orange-200 font-medium">
+                  ⚠️ Mobile Money payment received. Please verify with Paystack and approve payment.
+                </p>
+              </div>
+            )}
 
             {/* Actions */}
             <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-200 dark:border-gray-800">
@@ -231,6 +414,18 @@ export default function PaymentNotificationCard({
                 >
                   <Eye className="size-4 mr-2" />
                   View Receipt
+                </Button>
+              )}
+              {!isBankTransfer && (payment.status === "INITIATED" || payment.status === "AWAITING_VERIFICATION") && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleVerifyPaystack}
+                  disabled={verifyingPaystack}
+                  className="flex-1 md:flex-none border-purple-300 dark:border-purple-700 hover:bg-purple-50 dark:hover:bg-purple-900/30 text-purple-700 dark:text-purple-300"
+                >
+                  <Shield className="size-4 mr-2" />
+                  {verifyingPaystack ? "Verifying..." : "Verify with Paystack"}
                 </Button>
               )}
               <Button
@@ -248,17 +443,17 @@ export default function PaymentNotificationCard({
                 variant="default"
                 size="sm"
                 onClick={() => handleVerify("CONFIRMED")}
-                disabled={verifying || payment.status !== "AWAITING_VERIFICATION"}
+                disabled={verifying || (payment.status !== "AWAITING_VERIFICATION" && payment.status !== "CONFIRMED")}
                 className="flex-1 md:flex-none bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
               >
                 <Check className="size-4 mr-2" />
-                {verifying ? "Verifying..." : "Verify & Approve"}
+                {verifying ? "Verifying..." : payment.status === "CONFIRMED" ? "Approve Payment" : "Verify & Approve"}
               </Button>
               <Button
                 variant="destructive"
                 size="sm"
                 onClick={() => handleVerify("FAILED")}
-                disabled={verifying || payment.status !== "AWAITING_VERIFICATION"}
+                disabled={verifying || (payment.status !== "AWAITING_VERIFICATION" && payment.status !== "INITIATED")}
                 className="flex-1 md:flex-none shadow-sm"
               >
                 <X className="size-4 mr-2" />

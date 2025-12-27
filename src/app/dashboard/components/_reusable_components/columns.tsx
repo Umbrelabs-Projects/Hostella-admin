@@ -17,7 +17,14 @@ interface ColumnsConfig {
   isMember?: boolean; // whether this is the members page (to show delete button)
 }
 
-export const columns = ({ onView, onDelete, showStatus = true, showAssigned = false, showFloor = false, isMember = false }: ColumnsConfig): ColumnDef<StudentBooking>[] => {
+export const columns = ({
+  onView,
+  onDelete,
+  showStatus = true,
+  showAssigned = false,
+  showFloor = false,
+  isMember = false,
+}: ColumnsConfig): ColumnDef<StudentBooking>[] => {
   const base: ColumnDef<StudentBooking>[] = [
     {
       accessorKey: "firstName",
@@ -28,19 +35,23 @@ export const columns = ({ onView, onDelete, showStatus = true, showAssigned = fa
         return (
           <div className="flex items-center gap-3">
             <Avatar className="h-9 w-9">
-              {(b.avatar || b.imageUrl) ? (
-                <AvatarImage 
-                  src={b.avatar || b.imageUrl || ""} 
+              {b.avatar || b.imageUrl ? (
+                <AvatarImage
+                  src={b.avatar || b.imageUrl || ""}
                   alt={fullName}
                 />
               ) : null}
               <AvatarFallback className="bg-teal-600 text-white font-semibold text-xs">
-                {`${b.firstName?.[0] || ""}${b.lastName?.[0] || ""}`.toUpperCase()}
+                {`${b.firstName?.[0] || ""}${
+                  b.lastName?.[0] || ""
+                }`.toUpperCase()}
               </AvatarFallback>
             </Avatar>
             <div className="flex flex-col">
               <span className="font-semibold text-sm">{fullName}</span>
-              <span className="text-xs text-muted-foreground">{b.studentId}</span>
+              <span className="text-xs text-muted-foreground">
+                {b.studentId}
+              </span>
             </div>
           </div>
         );
@@ -63,15 +74,17 @@ export const columns = ({ onView, onDelete, showStatus = true, showAssigned = fa
     const statusMap: Record<string, string> = {
       "pending payment": "PENDING_PAYMENT",
       "pending approval": "PENDING_APPROVAL",
-      "approved": "APPROVED",
-      "room_allocated": "ROOM_ALLOCATED",
+      approved: "APPROVED",
+      room_allocated: "ROOM_ALLOCATED",
       "room allocated": "ROOM_ALLOCATED",
-      "completed": "COMPLETED",
-      "cancelled": "CANCELLED",
-      "rejected": "REJECTED",
-      "expired": "EXPIRED",
+      completed: "COMPLETED",
+      cancelled: "CANCELLED",
+      rejected: "REJECTED",
+      expired: "EXPIRED",
     };
-    return statusMap[normalized] || normalized.toUpperCase().replace(/\s+/g, "_");
+    return (
+      statusMap[normalized] || normalized.toUpperCase().replace(/\s+/g, "_")
+    );
   };
 
   const formatStatusLabel = (status: string): string => {
@@ -83,7 +96,10 @@ export const columns = ({ onView, onDelete, showStatus = true, showAssigned = fa
     if (normalized === "REJECTED") return "Rejected";
     if (normalized === "EXPIRED") return "Expired";
     // Convert to readable format
-    return normalized.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
+    return normalized
+      .replace(/_/g, " ")
+      .toLowerCase()
+      .replace(/\b\w/g, (l) => l.toUpperCase());
   };
 
   const getStatusColor = (status: string): string => {
@@ -128,27 +144,36 @@ export const columns = ({ onView, onDelete, showStatus = true, showAssigned = fa
           const statusMap: Record<string, string> = {
             "pending payment": "PENDING_PAYMENT",
             "pending approval": "PENDING_APPROVAL",
-            "approved": "APPROVED",
+            approved: "APPROVED",
           };
-          return statusMap[status.toLowerCase()] || status.toUpperCase().replace(/\s+/g, "_");
+          return (
+            statusMap[status.toLowerCase()] ||
+            status.toUpperCase().replace(/\s+/g, "_")
+          );
         };
         const normalized = normalizeStatus(booking.status);
         // Do not show assigned room for pending statuses
-        if (normalized === "PENDING_PAYMENT" || normalized === "PENDING_APPROVAL") {
+        if (
+          normalized === "PENDING_PAYMENT" ||
+          normalized === "PENDING_APPROVAL"
+        ) {
           return <span className="text-muted-foreground">—</span>;
         }
         // Handle allocatedRoomNumber which can be number, string, or null
         // Debug logging in development
-        if (process.env.NODE_ENV === "development" && booking.allocatedRoomNumber == null) {
+        if (
+          process.env.NODE_ENV === "development" &&
+          booking.allocatedRoomNumber == null
+        ) {
           console.log("[Room Number Column] No room number for booking:", {
             id: booking.id,
             bookingId: booking.bookingId,
             allocatedRoomNumber: booking.allocatedRoomNumber,
             status: booking.status,
-            allKeys: Object.keys(booking)
+            allKeys: Object.keys(booking),
           });
         }
-        
+
         if (booking.allocatedRoomNumber == null) {
           return <span className="text-muted-foreground">—</span>;
         }
@@ -164,17 +189,21 @@ export const columns = ({ onView, onDelete, showStatus = true, showAssigned = fa
       header: "Floor",
       cell: ({ row }) => {
         const booking = row.original;
-        
+
         // Debug logging in development
-        if (process.env.NODE_ENV === "development" && !booking.floorNumber && booking.allocatedRoomNumber) {
+        if (
+          process.env.NODE_ENV === "development" &&
+          !booking.floorNumber &&
+          booking.allocatedRoomNumber
+        ) {
           console.log("[Floor Column] Booking data:", {
             id: booking.id,
             allocatedRoomNumber: booking.allocatedRoomNumber,
             floorNumber: booking.floorNumber,
-            allKeys: Object.keys(booking)
+            allKeys: Object.keys(booking),
           });
         }
-        
+
         // Use floorNumber from API if available (preferred)
         if (booking.floorNumber != null) {
           return String(booking.floorNumber);
@@ -184,15 +213,24 @@ export const columns = ({ onView, onDelete, showStatus = true, showAssigned = fa
         if (roomNum == null) {
           // Debug: Log why floor is not showing
           if (process.env.NODE_ENV === "development") {
-            console.log("[Floor Column] No room number for booking:", booking.id);
+            console.log(
+              "[Floor Column] No room number for booking:",
+              booking.id
+            );
           }
           return <span className="text-muted-foreground">—</span>;
         }
         // Convert to number if it's a string
-        const num = typeof roomNum === "string" ? parseInt(roomNum, 10) : roomNum;
+        const num =
+          typeof roomNum === "string" ? parseInt(roomNum, 10) : roomNum;
         if (isNaN(num)) {
           if (process.env.NODE_ENV === "development") {
-            console.warn("[Floor Column] Invalid room number:", roomNum, "for booking:", booking.id);
+            console.warn(
+              "[Floor Column] Invalid room number:",
+              roomNum,
+              "for booking:",
+              booking.id
+            );
           }
           return <span className="text-muted-foreground">—</span>;
         }
@@ -206,7 +244,15 @@ export const columns = ({ onView, onDelete, showStatus = true, showAssigned = fa
   base.push({
     accessorKey: "date",
     header: "Date",
-    cell: ({ row }) => row.getValue("date") as string,
+    cell: ({ row }) => {
+      const date = row.getValue("date") as string;
+      if (!date) return "N/A";
+      return new Date(date).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+    },
   });
 
   base.push({
