@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import ProfileSettings from "./profile-settings/ProfileSettings";
+import HostelSettings from "./hostel-settings/HostelSettings";
 import PasswordSettings from "./password-settings/PasswordSettings";
 import SettingsSidebar from "./components/SettingsSidebar";
 
@@ -13,6 +14,8 @@ export default function SettingsPage() {
     switch (activeTab) {
       case "profile":
         return <ProfileSettings />;
+      case "hostel":
+        return <HostelSettings />;
       case "password":
         return <PasswordSettings />;
       default:

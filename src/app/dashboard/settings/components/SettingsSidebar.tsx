@@ -1,6 +1,6 @@
 "use client";
 
-import { User, Lock, Shield } from "lucide-react";
+import { User, Lock, Building } from "lucide-react";
 
 interface SettingsSidebarProps {
   activeTab: string;
@@ -13,6 +13,7 @@ export default function SettingsSidebar({
 }: SettingsSidebarProps) {
   const menuItems = [
     { id: "profile", label: "Profile Settings", icon: User },
+    { id: "hostel", label: "Hostel Info", icon: Building },
     { id: "password", label: "Password", icon: Lock },
   ];
 
