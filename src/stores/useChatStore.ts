@@ -41,48 +41,8 @@ export interface ChatStore {
 // fallback empty array to stabilize selectors
 export const EMPTY_MESSAGES: Message[] = [];
 
-const MOCK_CHATS_INFO: Record<string, ChatInfo> = {
-  "1": {
-    id: "1",
-    name: "Rahul Sharma",
-    avatar: "RS",
-    online: true,
-    roomInfo: "3-bed dorm - Room 205",
-    checkInDate: "Nov 15, 2025",
-  },
-  "2": {
-    id: "2",
-    name: "Priya Patel",
-    avatar: "PP",
-    online: false,
-    roomInfo: "Single room - Room 102",
-    checkInDate: "Nov 10, 2025",
-  },
-  "3": {
-    id: "3",
-    name: "Aditya Kumar",
-    avatar: "AK",
-    online: true,
-    roomInfo: "2-bed deluxe - Room 301",
-    checkInDate: "Nov 12, 2025",
-  },
-  "4": {
-    id: "4",
-    name: "Neha Singh",
-    avatar: "NS",
-    online: false,
-    roomInfo: "Shared apartment - Room 401",
-    checkInDate: "Nov 18, 2025",
-  },
-  "5": {
-    id: "5",
-    name: "Vikram Reddy",
-    avatar: "VR",
-    online: true,
-    roomInfo: "Studio - Room 501",
-    checkInDate: "Nov 8, 2025",
-  },
-};
+
+// chatsInfo will be loaded from API
 
 const MOCK_MESSAGES: Record<string, Message[]> = {
   "1": [
@@ -112,10 +72,24 @@ const MOCK_MESSAGES: Record<string, Message[]> = {
   ],
 };
 
-export const useChatStore = create<ChatStore>((set, get) => ({
+
+export const useChatStore = create<ChatStore & {
+  loadChatsInfo: () => Promise<void>;
+}>((set, get) => ({
   currentChatId: null,
-  chatsInfo: MOCK_CHATS_INFO,
+  chatsInfo: {},
   messages: MOCK_MESSAGES,
+
+  // Fetch chat members connected to the admin
+  loadChatsInfo: async () => {
+    try {
+      const res = await (await import("@/lib/api")).apiFetch<{ success: boolean; data: Record<string, ChatInfo> }>("/chat/members");
+      set({ chatsInfo: res.data });
+    } catch (e) {
+      // fallback to empty or keep previous
+      set((state) => ({ chatsInfo: state.chatsInfo || {} }));
+    }
+  },
 
   setCurrentChat: (id) => set({ currentChatId: id }),
   setMessages: (chatId, ...msgs) => {
@@ -197,29 +171,53 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     // apiFetch(`/chat/${chatId}/send`, { method: "POST", body: JSON.stringify(newMessage) });
   },
 
-  sendFile: (chatId, type, fileData, text = "") => {
-    const messages = get().messages;
-    const id = String((messages[chatId]?.length ?? 0) + 1);
-    const newMessage: Message = {
-      id,
-      sender: "admin",
-      text: text || (fileData.fileName ?? ""),
-      timestamp: new Date().toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-      type,
-      fileData,
-    };
-    set({
-      messages: {
-        ...messages,
-        [chatId]: [...(messages[chatId] ?? []), newMessage],
-      },
-    });
-    sendChatSocket({ ...newMessage, chatId });
-    // Optionally, send to API
-    // apiFetch(`/chat/${chatId}/send`, { method: "POST", body: JSON.stringify(newMessage) });
+  sendFile: async (chatId, type, fileData, text = "") => {
+    // Upload file to backend
+    try {
+      const form = new FormData();
+      if (fileData.fileBlob) {
+        form.append("attachment", fileData.fileBlob, fileData.fileName || "file");
+      }
+      if (text) form.append("message", text);
+      const { apiFetch } = await import("@/lib/api");
+      const res = await apiFetch<{ success: boolean; data: { message: Message } }>(`/chat/${chatId}/attachments`, {
+        method: "POST",
+        body: form,
+      });
+      if (res.success && res.data?.message) {
+        const msg = res.data.message;
+        set((state) => ({
+          messages: {
+            ...state.messages,
+            [chatId]: [...(state.messages[chatId] ?? []), msg],
+          },
+        }));
+        // Optionally, send via socket for real-time update
+        sendChatSocket({ ...msg, chatId });
+      }
+    } catch (e) {
+      // fallback: show locally if upload fails
+      const messages = get().messages;
+      const id = String((messages[chatId]?.length ?? 0) + 1);
+      const newMessage: Message = {
+        id,
+        sender: "admin",
+        text: text || (fileData.fileName ?? ""),
+        timestamp: new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        type,
+        fileData,
+      };
+      set({
+        messages: {
+          ...messages,
+          [chatId]: [...(messages[chatId] ?? []), newMessage],
+        },
+      });
+      sendChatSocket({ ...newMessage, chatId });
+    }
   },
 
   deleteMessage: (chatId, messageId) => {

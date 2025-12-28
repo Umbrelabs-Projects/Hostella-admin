@@ -2,12 +2,19 @@
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import ChatItem from "./ChatItem";
+
+import { useEffect } from "react";
 import { useChatStore } from "@/stores/useChatStore";
 
 export default function ChatList({ filter }: { filter: string }) {
   const chatsInfo = useChatStore((s) => s.chatsInfo);
   const currentChatId = useChatStore((s) => s.currentChatId);
   const setCurrentChat = useChatStore((s) => s.setCurrentChat);
+  const loadChatsInfo = useChatStore((s) => s.loadChatsInfo);
+
+  useEffect(() => {
+    loadChatsInfo();
+  }, [loadChatsInfo]);
 
   const list = Object.values(chatsInfo).filter((c) =>
     c.name.toLowerCase().includes(filter.toLowerCase())

@@ -2,7 +2,16 @@
 "use client";
 
 import { useEffect } from "react";
-import { connectChatSocket, onChatSocketMessage, disconnectChatSocket } from "@/lib/chatSocket";
+import {
+  connectChatSocket,
+  onChatSocketMessage,
+  disconnectChatSocket,
+  joinRoom,
+  emitTyping,
+  emitStopTyping,
+  onUserTyping,
+  onUserStopTyping,
+} from "@/lib/chatSocket";
 import { apiFetch } from "@/lib/api";
 import type { Message } from "@/types/chat";
 
@@ -17,21 +26,25 @@ export default function HomePage() {
   const setMessages = useChatStore((s) => s.setMessages);
 
   // Connect WebSocket and fetch chat history
+
   useEffect(() => {
-    connectChatSocket("wss://your-chat-server.com/ws");
+    connectChatSocket("http://localhost:5000"); // Socket.io backend URL
     onChatSocketMessage((msg: Message) => {
       if (msg && msg.id && msg.sender && typeof msg.chatId === "string") {
         setMessages(msg.chatId, msg);
       }
     });
+    // Optionally: handle typing indicators here with onUserTyping/onUserStopTyping
     return () => {
       disconnectChatSocket();
     };
   }, [setMessages]);
 
   // Fetch chat history when chat changes
+
   useEffect(() => {
     if (currentChatId) {
+      joinRoom(currentChatId);
       apiFetch<Message[]>(`/chat/${currentChatId}/messages`).then((msgs) => {
         setMessages(currentChatId, ...msgs);
       });

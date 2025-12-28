@@ -4,14 +4,6 @@ import { persist } from "zustand/middleware";
 import { apiFetch } from "@/lib/api";
 import { SignInFormData } from "@/app/(auth)/validations/signInSchema";
 
-interface AssignedHostel {
-  id: string;
-  name: string;
-  location: string;
-  campus: string;
-  phoneNumber?: string;
-}
-
 interface User {
   id: string;
   firstName: string;
@@ -23,9 +15,6 @@ interface User {
   phoneVerified?: boolean;
   role?: "STUDENT" | "ADMIN" | "SUPER_ADMIN";
   hostelId?: string | null;
-  hostelName?: string | null; // Admin's assigned hostel name (deprecated - use assignedHostels)
-  school?: string | null; // Admin's assigned school (if applicable)
-  assignedHostels?: AssignedHostel[]; // Admin's assigned hostels array
   updatedAt?: string; // ISO timestamp of last profile update
 }
 
@@ -50,19 +39,6 @@ interface AuthState {
   clearError: () => void;
 }
 
-// Helper function to extract user from different API response formats
-function extractUserFromResponse<T extends User>(
-  response: T | { success: boolean; data: T } | { data: T }
-): T {
-  if ("data" in response && response.data) {
-    return response.data;
-  }
-  if ("success" in response && "data" in response && response.data) {
-    return response.data;
-  }
-  return response as T;
-}
-
 const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
@@ -79,80 +55,24 @@ const useAuthStore = create<AuthState>()(
       signIn: async (data) => {
         set({ loading: true, error: null });
         try {
-          const res = await apiFetch<
-            | { user: User; token: string }
-            | { success: boolean; data: { user: User; token: string } }
-            | { data: { user: User; token: string } }
-            | { user: User; accessToken: string }
-            | { user: User; access_token: string }
-          >("/auth/login", {
-            method: "POST",
-            body: JSON.stringify(data),
-          });
-
-          // Log the response for debugging
-          console.log("[signIn] Raw API response:", res);
-          console.log("[signIn] Response type:", typeof res);
-          console.log("[signIn] Response keys:", res ? Object.keys(res) : "null");
-
-          // Handle different response formats
-          let user: User | null = null;
-          let token: string | null = null;
-
-          // Format 1: { user: {...}, token: "..." }
-          if ("user" in res && "token" in res) {
-            user = res.user;
-            token = res.token;
-          }
-          // Format 2: { success: true, data: { user: {...}, token: "..." } }
-          else if ("success" in res && "data" in res && res.data) {
-            user = res.data.user;
-            token = res.data.token;
-          }
-          // Format 3: { data: { user: {...}, token: "..." } }
-          else if ("data" in res && res.data) {
-            user = res.data.user;
-            token = res.data.token;
-          }
-          // Format 4: { user: {...}, accessToken: "..." }
-          else if ("user" in res && "accessToken" in res) {
-            user = res.user;
-            token = res.accessToken;
-          }
-          // Format 5: { user: {...}, access_token: "..." }
-          else if ("user" in res && "access_token" in res) {
-            user = res.user;
-            token = res.access_token;
-          }
+          const res = await apiFetch<{ data: { user: User; token: string } }>(
+            "/auth/login",
+            {
+              method: "POST",
+              body: JSON.stringify(data),
+            }
+          );
+          const token = res.data?.token;
+          const user = res.data?.user;
 
           // Defensive: Only proceed if token is a non-empty string
           if (!token || typeof token !== "string" || !token.trim()) {
-            // Log the actual response for debugging
-            console.error("[signIn] Unexpected response format. Received:", JSON.stringify(res, null, 2));
-            console.error("[signIn] Response keys:", Object.keys(res || {}));
             // Clear all auth state and force logout
             set({ user: null, token: null, isAuthenticated: false, loading: false });
             if (typeof document !== "undefined") {
               document.cookie = `auth-token=; Path=/; Max-Age=0; SameSite=Lax`;
             }
-            throw new Error("Login failed: No token returned from server. Check console for response details.");
-          }
-
-          if (!user) {
-            if (process.env.NODE_ENV === "development") {
-              console.error("[signIn] No user in response:", res);
-            }
-            throw new Error("Login failed: No user data returned from server.");
-          }
-
-          // Check if user has ADMIN role (only ADMIN, not SUPER_ADMIN)
-          if (!user.role || user.role !== "ADMIN") {
-            const message = "Access denied. Only administrators can access this system.";
-            set({ user: null, token: null, isAuthenticated: false, loading: false, error: message });
-            if (typeof document !== "undefined") {
-              document.cookie = `auth-token=; Path=/; Max-Age=0; SameSite=Lax`;
-            }
-            throw new Error(message);
+            throw new Error("Login failed: No token returned from server.");
           }
 
           set({ user, token, isAuthenticated: true, loading: false });
@@ -200,31 +120,7 @@ const useAuthStore = create<AuthState>()(
           const cachedUser: User | null = parsedUser ?? null;
 
           if (token) {
-            let restoredUser: User;
-            if (cachedUser) {
-              restoredUser = cachedUser;
-            } else {
-              // Fetch profile - handle wrapped response format
-              const profileRes = await apiFetch<
-                | User
-                | { success: boolean; data: User }
-                | { data: User }
-              >("/user/profile");
-              
-              restoredUser = extractUserFromResponse(profileRes);
-            }
-            
-            // Validate role on session restore - only allow ADMIN (not SUPER_ADMIN)
-            if (!restoredUser.role || restoredUser.role !== "ADMIN") {
-              // Clear invalid session
-              set({ user: null, token: null, isAuthenticated: false, initializing: false });
-              localStorage.removeItem("auth-storage");
-              if (typeof document !== "undefined") {
-                document.cookie = `auth-token=; Path=/; Max-Age=0; SameSite=Lax`;
-              }
-              return;
-            }
-            
+            const restoredUser = cachedUser ?? (await apiFetch<User>("/auth/me"));
             set({ user: restoredUser, token, isAuthenticated: true, initializing: false });
             // Normalize persisted shape so future rehydration matches
             try {
@@ -254,29 +150,15 @@ const useAuthStore = create<AuthState>()(
         // Don't set loading state for background fetches
         set({ error: null });
         try {
-          const profileRes = await apiFetch<
-            | User
-            | { success: boolean; data: User }
-            | { data: User }
-          >("/user/profile");
-          
-          const user = extractUserFromResponse(profileRes);
-          // Only update if we got valid user data
-          if (user && user.id) {
-            set({ user });
-            if (process.env.NODE_ENV === "development") {
-              console.log("[fetchProfile] Profile synced:", user);
-            }
-          } else {
-            console.error("[fetchProfile] Invalid user data received:", user);
-            set({ error: "Invalid user data received from server" });
+          const user = await apiFetch<User>("/auth/me");
+          set({ user });
+          if (process.env.NODE_ENV === "development") {
+            console.log("[fetchProfile] Profile synced:", user);
           }
         } catch (err) {
           const message =
             err instanceof Error ? err.message : "Failed to fetch profile";
-          console.error("[fetchProfile] Error:", err);
           set({ error: message });
-          // Don't clear user on error - keep existing user data
         }
       },
 
@@ -287,36 +169,20 @@ const useAuthStore = create<AuthState>()(
           if (process.env.NODE_ENV === "development") {
             console.log("[updateProfile] Uploading profile data...");
           }
-          // API returns wrapped response: { success: true, data: User } or { data: User }
-          const updateRes = await apiFetch<
-            | User
-            | { success: boolean; data: User }
-            | { data: User }
-          >("/user/profile", {
+          const updated = await apiFetch<User>("/auth/profile", {
             method: "PUT",
             body: formData,
           });
-          
-          const updated = extractUserFromResponse(updateRes);
-          
           if (process.env.NODE_ENV === "development") {
             console.log("[updateProfile] Received updated user:", updated);
           }
-          // Update user with returned data and refetch full profile
           set({ user: updated, loading: false });
           // Refetch to ensure we have the latest data from server
           try {
-            const profileRes = await apiFetch<
-              | User
-              | { success: boolean; data: User }
-              | { data: User }
-            >("/user/profile");
-            
-            const latestUser = extractUserFromResponse(profileRes);
-            
+            const latestUser = await apiFetch<User>("/auth/me");
             if (process.env.NODE_ENV === "development") {
               console.log(
-                "[updateProfile] Refetched user from /user/profile:",
+                "[updateProfile] Refetched user from /auth/me:",
                 latestUser
               );
             }
@@ -339,7 +205,7 @@ const useAuthStore = create<AuthState>()(
       updatePassword: async (payload) => {
         set({ loading: true, error: null });
         try {
-          await apiFetch<{ message: string }>("/user/password", {
+          await apiFetch("/auth/password", {
             method: "PUT",
             body: JSON.stringify(payload),
           });

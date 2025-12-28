@@ -17,7 +17,7 @@ describe('useChatStore', () => {
 
     expect(result.current.currentChatId).toBeNull()
     expect(result.current.chatsInfo).toBeDefined()
-    expect(Object.keys(result.current.chatsInfo).length).toBeGreaterThan(0)
+    expect(Object.keys(result.current.chatsInfo).length).toBe(0)
     expect(result.current.messages).toBeDefined()
     expect(result.current.replying).toBeNull()
     expect(result.current.contextMenu).toBeNull()
@@ -203,7 +203,7 @@ describe('useChatStore', () => {
   })
 
   describe('sendFile', () => {
-    it('should send a file message', () => {
+    it('should send a file message', async () => {
       const { result } = renderHook(() => useChatStore())
       const chatId = '1'
       const fileData = {
@@ -214,8 +214,8 @@ describe('useChatStore', () => {
       }
       const initialMessageCount = result.current.messages[chatId]?.length || 0
 
-      act(() => {
-        result.current.sendFile(chatId, 'document', fileData, 'Check this document')
+      await act(async () => {
+        await result.current.sendFile(chatId, 'document', fileData, 'Check this document')
       })
 
       expect(result.current.messages[chatId].length).toBe(initialMessageCount + 1)
@@ -226,7 +226,7 @@ describe('useChatStore', () => {
       expect(chatSocket.sendChatSocket).toHaveBeenCalled()
     })
 
-    it('should send file with default text as filename', () => {
+    it('should send file with default text as filename', async () => {
       const { result } = renderHook(() => useChatStore())
       const chatId = '1'
       const fileData = {
@@ -236,8 +236,8 @@ describe('useChatStore', () => {
         fileBlob: null,
       }
 
-      act(() => {
-        result.current.sendFile(chatId, 'photo', fileData)
+      await act(async () => {
+        await result.current.sendFile(chatId, 'photo', fileData)
       })
 
       const lastMessage = result.current.messages[chatId][result.current.messages[chatId].length - 1]
