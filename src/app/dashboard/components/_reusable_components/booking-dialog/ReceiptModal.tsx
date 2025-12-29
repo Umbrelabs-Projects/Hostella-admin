@@ -11,11 +11,13 @@ import { Button } from "@/components/ui/button";
 import { FileText, Download, Check } from "lucide-react";
 import Image from "next/image";
 
+
 interface ReceiptModalProps {
   open: boolean;
   receiptUrl: string;
   onClose: () => void;
   onApprovePayment?: () => void;
+  paymentProvider?: string; // Add provider to show MoMo message
 }
 
 export default function ReceiptModal({
@@ -23,7 +25,9 @@ export default function ReceiptModal({
   receiptUrl,
   onClose,
   onApprovePayment,
+  paymentProvider,
 }: ReceiptModalProps) {
+  const isMoMo = paymentProvider && paymentProvider.toLowerCase().includes("paystack");
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -45,6 +49,11 @@ export default function ReceiptModal({
             unoptimized
           />
         </div>
+        {isMoMo && (
+          <div className="my-4 p-3 rounded-lg bg-yellow-50 border border-yellow-300 text-yellow-900 dark:bg-yellow-900/20 dark:border-yellow-700 dark:text-yellow-200 text-sm font-medium">
+            Please confirm the MoMo payment on your phone before clicking <b>Approve Payment</b>.
+          </div>
+        )}
         <div className="flex gap-3 justify-end pt-4 border-t">
           <Button
             variant="outline"

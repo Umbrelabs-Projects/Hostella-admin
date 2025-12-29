@@ -468,6 +468,7 @@ export default function PaymentNotificationCard({
         <ReceiptModal
           open={showReceiptModal}
           receiptUrl={payment.receiptUrl}
+          paymentProvider={payment.provider}
           onClose={() => setShowReceiptModal(false)}
           onApprovePayment={async () => {
             await handleVerify("CONFIRMED");
