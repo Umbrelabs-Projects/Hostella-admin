@@ -67,11 +67,12 @@ export default function BookingActionButtons({
   // Show button ONLY if:
   // - Booking is still PENDING_PAYMENT (not already moved to PENDING_APPROVAL by "Verify & Approve")
   // - Payment exists (has payment ID)
-  // - Payment status is CONFIRMED or AWAITING_VERIFICATION
+  // - Payment status is CONFIRMED or AWAITING_VERIFICATION or INITIATED (for Paystack)
   // - Payment status might not be loaded yet, but booking is still pending payment
   const showApprovePayment = isPendingPayment && !isPendingApproval && paymentId && (
     paymentStatus === "CONFIRMED" || 
     paymentStatus === "AWAITING_VERIFICATION" || 
+    paymentStatus === "INITIATED" || // Allow for Paystack initial state
     paymentStatus === undefined // Show if payment status not loaded yet (will be fetched)
   );
 
@@ -85,7 +86,7 @@ export default function BookingActionButtons({
         Close
       </ActionButton>
 
-      {/* Approve Payment - for PENDING_PAYMENT with CONFIRMED or AWAITING_VERIFICATION payment */}
+      {/* Approve Payment - for PENDING_PAYMENT with CONFIRMED, AWAITING_VERIFICATION, or INITIATED payment (Paystack or Bank) */}
       {showApprovePayment && (
         <ActionButton
           icon={CreditCard}
@@ -93,7 +94,7 @@ export default function BookingActionButtons({
           onClick={() => onApprovePayment?.(booking.id)}
           loading={isApprovingPayment}
         >
-          Approve Payment
+          Verify & Approve
         </ActionButton>
       )}
 

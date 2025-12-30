@@ -100,18 +100,28 @@ export default function NotificationDropdown({ onClose }: NotificationDropdownPr
     >
       <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center sticky top-0 bg-white dark:bg-gray-800">
         <h3 className="font-semibold text-gray-900 dark:text-gray-100">Notifications</h3>
-        {notifications.length > 0 && unreadCount > 0 && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              markAllAsRead().catch(() => {});
-            }}
-            className="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400"
+        <div className="flex items-center gap-2">
+          <Link
+            href="/dashboard/payments"
+            onClick={onClose}
+            className="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 border border-blue-100 dark:border-blue-900/30 rounded px-2 py-1 font-medium transition-colors"
+            style={{ textDecoration: "none" }}
           >
-            Mark all as read
-          </Button>
-        )}
+            View Payments
+          </Link>
+          {notifications.length > 0 && unreadCount > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                markAllAsRead().catch(() => {});
+              }}
+              className="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400"
+            >
+              Mark all as read
+            </Button>
+          )}
+        </div>
       </div>
 
       {notifications.length === 0 ? (
@@ -134,7 +144,7 @@ export default function NotificationDropdown({ onClose }: NotificationDropdownPr
                 }`}
               >
                 <div className="flex items-start gap-3">
-                  <div className={`p-2 rounded-full ${config.color} flex-shrink-0`}>
+                  <div className={`p-2 rounded-full ${config.color} shrink-0`}>
                     <Icon className="h-4 w-4" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -149,7 +159,7 @@ export default function NotificationDropdown({ onClose }: NotificationDropdownPr
                         {notification.title}
                       </p>
                       {!notification.read && (
-                        <span className="ml-2 h-2 w-2 bg-blue-600 rounded-full flex-shrink-0"></span>
+                        <span className="ml-2 h-2 w-2 bg-blue-600 rounded-full shrink-0"></span>
                       )}
                     </div>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">
@@ -164,7 +174,7 @@ export default function NotificationDropdown({ onClose }: NotificationDropdownPr
                       e.stopPropagation();
                       deleteNotification(notification.id).catch(() => {});
                     }}
-                    className="ml-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 flex-shrink-0"
+                    className="ml-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 shrink-0"
                     aria-label="Delete notification"
                   >
                     <XIcon className="h-4 w-4" />

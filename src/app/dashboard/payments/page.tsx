@@ -15,14 +15,14 @@ export default function PaymentsPage() {
   const {
     pendingReceipts,
     loading,
-    error,
+    // error,
     pagination,
     currentPage,
     pageSize,
     fetchPendingReceipts,
-    fetchPayments,
+    // fetchPayments,
     verifyPayment,
-    clearError,
+    // clearError,
   } = usePaymentsStore();
 
   const { fetchBookings } = useBookingsStore();

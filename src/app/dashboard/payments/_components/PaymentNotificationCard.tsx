@@ -19,6 +19,7 @@ import { PaymentReceipt, usePaymentsStore } from "@/stores/usePaymentsStore";
 import { useState, useEffect } from "react";
 import { useBookingsStore } from "@/stores/useBookingsStore";
 import ReceiptModal from "@/app/dashboard/components/_reusable_components/booking-dialog/ReceiptModal";
+import PaymentDetailsModal from "./PaymentDetailsModal";
 import { useNotificationsStore } from "@/stores/useNotificationsStore";
 import { toast } from "sonner";
 // Simple date formatting function
@@ -49,6 +50,7 @@ export default function PaymentNotificationCard({
   const [verifying, setVerifying] = useState(false);
   const [verifyingPaystack, setVerifyingPaystack] = useState(false);
   const [paymentDetails, setPaymentDetails] = useState<PaymentReceipt | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const { bookings, fetchBookings } = useBookingsStore();
   const { verifyPaystackPayment, fetchPaymentDetails } = usePaymentsStore();
   const { fetchNotifications } = useNotificationsStore();
@@ -416,18 +418,7 @@ export default function PaymentNotificationCard({
                   View Receipt
                 </Button>
               )}
-              {!isBankTransfer && (payment.status === "INITIATED" || payment.status === "AWAITING_VERIFICATION") && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleVerifyPaystack}
-                  disabled={verifyingPaystack}
-                  className="flex-1 md:flex-none border-purple-300 dark:border-purple-700 hover:bg-purple-50 dark:hover:bg-purple-900/30 text-purple-700 dark:text-purple-300"
-                >
-                  <Shield className="size-4 mr-2" />
-                  {verifyingPaystack ? "Verifying..." : "Verify with Paystack"}
-                </Button>
-              )}
+              {/* Restore View Booking button */}
               <Button
                 variant="outline"
                 size="sm"
@@ -439,16 +430,24 @@ export default function PaymentNotificationCard({
                 <ExternalLink className="size-4 mr-2" />
                 View Booking
               </Button>
-              <Button
-                variant="default"
-                size="sm"
-                onClick={() => handleVerify("CONFIRMED")}
-                disabled={verifying || (payment.status !== "AWAITING_VERIFICATION" && payment.status !== "CONFIRMED")}
-                className="flex-1 md:flex-none bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-              >
-                <Check className="size-4 mr-2" />
-                {verifying ? "Verifying..." : payment.status === "CONFIRMED" ? "Approve Payment" : "Verify & Approve"}
-              </Button>
+              {(payment.status === "INITIATED" || payment.status === "AWAITING_VERIFICATION" || payment.status === "CONFIRMED") && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={async () => {
+                    if (!isBankTransfer) {
+                      await handleVerifyPaystack();
+                    } else {
+                      await handleVerify("CONFIRMED");
+                    }
+                  }}
+                  disabled={verifying || verifyingPaystack}
+                  className="flex-1 md:flex-none bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                >
+                  <Check className="size-4 mr-2" />
+                  {(verifying || verifyingPaystack) ? "Verifying..." : payment.status === "CONFIRMED" ? "Approve Payment" : "Verify & Approve"}
+                </Button>
+              )}
               <Button
                 variant="destructive"
                 size="sm"
@@ -474,6 +473,14 @@ export default function PaymentNotificationCard({
             await handleVerify("CONFIRMED");
             setShowReceiptModal(false);
           }}
+        />
+      )}
+      {/* Payment Details Modal for Paystack/MoMo */}
+      {showDetailsModal && (
+        <PaymentDetailsModal
+          open={showDetailsModal}
+          payment={displayPayment}
+          onClose={() => setShowDetailsModal(false)}
         />
       )}
     </>

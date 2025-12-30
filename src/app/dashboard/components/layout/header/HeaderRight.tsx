@@ -7,6 +7,8 @@ import UserDropdown from "./UserDropdown";
 import NotificationDropdown from "./NotificationDropdown";
 import { useNotificationsStore } from "@/stores/useNotificationsStore";
 import { useEffect, useState, useRef } from "react";
+import { connectNotificationSocket, onNotification, disconnectNotificationSocket } from "@/lib/notificationSocket";
+import { useAuthStore } from "@/stores/useAuthStore";
 
 export default function HeaderRight() {
   const notifications = useNotificationsStore((state) => state.notifications);
@@ -19,56 +21,54 @@ export default function HeaderRight() {
   const hasUnread = notifications.some((n) => !n.read) || unreadCount > 0;
 
   // Real-time polling: Fetch notifications every 30 seconds to update badge
+  const user = useAuthStore((state) => state.user);
   useEffect(() => {
-    const POLL_INTERVAL = 30000; // 30 seconds
-    let intervalId: NodeJS.Timeout | null = null;
+    // Connect to notification socket for real-time updates, joining the admin's room
+    if (user && user.id) {
+      connectNotificationSocket(
+        process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:4000",
+        `user_${user.id}`
+      );
+    } else {
+      connectNotificationSocket(process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:4000");
+    }
+    const handleNewNotification = (notif: {
+      id: string;
+      type: string;
+      title: string;
+      description: string;
+      relatedId?: string;
+      createdAt?: string;
+    }) => {
+      // Add to store instantly
+      useNotificationsStore.getState().addNotification({
+        id: notif.id,
+        type: notif.type,
+        title: notif.title,
+        description: notif.description,
+        relatedId: notif.relatedId,
+        createdAt: notif.createdAt,
+        read: false,
+        time: "Just now",
+      });
+    };
+    onNotification(handleNewNotification);
 
+    // Fallback polling for missed notifications (every 5 min)
+    const POLL_INTERVAL = 300000;
+    let intervalId: NodeJS.Timeout | null = null;
     const pollNotifications = async () => {
       try {
-        // Fetch with minimal data for badge update (first page, small page size)
         await fetchNotifications({ page: 1, pageSize: 10, unreadOnly: false });
-      } catch {
-        // Silently fail - error is already captured in store
-      }
+      } catch {}
     };
+    intervalId = setInterval(pollNotifications, POLL_INTERVAL);
 
-    const startPolling = () => {
-      if (intervalId) clearInterval(intervalId);
-      intervalId = setInterval(pollNotifications, POLL_INTERVAL);
-    };
-
-    const stopPolling = () => {
-      if (intervalId) {
-        clearInterval(intervalId);
-        intervalId = null;
-      }
-    };
-
-    // Initial fetch
-    pollNotifications();
-
-    // Start polling
-    startPolling();
-
-    // Pause polling when tab is not visible (Page Visibility API)
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        stopPolling();
-      } else {
-        // Resume polling when tab becomes visible
-        pollNotifications(); // Fetch immediately when tab becomes visible
-        startPolling();
-      }
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    // Cleanup on unmount
     return () => {
-      stopPolling();
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      disconnectNotificationSocket();
+      if (intervalId) clearInterval(intervalId);
     };
-  }, [fetchNotifications]);
+  }, [fetchNotifications, user]);
 
   return (
     <div className="flex items-center gap-4">

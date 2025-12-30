@@ -11,6 +11,9 @@ import BookingDialogHeader from "./booking-dialog/BookingDialogHeader";
 import PersonalInfoCard from "./booking-dialog/PersonalInfoCard";
 import AccommodationCard from "./booking-dialog/AccommodationCard";
 import PaymentReceiptCard from "./booking-dialog/PaymentReceiptCard";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { CreditCard } from "lucide-react";
 import EmergencyContactCard from "./booking-dialog/EmergencyContactCard";
 import BookingActionButtons from "./booking-dialog/BookingActionButtons";
 import ReceiptModal from "./booking-dialog/ReceiptModal";
@@ -350,14 +353,40 @@ export default function EditContactDialog({
           <PersonalInfoCard booking={local} />
           <AccommodationCard booking={local} isMember={isMember} assignedNow={assignedNow} />
 
-          {/* Payment Receipt Card - Show when receipt is available or loading for PENDING_PAYMENT or PENDING_APPROVAL */}
+          {/* Show Payment Receipt Card for Bank Transfer, or Paystack if receipt exists */}
           {(normalizedStatus === "PENDING_PAYMENT" || local.status.toLowerCase() === "pending payment" ||
             normalizedStatus === "PENDING_APPROVAL" || local.status.toLowerCase() === "pending approval") && (
-            <PaymentReceiptCard
-              receiptUrl={receiptUrl}
-              receiptLoading={receiptLoading}
-              onViewFullSize={() => setShowReceiptModal(true)}
-            />
+            (local.payment?.provider === "BANK_TRANSFER" || receiptUrl || local.payment?.provider === "PAYSTACK") ? (
+              <>
+                {local.payment?.provider === "BANK_TRANSFER" || receiptUrl ? (
+                  <PaymentReceiptCard
+                    receiptUrl={receiptUrl}
+                    receiptLoading={receiptLoading}
+                    onViewFullSize={() => setShowReceiptModal(true)}
+                  />
+                ) : null}
+                {local.payment?.provider === "PAYSTACK" && !receiptUrl ? (
+                  <Card className="border-0 shadow-lg bg-linear-to-br from-purple-50 via-indigo-50 to-violet-50 dark:from-purple-950/30 dark:via-indigo-950/30 dark:to-violet-950/30 backdrop-blur-sm">
+                    <CardHeader className="pb-5 border-b border-purple-200 dark:border-purple-800">
+                      <CardTitle className="text-base font-semibold flex items-center gap-2 text-gray-900 dark:text-gray-50">
+                        <div className="p-1.5 rounded-lg bg-purple-100 dark:bg-purple-900/30">
+                          <CreditCard className="size-4 text-purple-600 dark:text-purple-400" />
+                        </div>
+                        Paystack Payment Details
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-2 space-y-2">
+                      <div><span className="font-semibold">Reference:</span> {local.payment?.reference}</div>
+                      <div><span className="font-semibold">Status:</span> {local.payment?.status}</div>
+                      <div><span className="font-semibold">Provider:</span> {local.payment?.provider}</div>
+                      {local.payment?.payerPhone && (
+                        <div><span className="font-semibold">Payer Phone:</span> {local.payment.payerPhone}</div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ) : null}
+              </>
+            ) : null
           )}
 
           {/* Emergency Contact Card */}

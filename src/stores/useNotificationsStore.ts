@@ -226,17 +226,21 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
       }
 
       const normalized = apiNotifications.map(normalizeNotification);
-
-      set({
-        notifications: normalized,
-        total: paginationData.total,
-        unreadCount: paginationData.unreadCount,
-        currentPage: paginationData.page,
-        pageSize: paginationData.pageSize,
-        totalPages: paginationData.totalPages,
-        loading: false,
-        error: null,
-        filters: mergedFilters,
+      // Merge new notifications with existing, deduplicate by id
+      set((state) => {
+        const existing = state.notifications;
+        const merged = [...normalized, ...existing.filter(e => !normalized.some(n => n.id === e.id))];
+        return {
+          notifications: merged,
+          total: paginationData.total,
+          unreadCount: paginationData.unreadCount,
+          currentPage: paginationData.page,
+          pageSize: paginationData.pageSize,
+          totalPages: paginationData.totalPages,
+          loading: false,
+          error: null,
+          filters: mergedFilters,
+        };
       });
     } catch (err) {
       const message =
