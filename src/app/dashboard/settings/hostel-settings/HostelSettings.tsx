@@ -395,7 +395,7 @@ export default function HostelSettings() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Basic Info Skeleton */}
                 <div className="space-y-4">
-                  {[1, 2, 3, 4].map((i) => (
+                  {[1, 2, 3].map((i) => (
                     <div key={i} className="space-y-2">
                       <Skeleton className="h-4 w-24" />
                       <Skeleton className="h-10 w-full" />
@@ -404,10 +404,12 @@ export default function HostelSettings() {
                 </div>
                 {/* Contact Skeleton */}
                 <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-10 w-full" />
-                  </div>
+                  {[1, 2].map((i) => (
+                    <div key={i} className="space-y-2">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-10 w-full" />
+                    </div>
+                  ))}
                 </div>
               </div>
 
@@ -497,9 +499,11 @@ export default function HostelSettings() {
                 hostelName={hostel?.name || ""}
                 location={hostel?.location || ""}
                 campus={hostel?.campus || ""}
+              />
+              <ContactSection
+                phoneNumber={hostel?.phoneNumber || ""}
                 noOfFloors={hostel?.noOfFloors || "0"}
               />
-              <ContactSection phoneNumber={hostel?.phoneNumber || ""} />
             </div>
 
             {/* Available Rooms */}

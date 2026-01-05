@@ -3,13 +3,14 @@
 import React from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Phone } from "lucide-react";
+import { Phone, Layout } from "lucide-react";
 
 interface ContactSectionProps {
   phoneNumber: string;
+  noOfFloors: string;
 }
 
-export default function ContactSection({ phoneNumber }: ContactSectionProps) {
+export default function ContactSection({ phoneNumber, noOfFloors }: ContactSectionProps) {
   return (
     <div className="space-y-4">
       <div className="space-y-2">
@@ -31,6 +32,22 @@ export default function ContactSection({ phoneNumber }: ContactSectionProps) {
         <p className="text-[10px] text-gray-500 italic">
           Official contact number for students
         </p>
+      </div>
+
+      <div className="space-y-2">
+        <Label
+          htmlFor="noOfFloors"
+          className="text-gray-700 font-semibold flex items-center gap-2"
+        >
+          <Layout className="h-4 w-4 text-gray-400" />
+          Number of Floors
+        </Label>
+        <Input
+          id="noOfFloors"
+          value={noOfFloors || "0"}
+          readOnly
+          className="border-gray-300 bg-gray-50 cursor-not-allowed"
+        />
       </div>
     </div>
   );

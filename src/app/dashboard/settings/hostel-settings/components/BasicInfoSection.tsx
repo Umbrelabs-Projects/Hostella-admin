@@ -3,24 +3,22 @@
 import React from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building, MapPin, Layout } from "lucide-react";
+import { Building, MapPin } from "lucide-react";
 
 interface BasicInfoSectionProps {
   hostelName: string;
   location: string;
   campus: string;
-  noOfFloors: string;
 }
 
 export default function BasicInfoSection({
   hostelName,
   location,
   campus,
-  noOfFloors,
 }: BasicInfoSectionProps) {
   return (
     <div className="grid grid-cols-2 gap-4">
-      <div className="space-y-2">
+      <div className="col-span-2 space-y-2">
         <Label
           htmlFor="name"
           className="text-gray-700 font-semibold flex items-center gap-2"
@@ -71,22 +69,6 @@ export default function BasicInfoSection({
           placeholder="e.g. Main Campus"
           className="border-gray-300 bg-gray-50 cursor-not-allowed"
           required
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label
-          htmlFor="noOfFloors"
-          className="text-gray-700 font-semibold flex items-center gap-2"
-        >
-          <Layout className="h-4 w-4 text-gray-400" />
-          Number of Floors
-        </Label>
-        <Input
-          id="noOfFloors"
-          value={noOfFloors || "0"}
-          readOnly
-          className="border-gray-300 bg-gray-50 cursor-not-allowed"
         />
       </div>
     </div>
