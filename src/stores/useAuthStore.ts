@@ -128,7 +128,11 @@ const useAuthStore = create<AuthState>()(
           const cachedUser: User | null = parsedUser ?? null;
 
           if (token) {
-            const restoredUser = cachedUser ?? (await apiFetch<User>("/auth/me"));
+            let restoredUser = cachedUser;
+            if (!restoredUser) {
+              const response = await apiFetch<{ data: User }>("/user/profile");
+              restoredUser = response.data || response;
+            }
             set({ user: restoredUser, token, isAuthenticated: true, initializing: false });
             // Normalize persisted shape so future rehydration matches
             try {
@@ -158,7 +162,8 @@ const useAuthStore = create<AuthState>()(
         // Set loading state for profile fetch
         set({ loading: true, error: null });
         try {
-          const user = await apiFetch<User>("/auth/me");
+          const response = await apiFetch<{ data: User }>("/user/profile");
+          const user = response.data || response;
           set({ user, loading: false });
           if (process.env.NODE_ENV === "development") {
             console.log("[fetchProfile] Profile synced:", user);
@@ -177,20 +182,22 @@ const useAuthStore = create<AuthState>()(
           if (process.env.NODE_ENV === "development") {
             console.log("[updateProfile] Uploading profile data...");
           }
-          const updated = await apiFetch<User>("/auth/profile", {
+          const response = await apiFetch<{ data: User }>("/user/profile", {
             method: "PUT",
             body: formData,
           });
+          const updated = response.data || response;
           if (process.env.NODE_ENV === "development") {
             console.log("[updateProfile] Received updated user:", updated);
           }
           set({ user: updated, loading: false });
           // Refetch to ensure we have the latest data from server
           try {
-            const latestUser = await apiFetch<User>("/auth/me");
+            const latestResponse = await apiFetch<{ data: User }>("/user/profile");
+            const latestUser = latestResponse.data || latestResponse;
             if (process.env.NODE_ENV === "development") {
               console.log(
-                "[updateProfile] Refetched user from /auth/me:",
+                "[updateProfile] Refetched user from /user/profile:",
                 latestUser
               );
             }
