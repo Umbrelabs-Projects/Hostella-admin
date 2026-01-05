@@ -59,8 +59,9 @@ export default function BookingActionButtons({
   // The button should only show if:
   // 1. Booking is PENDING_PAYMENT (not already PENDING_APPROVAL - that means payment was already verified)
   // 2. Payment exists and is CONFIRMED or AWAITING_VERIFICATION
-  const paymentStatus = (booking as any)?.payment?.status;
-  const paymentId = (booking as any)?.payment?.id;
+  const bookingWithPayment = booking as StudentBooking;
+  const paymentStatus = bookingWithPayment.payment?.status;
+  const paymentId = bookingWithPayment.payment?.id;
   const isPendingPayment = normalizedStatus === "PENDING_PAYMENT" || booking.status.toLowerCase() === "pending payment";
   const isPendingApproval = normalizedStatus === "PENDING_APPROVAL" || booking.status.toLowerCase() === "pending approval";
   

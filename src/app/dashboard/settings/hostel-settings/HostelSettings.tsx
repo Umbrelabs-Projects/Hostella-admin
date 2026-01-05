@@ -4,12 +4,14 @@ import React, { useEffect, useState } from "react";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Building, Phone, MapPin, Layout } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Loader2, Building } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Skeleton from "@/components/ui/skeleton";
+import BasicInfoSection from "./components/BasicInfoSection";
+import ContactSection from "./components/ContactSection";
+import AvailableRoomsSection from "./components/AvailableRoomsSection";
+import DescriptionSection from "./components/DescriptionSection";
+import FacilitiesSection from "./components/FacilitiesSection";
 
 interface RoomType {
   type: string;
@@ -163,22 +165,24 @@ export default function HostelSettings() {
               try {
                 const membersResp = await apiFetch<{
                   success: boolean;
-                  data: any;
+                  data: Record<string, unknown> | Array<Record<string, unknown>>;
                 }>("/members?pageSize=1000");
                 const membersList = Array.isArray(membersResp.data)
                   ? membersResp.data
-                  : membersResp.data?.members || [];
+                  : (membersResp.data && typeof membersResp.data === 'object' && 'members' in membersResp.data) 
+                    ? (membersResp.data as Record<string, unknown>).members as Array<Record<string, unknown>>
+                    : [];
 
                 console.log(
                   "[HostelSettings] Fetched members for calculation:",
                   membersList.length
                 );
 
-                membersList.forEach((m: any) => {
+                membersList.forEach((m: Record<string, unknown>) => {
                   const status = String(m.status || "").toUpperCase();
                   if (status === "ROOM_ALLOCATED" || status === "APPROVED") {
                     const type = String(
-                      m.preferredRoomType || m.roomTitle || ""
+                      (m.preferredRoomType || m.roomTitle) || ""
                     ).toUpperCase();
                     if (type === "SINGLE" || type === "ONE-IN-ONE") {
                       singleOccupied++;
@@ -193,10 +197,9 @@ export default function HostelSettings() {
                   "Double:",
                   doubleOccupied
                 );
-              } catch (mErr) {
+              } catch (_mErr) {
                 console.warn(
-                  "[HostelSettings] Failed to fetch members for manual calc:",
-                  mErr
+                  "[HostelSettings] Failed to fetch members for manual calc"
                 );
               }
 
@@ -283,17 +286,19 @@ export default function HostelSettings() {
             try {
               const membersResp = await apiFetch<{
                 success: boolean;
-                data: any;
+                data: Record<string, unknown> | Array<Record<string, unknown>>;
               }>("/members?pageSize=1000");
               const membersList = Array.isArray(membersResp.data)
                 ? membersResp.data
-                : membersResp.data?.members || [];
+                : (membersResp.data && typeof membersResp.data === 'object' && 'members' in membersResp.data)
+                  ? (membersResp.data as Record<string, unknown>).members as Array<Record<string, unknown>>
+                  : [];
 
-              membersList.forEach((m: any) => {
+              membersList.forEach((m: Record<string, unknown>) => {
                 const status = String(m.status || "").toUpperCase();
                 if (status === "ROOM_ALLOCATED" || status === "APPROVED") {
                   const type = String(
-                    m.preferredRoomType || m.roomTitle || ""
+                    (m.preferredRoomType || m.roomTitle) || ""
                   ).toUpperCase();
                   if (type === "SINGLE" || type === "ONE-IN-ONE") {
                     singleOccupied++;
@@ -373,8 +378,71 @@ export default function HostelSettings() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-12">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      <div className="max-w-4xl mx-auto space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl font-bold flex items-center gap-2 text-blue-600">
+              <Building className="h-5 w-5" />
+              Hostel Information
+            </CardTitle>
+            <p className="text-sm text-gray-500 font-normal">
+              Loading your hostel details...
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              {/* Basic Info & Contact Skeleton */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Basic Info Skeleton */}
+                <div className="space-y-4">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="space-y-2">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-10 w-full" />
+                    </div>
+                  ))}
+                </div>
+                {/* Contact Skeleton */}
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-10 w-full" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Available Rooms Skeleton */}
+              <div className="space-y-4 pt-4 border-t border-gray-100">
+                <Skeleton className="h-5 w-32" />
+                <div className="grid grid-cols-3 gap-4">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="space-y-2 p-4 rounded-lg border">
+                      <Skeleton className="h-6 w-16 mx-auto" />
+                      <Skeleton className="h-10 w-12 mx-auto" />
+                      <Skeleton className="h-3 w-24 mx-auto" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Description Skeleton */}
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-32 w-full" />
+              </div>
+
+              {/* Facilities Skeleton */}
+              <div className="space-y-4 pt-4 border-t border-gray-100">
+                <Skeleton className="h-4 w-32" />
+                <div className="flex flex-wrap gap-2">
+                  {[1, 2, 3, 4].map((i) => (
+                    <Skeleton key={i} className="h-8 w-24 rounded-full" />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -387,7 +455,7 @@ export default function HostelSettings() {
         </div>
         <div className="space-y-2">
           <h3 className="text-lg font-semibold text-red-800">
-            Assignement Error
+            Assignment Error
           </h3>
           <p className="text-red-600 max-w-md mx-auto">
             {error ||
@@ -423,190 +491,31 @@ export default function HostelSettings() {
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
+            {/* Basic Info & Contact Section */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Basic Info */}
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="name"
-                    className="text-gray-700 font-semibold flex items-center gap-2"
-                  >
-                    <Building className="h-4 w-4 text-gray-400" />
-                    Hostel Name
-                  </Label>
-                  <Input
-                    id="name"
-                    value={hostel?.name || ""}
-                    readOnly
-                    placeholder="Enter hostel name"
-                    className="border-gray-300 bg-gray-50 cursor-not-allowed"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="location"
-                    className="text-gray-700 font-semibold flex items-center gap-2"
-                  >
-                    <MapPin className="h-4 w-4 text-gray-400" />
-                    Location
-                  </Label>
-                  <Input
-                    id="location"
-                    value={hostel?.location || ""}
-                    readOnly
-                    placeholder="e.g. Near West Gate"
-                    className="border-gray-300 bg-gray-50 cursor-not-allowed"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="campus"
-                    className="text-gray-700 font-semibold flex items-center gap-2"
-                  >
-                    <MapPin className="h-4 w-4 text-gray-400" />
-                    Campus
-                  </Label>
-                  <Input
-                    id="campus"
-                    value={hostel?.campus || ""}
-                    readOnly
-                    placeholder="e.g. Main Campus"
-                    className="border-gray-300 bg-gray-50 cursor-not-allowed"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="noOfFloors"
-                    className="text-gray-700 font-semibold flex items-center gap-2"
-                  >
-                    <Layout className="h-4 w-4 text-gray-400" />
-                    Number of Floors
-                  </Label>
-                  <Input
-                    id="noOfFloors"
-                    value={hostel?.noOfFloors || "0"}
-                    readOnly
-                    className="border-gray-300 bg-gray-50 cursor-not-allowed"
-                  />
-                </div>
-              </div>
-
-              {/* Contact & Capacity */}
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="phoneNumber"
-                    className="text-gray-700 font-semibold flex items-center gap-2"
-                  >
-                    <Phone className="h-4 w-4 text-gray-400" />
-                    Phone Number
-                  </Label>
-                  <Input
-                    id="phoneNumber"
-                    value={hostel?.phoneNumber || ""}
-                    readOnly
-                    placeholder="+233..."
-                    className="border-gray-300 bg-gray-50 cursor-not-allowed"
-                    required
-                  />
-                  <p className="text-[10px] text-gray-500 italic">
-                    Official contact number for students
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-gray-700 font-semibold flex items-center gap-2">
-                      <Layout className="h-4 w-4 text-gray-400" />
-                      Available Single Rooms
-                    </Label>
-                    <Input
-                      type="number"
-                      value={
-                        hostel?.availableSingleRooms ?? hostel?.singleRooms ?? 0
-                      }
-                      readOnly
-                      className="border-gray-300 bg-gray-50 cursor-not-allowed font-semibold text-blue-700"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-gray-700 font-semibold flex items-center gap-2">
-                      <Layout className="h-4 w-4 text-gray-400" />
-                      Available Double Rooms
-                    </Label>
-                    <Input
-                      type="number"
-                      value={
-                        hostel?.availableDoubleRooms ?? hostel?.doubleRooms ?? 0
-                      }
-                      readOnly
-                      className="border-gray-300 bg-gray-50 cursor-not-allowed font-semibold text-blue-700"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-gray-700 font-semibold flex items-center gap-2">
-                      <Layout className="h-4 w-4 text-gray-400" />
-                      Available Triple Rooms
-                    </Label>
-                    <Input
-                      type="number"
-                      value={
-                        hostel?.availableTripleRooms ?? hostel?.tripleRooms ?? 0
-                      }
-                      readOnly
-                      className="border-gray-300 bg-gray-50 cursor-not-allowed font-semibold text-blue-700"
-                    />
-                  </div>
-                </div>
-              </div>
+              <BasicInfoSection
+                hostelName={hostel?.name || ""}
+                location={hostel?.location || ""}
+                campus={hostel?.campus || ""}
+                noOfFloors={hostel?.noOfFloors || "0"}
+              />
+              <ContactSection phoneNumber={hostel?.phoneNumber || ""} />
             </div>
+
+            {/* Available Rooms */}
+            <AvailableRoomsSection
+              availableSingleRooms={hostel?.availableSingleRooms ?? 0}
+              availableDoubleRooms={hostel?.availableDoubleRooms ?? 0}
+              availableTripleRooms={hostel?.availableTripleRooms ?? 0}
+            />
 
             {/* Description */}
-            <div className="space-y-2">
-              <Label
-                htmlFor="description"
-                className="text-gray-700 font-semibold flex items-center gap-2"
-              >
-                <Layout className="h-4 w-4 text-gray-400" />
-                Description
-              </Label>
-              <Textarea
-                id="description"
-                value={hostel?.description || ""}
-                readOnly
-                placeholder="A brief description of your hostel..."
-                className="min-h-[120px] border-gray-300 bg-gray-50 cursor-not-allowed"
-              />
-            </div>
+            <DescriptionSection description={hostel?.description || ""} />
 
             {/* Facilities */}
-            <div className="space-y-4 pt-4 border-t border-gray-100">
-              <Label className="text-gray-700 font-semibold">
-                Facilities & Amenities
-              </Label>
-              <div className="flex flex-wrap gap-2 mb-4">
-                {hostel?.facilities.map((facility, index) => (
-                  <Badge
-                    key={index}
-                    variant="secondary"
-                    className="px-3 py-1 flex items-center gap-2 bg-blue-50 text-blue-700 border-blue-100"
-                  >
-                    {facility}
-                  </Badge>
-                ))}
-                {hostel?.facilities.length === 0 && (
-                  <p className="text-sm text-gray-400 italic">
-                    No facilities added yet.
-                  </p>
-                )}
-              </div>
-            </div>
+            <FacilitiesSection
+              facilities={hostel?.facilities || []}
+            />
           </div>
         </CardContent>
       </Card>

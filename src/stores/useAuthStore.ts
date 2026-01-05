@@ -4,6 +4,12 @@ import { persist } from "zustand/middleware";
 import { apiFetch } from "@/lib/api";
 import { SignInFormData } from "@/app/(auth)/validations/signInSchema";
 
+interface Hostel {
+  id: string;
+  name: string;
+  campus?: string;
+}
+
 interface User {
   id: string;
   firstName: string;
@@ -11,14 +17,16 @@ interface User {
   email: string;
   phone?: string;
   avatar?: string;
+  school?: string;
   emailVerified?: boolean;
   phoneVerified?: boolean;
   role?: "STUDENT" | "ADMIN" | "SUPER_ADMIN";
   hostelId?: string | null;
+  assignedHostels?: Hostel[]; // For admins: array of assigned hostels
   updatedAt?: string; // ISO timestamp of last profile update
 }
 
-interface AuthState {
+export interface AuthState {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
@@ -147,18 +155,18 @@ const useAuthStore = create<AuthState>()(
 
       // --- Fetch Profile ---
       fetchProfile: async () => {
-        // Don't set loading state for background fetches
-        set({ error: null });
+        // Set loading state for profile fetch
+        set({ loading: true, error: null });
         try {
           const user = await apiFetch<User>("/auth/me");
-          set({ user });
+          set({ user, loading: false });
           if (process.env.NODE_ENV === "development") {
             console.log("[fetchProfile] Profile synced:", user);
           }
         } catch (err) {
           const message =
             err instanceof Error ? err.message : "Failed to fetch profile";
-          set({ error: message });
+          set({ error: message, loading: false });
         }
       },
 

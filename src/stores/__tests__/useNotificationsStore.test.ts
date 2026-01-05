@@ -13,10 +13,10 @@ jest.mock("@/lib/api", () => {
 const mockedApiFetch = apiFetch as jest.MockedFunction<typeof apiFetch>;
 const baseNotification = {
   id: "notif-1",
-  type: "new_booking",
+  type: "new_booking" as const,
   title: "New booking",
   description: "A student booked a room",
-  isRead: false, // Backend uses isRead
+  read: false, // Frontend uses read
   createdAt: "2025-12-10T10:00:00Z",
 };
 

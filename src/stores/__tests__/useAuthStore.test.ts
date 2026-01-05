@@ -1,18 +1,9 @@
-import { renderHook } from '@testing-library/react'
+// Mock must be at the very top before any imports
+jest.mock('@/lib/api')
+
+import { renderHook, RenderHookResult } from '@testing-library/react'
 import { act } from 'react'
-import { useAuthStore } from '@/stores/useAuthStore'
-
-// Mock the API client
-jest.mock('@/lib/api', () => ({
-  apiFetch: jest.fn(),
-  APIException: class APIException extends Error {
-    constructor(message: string, public status: number, public details?: Record<string, unknown>) {
-      super(message)
-    }
-  },
-  getAuthToken: jest.fn(),
-}))
-
+import { useAuthStore, type AuthState } from '@/stores/useAuthStore'
 import { apiFetch } from '@/lib/api'
 
 describe('useAuthStore', () => {
@@ -21,16 +12,14 @@ describe('useAuthStore', () => {
     jest.clearAllMocks()
     localStorage.clear()
     // Reset Zustand store state between tests
-    act(() => {
-      useAuthStore.setState({
-        user: null,
-        token: null,
-        isAuthenticated: false,
-        loading: false,
-        initializing: true,
-        error: null,
-      })
-    })
+    useAuthStore.setState({
+      user: null,
+      token: null,
+      isAuthenticated: false,
+      loading: false,
+      initializing: true,
+      error: null,
+    });
     // Default mock for signIn
     (apiFetch as jest.Mock).mockResolvedValue({
       user: { id: '1', firstName: 'Test', lastName: 'User', email: 'test@example.com' },
@@ -39,12 +28,12 @@ describe('useAuthStore', () => {
   })
 
   it('should initialize with default state', () => {
-    const { result } = renderHook(() => useAuthStore())
+    const hook: RenderHookResult<AuthState, any> = renderHook(() => useAuthStore()) as any
 
-    expect(result.current.user).toBeNull()
-    expect(result.current.isAuthenticated).toBe(false)
-    expect(result.current.loading).toBe(false)
-    expect(result.current.error).toBeNull()
+    expect(hook.result.current.user).toBeNull()
+    expect(hook.result.current.isAuthenticated).toBe(false)
+    expect(hook.result.current.loading).toBe(false)
+    expect(hook.result.current.error).toBeNull()
   })
 
   describe('signIn', () => {
@@ -56,15 +45,15 @@ describe('useAuthStore', () => {
         user: mockUser,
       })
 
-      const { result } = renderHook(() => useAuthStore())
+      const hook: RenderHookResult<AuthState, any> = renderHook(() => useAuthStore()) as any
 
       await act(async () => {
-        await result.current.signIn({ email: 'test@example.com', password: 'password123' })
+        await hook.result.current.signIn({ email: 'test@example.com', password: 'password123' })
       })
 
-      expect(result.current.user).toEqual(mockUser)
-      expect(result.current.isAuthenticated).toBe(true)
-      expect(result.current.error).toBeNull()
+      expect(hook.result.current.user).toEqual(mockUser)
+      expect(hook.result.current.isAuthenticated).toBe(true)
+      expect(hook.result.current.error).toBeNull()
       expect(apiFetch).toHaveBeenCalledWith('/auth/login', expect.any(Object))
     })
 
@@ -72,18 +61,18 @@ describe('useAuthStore', () => {
       const error = new Error('Invalid credentials')
       ;(apiFetch as jest.Mock).mockRejectedValueOnce(error)
 
-      const { result } = renderHook(() => useAuthStore())
+      const hook: RenderHookResult<AuthState, any> = renderHook(() => useAuthStore()) as any
 
       await act(async () => {
         try {
-          await result.current.signIn({ email: 'test@example.com', password: 'wrong' })
+          await hook.result.current.signIn({ email: 'test@example.com', password: 'wrong' })
         } catch {
           // Expected error
         }
       })
 
-      expect(result.current.isAuthenticated).toBe(false)
-      expect(result.current.error).toBeTruthy()
+      expect(hook.result.current.isAuthenticated).toBe(false)
+      expect(hook.result.current.error).toBeTruthy()
     })
   })
 
@@ -99,32 +88,32 @@ describe('useAuthStore', () => {
 
       ;(apiFetch as jest.Mock).mockResolvedValueOnce(mockUser)
 
-      const { result } = renderHook(() => useAuthStore())
+      const hook: RenderHookResult<AuthState, any> = renderHook(() => useAuthStore()) as any
 
       await act(async () => {
-        await result.current.restoreSession()
+        await hook.result.current.restoreSession()
       })
 
-      expect(result.current.isAuthenticated).toBe(true)
-      expect(result.current.user).toEqual(mockUser)
+      expect(hook.result.current.isAuthenticated).toBe(true)
+      expect(hook.result.current.user).toEqual(mockUser)
     })
 
     it('should handle restore session failure', async () => {
       ;(apiFetch as jest.Mock).mockRejectedValueOnce(new Error('Not authenticated'))
 
-      const { result } = renderHook(() => useAuthStore())
+      const hook: RenderHookResult<AuthState, any> = renderHook(() => useAuthStore()) as any
 
       await act(async () => {
-        await result.current.restoreSession()
+        await hook.result.current.restoreSession()
       })
 
-      expect(result.current.isAuthenticated).toBe(false)
+      expect(hook.result.current.isAuthenticated).toBe(false)
     })
   })
 
   describe('logout', () => {
     it('should clear user and token on logout', async () => {
-      const { result } = renderHook(() => useAuthStore())
+      const hook: RenderHookResult<AuthState, any> = renderHook(() => useAuthStore()) as any
 
       // Set the mock for apiFetch right before signIn
       (apiFetch as jest.Mock).mockResolvedValueOnce({
@@ -134,43 +123,43 @@ describe('useAuthStore', () => {
 
       // First sign in
       await act(async () => {
-        await result.current.signIn({ email: 'test@example.com', password: 'password' })
+        await hook.result.current.signIn({ email: 'test@example.com', password: 'password' })
       })
 
-      expect(result.current.isAuthenticated).toBe(true)
+      expect(hook.result.current.isAuthenticated).toBe(true)
 
       // Then logout
       act(() => {
-        result.current.signOut()
+        hook.result.current.signOut()
       })
 
-      expect(result.current.user).toBeNull()
-      expect(result.current.isAuthenticated).toBe(false)
+      expect(hook.result.current.user).toBeNull()
+      expect(hook.result.current.isAuthenticated).toBe(false)
     })
   })
 
   describe('clearError', () => {
     it('should clear error message', async () => {
-      const { result } = renderHook(() => useAuthStore())
+      const hook: RenderHookResult<AuthState, any> = renderHook(() => useAuthStore()) as any
 
       // Set error by failed sign in
       ;(apiFetch as jest.Mock).mockRejectedValueOnce(new Error('Test error'))
 
       await act(async () => {
         try {
-          await result.current.signIn({ email: 'test@example.com', password: 'wrong' })
+          await hook.result.current.signIn({ email: 'test@example.com', password: 'wrong' })
         } catch {
           // Expected
         }
       })
 
-      expect(result.current.error).toBeTruthy()
+      expect(hook.result.current.error).toBeTruthy()
 
       act(() => {
-        result.current.clearError()
+        hook.result.current.clearError()
       })
 
-      expect(result.current.error).toBeNull()
+      expect(hook.result.current.error).toBeNull()
     })
   })
 })

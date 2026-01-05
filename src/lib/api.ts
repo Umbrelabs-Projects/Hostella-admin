@@ -1,8 +1,6 @@
-let authToken: string | null = null;
 const errorCache = new Map<string, APIException>();
 
 export const setAuthToken = (token: string | null) => {
-  authToken = token;
   if (typeof document !== "undefined") {
     if (token) {
       const expiryDate = new Date();

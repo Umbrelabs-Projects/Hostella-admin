@@ -172,8 +172,8 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
         : filters.status;
 
       // Normalize triple room types for API
-      let apiRoomType = filters.roomType;
-      if (["Three-in-one", "Triple", "TP"].includes(apiRoomType)) apiRoomType = "TRIPLE";
+      let apiRoomType = filters.roomType || "";
+      if (apiRoomType && ["Three-in-one", "Triple", "TP"].includes(apiRoomType)) apiRoomType = "TRIPLE";
       const params = new URLSearchParams({
         page: page.toString(),
         limit: pageSize.toString(), // API uses 'limit' not 'pageSize'
@@ -339,9 +339,9 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
 
       // Backend expects preferredRoomType: "SINGLE" | "DOUBLE" | "TRIPLE" in the request
       // Backend returns roomTitle: "One-in-one" | "Two-in-one" | "Three-in-one" in the response
-      let bookingToSend = { ...booking };
-      if (bookingToSend.preferredRoomType && ["Three-in-one", "Triple", "TP"].includes(bookingToSend.preferredRoomType)) {
-        bookingToSend.preferredRoomType = "TRIPLE";
+      const bookingToSend = { ...booking };
+      if ("preferredRoomType" in bookingToSend && bookingToSend.preferredRoomType && ["Three-in-one", "Triple", "TP"].includes(String(bookingToSend.preferredRoomType))) {
+        (bookingToSend as Record<string, unknown>).preferredRoomType = "TRIPLE";
       }
       const response = await apiFetch<{
         success: boolean;
@@ -352,7 +352,7 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
         body: JSON.stringify(bookingToSend),
       });
 
-      const transformed = transformBooking(response.data as any);
+      const transformed = transformBooking(response.data as Record<string, unknown> & ReturnType<typeof transformBooking>);
       const newBooking = {
         ...transformed,
         status: normalizeStatus(transformed.status) as StudentBooking["status"],
@@ -395,7 +395,7 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
         body: JSON.stringify(updates),
       });
 
-      const transformed = transformBooking(response.data as any);
+      const transformed = transformBooking(response.data as Record<string, unknown> & ReturnType<typeof transformBooking>);
       const updated = {
         ...transformed,
         status: normalizeStatus(transformed.status) as StudentBooking["status"],
@@ -491,8 +491,10 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
         if (bookingResponse.success) {
           // Successfully approved using POST endpoint
           const bookingData = bookingResponse.data.booking;
+          const baseBooking = get().bookings.find((b) => b.id === id) || get().selectedBooking;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const transformed = transformBooking({
-            ...(get().bookings.find((b) => b.id === id) || get().selectedBooking || {}),
+            ...baseBooking,
             ...bookingData,
           } as any);
           const updated = {
@@ -519,8 +521,8 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
 
       // Fallback: Use PATCH /payments/:id/status (unified implementation)
       // First, get the booking to find the payment ID
-      let booking = get().bookings.find((b) => b.id === id) || get().selectedBooking;
-      let paymentId = (booking as any)?.payment?.id;
+      const booking = get().bookings.find((b) => b.id === id) || get().selectedBooking;
+      let paymentId = (booking as StudentBooking)?.payment?.id;
       
       // If payment ID is not available, fetch booking details to get it
       if (!paymentId) {
@@ -535,7 +537,8 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
         }>(`/bookings/${id}`);
         
         const bookingData = bookingResponse.data || (bookingResponse as unknown as StudentBooking);
-        paymentId = (bookingData as any)?.payment?.id;
+        const bookingWithPayment = bookingData as StudentBooking;
+        paymentId = bookingWithPayment.payment?.id;
         
         if (!paymentId) {
           throw new Error("No payment found for this booking. Payment must exist to approve it.");
@@ -574,7 +577,7 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
       }>(`/bookings/${id}`);
 
       const bookingData = bookingResponse.data || (bookingResponse as unknown as StudentBooking);
-      const transformed = transformBooking(bookingData as any);
+      const transformed = transformBooking(bookingData as Record<string, unknown> & ReturnType<typeof transformBooking>);
       const updated = {
         ...transformed,
         status: normalizeStatus(transformed.status) as StudentBooking["status"],
@@ -615,7 +618,7 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
         method: "POST",
       });
 
-      const transformed = transformBooking(response.data as any);
+      const transformed = transformBooking(response.data as Record<string, unknown> & ReturnType<typeof transformBooking>);
       const updated = {
         ...transformed,
         status: normalizeStatus(transformed.status) as StudentBooking["status"],
@@ -798,8 +801,10 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       // Normalize triple room types for API
-      let apiPreferredRoomType = preferredRoomType;
-      if (["Three-in-one", "Triple", "TP"].includes(apiPreferredRoomType)) apiPreferredRoomType = "TRIPLE";
+      let apiPreferredRoomType: string | undefined = preferredRoomType;
+      if (preferredRoomType && ["Three-in-one", "Triple", "TP"].includes(preferredRoomType)) {
+        apiPreferredRoomType = "TRIPLE";
+      }
       const params = new URLSearchParams({
         page: page.toString(),
         limit: limit.toString(),

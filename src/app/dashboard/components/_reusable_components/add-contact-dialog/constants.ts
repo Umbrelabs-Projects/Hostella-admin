@@ -73,6 +73,7 @@ export const FORM_SECTIONS: FormSection[] = [
         selectOptions: [
           { value: "One-in-one", label: "One-in-one" },
           { value: "Two-in-one", label: "Two-in-one" },
+          { value: "Three-in-one", label: "Three-in-one" },
         ],
       },
       { 

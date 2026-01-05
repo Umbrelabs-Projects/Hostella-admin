@@ -151,13 +151,13 @@ export const usePaymentsStore = create<PaymentsState>((set, get) => ({
       }>(`/payments?provider=PAYSTACK&status=AWAITING_VERIFICATION&page=${page}&limit=${limit}`);
 
       // Helper function to extract items from response
-      const extractItems = (response: any): PaymentReceipt[] => {
+      const extractItems = (response: Record<string, unknown>): PaymentReceipt[] => {
         if (!response.success) return [];
         if (response.data && typeof response.data === "object" && "items" in response.data) {
-          return Array.isArray(response.data.items) ? response.data.items : [];
+          return Array.isArray((response.data as Record<string, unknown>).items) ? ((response.data as Record<string, unknown>).items as PaymentReceipt[]) : [];
         }
         if (Array.isArray(response.items)) {
-          return response.items;
+          return response.items as PaymentReceipt[];
         }
         if (Array.isArray(response.data)) {
           return response.data;
@@ -254,7 +254,7 @@ export const usePaymentsStore = create<PaymentsState>((set, get) => ({
         set({ loading: false });
         return null;
       }
-    } catch (err) {
+    } catch (_err) {
       // If payment not found, return null (not an error)
       set({ loading: false });
       return null;
@@ -351,7 +351,7 @@ export const usePaymentsStore = create<PaymentsState>((set, get) => ({
         // Get booking ID from response or original payment object
         const verifiedPayment = response.data.payment;
         // Try to get internal booking ID first, then fallback to display bookingId
-        let bookingId = verifiedPayment?.booking?.id || paymentBefore?.booking?.id;
+        // const bookingId = verifiedPayment?.booking?.id || paymentBefore?.booking?.id;
         const displayBookingId = verifiedPayment?.booking?.bookingId || verifiedPayment?.bookingId || paymentBefore?.booking?.bookingId || paymentBefore?.bookingId;
 
         // Remove verified payment from pending list

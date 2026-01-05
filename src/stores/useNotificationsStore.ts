@@ -4,7 +4,6 @@ import { create } from "zustand";
 import { Notification } from "@/types/notifications";
 import { apiFetch, APIException } from "@/lib/api";
 import {
-  UserPlus,
   Receipt,
   ClipboardList,
   Wrench,

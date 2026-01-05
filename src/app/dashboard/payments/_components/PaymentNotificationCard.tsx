@@ -125,10 +125,13 @@ export default function PaymentNotificationCard({
         // Update payment details from response if available
         if (verificationResult.data.paymentUpdate?.payment) {
           const updatedPayment = verificationResult.data.paymentUpdate.payment;
+          const paymentStatus = updatedPayment.status as "INITIATED" | "AWAITING_VERIFICATION" | "CONFIRMED" | "FAILED" | "REFUNDED";
+          const provider = (updatedPayment.provider as "BANK_TRANSFER" | "PAYSTACK" | undefined) || payment.provider;
           setPaymentDetails({
             ...payment,
             ...updatedPayment,
-            status: updatedPayment.status as PaymentReceipt["status"],
+            status: paymentStatus,
+            provider: provider,
           });
         } else {
           // Fallback: Refresh payment details to get updated verification data

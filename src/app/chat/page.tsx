@@ -7,10 +7,6 @@ import {
   onChatSocketMessage,
   disconnectChatSocket,
   joinRoom,
-  emitTyping,
-  emitStopTyping,
-  onUserTyping,
-  onUserStopTyping,
 } from "@/lib/chatSocket";
 import { apiFetch } from "@/lib/api";
 import type { Message } from "@/types/chat";

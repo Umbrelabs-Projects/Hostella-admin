@@ -18,6 +18,16 @@ export type BookingStatus =
   | "pending approval" 
   | "approved";
 
+export interface PaymentInfo {
+  id: string;
+  status: "INITIATED" | "AWAITING_VERIFICATION" | "CONFIRMED" | "FAILED" | "REFUNDED";
+  amount?: number;
+  provider?: "BANK_TRANSFER" | "PAYSTACK";
+  reference?: string;
+  receiptUrl?: string;
+  payerPhone?: string;
+}
+
 export interface StudentBooking {
   id: string; // internal id
   bookingId?: string;
@@ -45,4 +55,5 @@ export interface StudentBooking {
   allocatedRoomNumber?: number | string | null; // Room number can be number, string, or null
   floorNumber?: number | null; // Floor number from API (optional, can be calculated if not provided)
   date?: string; // ISO date string for booking/created date
+  payment?: PaymentInfo; // Payment information for this booking
 }

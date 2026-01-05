@@ -19,7 +19,6 @@ export default function Bookings() {
   const {
     bookings,
     loading,
-    error,
     currentPage,
     pageSize,
     totalBookings,
@@ -35,7 +34,6 @@ export default function Bookings() {
     removeStudentFromRoom,
     setFilters,
     setCurrentPage,
-    clearError,
   } = useBookingsStore();
 
   const [showAddDialog, setShowAddDialog] = useState(false);

@@ -54,6 +54,11 @@ export type MembersState = {
       };
     }>;
     images: string[];
+    hostel: {
+      id: string;
+      name: string;
+      location: string;
+    };
   }>>;
 
   // Pagination & Filter
@@ -258,6 +263,7 @@ export const useMembersStore = create<MembersState>((set, get) => ({
         return statusMap[normalized] || normalized.toUpperCase().replace(/\s+/g, "_");
       };
       
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const transformed = transformBooking(response.data as any);
       const updated = {
         ...transformed,
@@ -349,6 +355,7 @@ export const useMembersStore = create<MembersState>((set, get) => ({
         return statusMap[normalized] || normalized.toUpperCase().replace(/\s+/g, "_");
       };
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const transformed = transformBooking(response.data as any);
       const updated = {
         ...transformed,
@@ -410,6 +417,7 @@ export const useMembersStore = create<MembersState>((set, get) => ({
         return statusMap[normalized] || normalized.toUpperCase().replace(/\s+/g, "_");
       };
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const transformed = transformBooking(response.data as any);
       const updated = {
         ...transformed,
@@ -439,7 +447,37 @@ export const useMembersStore = create<MembersState>((set, get) => ({
     }
   },
 
-  getSuitableRoomsForMember: async (memberId) => {
+  getSuitableRoomsForMember: async (memberId: string): Promise<Array<{
+    id: string;
+    roomNumber: string;
+    floorNumber: number;
+    capacity: number;
+    price: number;
+    status: string;
+    genderType: string | null;
+    type: string | null;
+    currentOccupants: number;
+    availableSpots: number;
+    occupancyStatus: "available" | "partially_available" | "full";
+    colorCode: "default" | "green" | "red";
+    allocatedBookings: Array<{
+      id: string;
+      bookingId: string;
+      user: {
+        id: string;
+        firstName: string;
+        lastName: string;
+        gender: string;
+        studentRefNumber: string;
+      };
+    }>;
+    images: string[];
+    hostel: {
+      id: string;
+      name: string;
+      location: string;
+    };
+  }>> => {
     set({ loading: true, error: null });
     try {
       // Backend returns { success: true, data: { rooms: [...], member: {...} } }
@@ -484,18 +522,18 @@ export const useMembersStore = create<MembersState>((set, get) => ({
       const rooms = response.data.rooms.map((room) => {
         // Safely transform occupants to allocatedBookings format
         const allocatedBookings = Array.isArray(room.occupants)
-          ? room.occupants.map((occ: any) => {
+          ? (room.occupants as Array<Record<string, unknown>>).map((occ) => {
               // Handle different possible occupant structures
-              const user = occ.user || {};
+              const user = (occ.user || {}) as Record<string, unknown>;
               return {
-                id: occ.id || occ.memberId || "",
-                bookingId: occ.bookingId || "",
+                id: (occ.id || occ.memberId || "") as string,
+                bookingId: (occ.bookingId || "") as string,
                 user: {
-                  id: user.id || occ.userId || "",
-                  firstName: user.firstName || occ.firstName || "",
-                  lastName: user.lastName || occ.lastName || "",
-                  gender: user.gender || occ.gender || "",
-                  studentRefNumber: user.studentRefNumber || occ.studentRefNumber || "",
+                  id: (user.id || occ.userId || "") as string,
+                  firstName: (user.firstName || occ.firstName || "") as string,
+                  lastName: (user.lastName || occ.lastName || "") as string,
+                  gender: (user.gender || occ.gender || "") as string,
+                  studentRefNumber: (user.studentRefNumber || occ.studentRefNumber || "") as string,
                 },
               };
             })
@@ -524,6 +562,7 @@ export const useMembersStore = create<MembersState>((set, get) => ({
               : ("default" as const),
           allocatedBookings,
           images: room.images || [],
+          hostel: room.hostel,
         };
       });
 

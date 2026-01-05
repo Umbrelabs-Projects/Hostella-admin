@@ -107,6 +107,7 @@ export function transformBooking(apiBooking: ApiBookingResponse): StudentBooking
   const roomTitleMap: Record<string, string> = {
     SINGLE: "One-in-one",
     DOUBLE: "Two-in-one",
+    TRIPLE: "Three-in-one",
   };
   const roomTitle = apiBooking.roomTitle || 
     (apiBooking.preferredRoomType ? roomTitleMap[apiBooking.preferredRoomType] : undefined) ||
@@ -140,7 +141,7 @@ export function transformBooking(apiBooking: ApiBookingResponse): StudentBooking
     avatar: user.avatar || apiBooking.avatar || apiBooking.imageUrl,
     imageUrl: user.avatar || apiBooking.avatar || apiBooking.imageUrl, // Legacy support
     hostelName: hostel.name || apiBooking.hostelName || "",
-    roomTitle: (roomTitle || "One-in-one") as "One-in-one" | "Two-in-one",
+    roomTitle: (roomTitle || "One-in-one") as "One-in-one" | "Two-in-one" | "Three-in-one" | "Triple" | "TP",
     price: apiBooking.price || String(apiBooking.totalAmount || ""),
     emergencyContactName: apiBooking.emergencyContactName || "",
     emergencyContactNumber: apiBooking.emergencyContactNumber || "",
@@ -153,16 +154,19 @@ export function transformBooking(apiBooking: ApiBookingResponse): StudentBooking
     date: apiBooking.date || apiBooking.createdAt,
   };
 
-  // Add payment info if available (for internal use, not part of StudentBooking type)
-  if (payment) {
-    (booking as any).payment = {
-      id: payment.id,
-      status: payment.status,
-      amount: payment.amount,
-      receiptUrl: payment.receiptUrl,
-      provider: payment.provider,
-      reference: payment.reference,
-    };
+  // Add payment info if available
+  if (payment && payment.id) {
+    const bookingWithPayment = booking as StudentBooking & { payment?: Record<string, unknown> };
+    if (payment.status) {
+      bookingWithPayment.payment = {
+        id: payment.id,
+        status: payment.status as "INITIATED" | "AWAITING_VERIFICATION" | "CONFIRMED" | "FAILED" | "REFUNDED",
+        amount: payment.amount,
+        receiptUrl: payment.receiptUrl,
+        provider: payment.provider ? (payment.provider as "BANK_TRANSFER" | "PAYSTACK") : undefined,
+        reference: payment.reference,
+      };
+    }
   }
 
   return booking;

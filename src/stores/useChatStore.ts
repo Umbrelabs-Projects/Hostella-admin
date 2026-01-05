@@ -244,7 +244,7 @@ export const useChatStore = create<ChatStore & {
         // Optionally, send via socket for real-time update
         sendChatSocket({ ...msg, chatId });
       }
-    } catch (e) {
+    } catch (_e) {
       // fallback: show locally if upload fails
       const messages = get().messages;
       const id = String((messages[chatId]?.length ?? 0) + 1);

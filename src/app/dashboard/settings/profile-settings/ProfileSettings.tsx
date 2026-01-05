@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import Skeleton from "@/components/ui/skeleton";
 import AvatarUploader from "./components/AvatarUploader";
 import PersonalInfoForm from "./components/PersonalInfoForm";
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -89,24 +90,119 @@ export default function ProfileSettings() {
         </div>
       )}
 
-      <AvatarUploader
-        avatar={user?.avatar || ""}
-        onFileSelect={setAvatarFile}
-      />
+      {/* Avatar Uploader */}
+      {!user || (loading && !profileLoaded) ? (
+        <Skeleton className="h-32 w-32 rounded-full" />
+      ) : (
+        <AvatarUploader
+          avatar={user?.avatar || ""}
+          onFileSelect={setAvatarFile}
+        />
+      )}
 
       <hr className="border-gray-200" />
 
       <h2 className="text-lg font-semibold text-gray-900">
         Personal Information
       </h2>
-      <PersonalInfoForm
-        firstName={firstName}
-        lastName={lastName}
-        email={user?.email || ""}
-        onChange={(field, value) =>
-          field === "firstName" ? setFirstName(value) : setLastName(value)
-        }
-      />
+
+      {/* Profile Loading State */}
+      {!user || (loading && !profileLoaded) ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="flex flex-col">
+            <Skeleton className="h-5 w-20 mb-2" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+          <div className="flex flex-col">
+            <Skeleton className="h-5 w-20 mb-2" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+          <div className="flex flex-col sm:col-span-2">
+            <Skeleton className="h-5 w-20 mb-2" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+        </div>
+      ) : (
+        <PersonalInfoForm
+          firstName={firstName}
+          lastName={lastName}
+          email={user?.email || ""}
+          onChange={(field, value) =>
+            field === "firstName" ? setFirstName(value) : setLastName(value)
+          }
+        />
+      )}
+
+      {/* Admin Details Section */}
+      {user?.role && (user.role === "ADMIN" || user.role === "SUPER_ADMIN") && (
+        <>
+          <hr className="border-gray-200 mt-8" />
+          <h2 className="text-lg font-semibold text-gray-900 mt-8">
+            Admin Information
+          </h2>
+
+          {loading && !profileLoaded ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="flex flex-col">
+                <Skeleton className="h-5 w-16 mb-2" />
+                <Skeleton className="h-6 w-24" />
+              </div>
+              {user.role === "ADMIN" && (
+                <div className="flex flex-col sm:col-span-2">
+                  <Skeleton className="h-5 w-32 mb-2" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Role */}
+              <div className="flex flex-col">
+                <label className="block text-sm font-medium text-gray-500 mb-2">
+                  Role
+                </label>
+                <p className="text-sm font-medium text-gray-900">
+                  {user.role === "ADMIN" ? "Hostel Admin" : "Super Admin"}
+                </p>
+              </div>
+
+              {/* Assigned Hostels */}
+              {user.role === "ADMIN" && user.assignedHostels && (
+                <div className="flex flex-col sm:col-span-2">
+                  <label className="block text-sm font-medium text-gray-500 mb-2">
+                    Assigned Hostels
+                  </label>
+                  {user.assignedHostels.length > 0 ? (
+                    <div className="space-y-2">
+                      {user.assignedHostels.map((hostel) => (
+                        <div
+                          key={hostel.id}
+                          className="flex items-center gap-2 rounded-md bg-blue-50 px-3 py-2"
+                        >
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-gray-900">
+                              {hostel.name}
+                            </p>
+                            {hostel.campus && (
+                              <p className="text-xs text-gray-600">
+                                Campus: {hostel.campus}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-600">
+                      No hostels assigned yet
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
 
       <Button
         onClick={handleSave}

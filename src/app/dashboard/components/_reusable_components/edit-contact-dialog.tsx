@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import AssignRoomDialog from "./assign-room-dialog";
-import { StudentBooking } from "@/types/booking";
+import { StudentBooking, PaymentInfo } from "@/types/booking";
 import { toast } from "sonner";
 import { useMembersStore } from "@/stores/useMembersStore";
 import { apiFetch } from "@/lib/api";
@@ -12,7 +12,6 @@ import PersonalInfoCard from "./booking-dialog/PersonalInfoCard";
 import AccommodationCard from "./booking-dialog/AccommodationCard";
 import PaymentReceiptCard from "./booking-dialog/PaymentReceiptCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { CreditCard } from "lucide-react";
 import EmergencyContactCard from "./booking-dialog/EmergencyContactCard";
 import BookingActionButtons from "./booking-dialog/BookingActionButtons";
@@ -113,16 +112,19 @@ export default function EditContactDialog({
         
         if (bookingData) {
           // Update local state with fresh booking data including payment info
-          setLocal(prev => ({
-            ...prev,
-            ...bookingData,
-            status: bookingData.status || prev.status,
-            avatar: bookingData.avatar || prev.avatar,
-            // Include payment data if available
-            ...((bookingData as any).payment && { payment: (bookingData as any).payment }),
-          }));
+          setLocal(prev => {
+            const bookingWithPayment = bookingData as StudentBooking;
+            return {
+              ...prev,
+              ...bookingData,
+              status: bookingData.status || prev.status,
+              avatar: bookingData.avatar || prev.avatar,
+              // Include payment data if available
+              ...(bookingWithPayment.payment && { payment: bookingWithPayment.payment }),
+            };
+          });
         }
-      } catch (error) {
+      } catch (_error) {
         // Silently fail - booking might not be accessible
       }
     };
@@ -202,12 +204,14 @@ export default function EditContactDialog({
         setReceiptLoading(true);
         try {
           // First, check if payment info is already in the booking object
-          const bookingPayment = (local as any)?.payment || (booking as any)?.payment;
+          const localWithPayment = local as StudentBooking;
+          const bookingWithPayment = booking as StudentBooking;
+          const bookingPayment = localWithPayment.payment || bookingWithPayment.payment;
           if (bookingPayment?.receiptUrl) {
             setReceiptUrl(bookingPayment.receiptUrl);
             // Update local state with payment info if not already there
-            if (bookingPayment && !(local as any)?.payment) {
-              setLocal(prev => ({ ...prev, payment: bookingPayment } as any));
+            if (bookingPayment && !localWithPayment.payment) {
+              setLocal(prev => ({ ...prev, payment: bookingPayment }));
             }
             setReceiptLoading(false);
             return;
@@ -215,7 +219,14 @@ export default function EditContactDialog({
 
           // Fetch payment for this booking using the new unified endpoint
           // Use the booking-specific endpoint first (more efficient)
-          let bookingReceipt: any = null;
+          let bookingReceipt: {
+            id: string;
+            bookingId: string;
+            receiptUrl?: string;
+            status: string;
+            provider?: string;
+            booking?: { id: string; bookingId?: string };
+          } | null = null;
           try {
             const paymentResponse = await apiFetch<{
               success: boolean;
@@ -240,9 +251,12 @@ export default function EditContactDialog({
             }>(`/payments/booking/${local.id}`);
             
             if (paymentResponse.success) {
-              bookingReceipt = paymentResponse.data?.payment || paymentResponse.payment;
+              const payment = paymentResponse.data?.payment || paymentResponse.payment;
+              if (payment) {
+                bookingReceipt = payment;
+              }
             }
-          } catch (error) {
+          } catch (_error) {
             // If booking-specific endpoint fails, try fetching all payments and filter
             // This is a fallback for edge cases
             try {
@@ -285,7 +299,7 @@ export default function EditContactDialog({
                 }
                 
                 // Find receipt for this booking
-                bookingReceipt = receipts.find(
+                const foundReceipt = receipts.find(
                   (payment) => {
                     // Match by internal booking ID
                     if (payment.booking?.id === local.id) return true;
@@ -296,6 +310,9 @@ export default function EditContactDialog({
                     return false;
                   }
                 );
+                if (foundReceipt) {
+                  bookingReceipt = foundReceipt;
+                }
               }
             } catch (fallbackError) {
               // Silently fail - payment might not exist
@@ -309,16 +326,17 @@ export default function EditContactDialog({
             }
             
             // Update local state with payment info so Approve Payment button can show
-            if (!(local as any)?.payment) {
+            const localTyped = local as StudentBooking;
+            if (!localTyped.payment) {
               setLocal(prev => ({
                 ...prev,
                 payment: {
                   id: bookingReceipt.id,
-                  status: bookingReceipt.status,
-                  provider: bookingReceipt.provider,
+                  status: bookingReceipt.status as PaymentInfo['status'],
+                  provider: bookingReceipt.provider ? (bookingReceipt.provider as "BANK_TRANSFER" | "PAYSTACK") : undefined,
                   receiptUrl: bookingReceipt.receiptUrl,
                 }
-              } as any));
+              }));
             }
           }
         } catch (error) {
@@ -334,7 +352,7 @@ export default function EditContactDialog({
     };
 
     fetchPaymentInfo();
-  }, [local.id, local.bookingId, normalizedStatus, local.status, (local as any)?.payment, (booking as any)?.payment]);
+  }, [local.id, local.bookingId, normalizedStatus, local.status, (local as StudentBooking).payment, (booking as StudentBooking).payment]);
 
   return (
     <Dialog open={true} onOpenChange={onOpenChange}>

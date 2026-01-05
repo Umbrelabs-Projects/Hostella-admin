@@ -1,5 +1,3 @@
-import { StudentBooking } from "@/types/booking";
-
 // Normalize status for comparison (API returns lowercase with spaces/underscores, normalize to uppercase with underscores)
 export const normalizeStatus = (status: string): string => {
   const normalized = status.toLowerCase().trim();

@@ -5,7 +5,7 @@ import { useNotificationsStore } from "@/stores/useNotificationsStore";
 import { Notification } from "@/types/notifications";
 import { typeConfig } from "@/stores/useNotificationsStore";
 // Using existing time formatting from store instead of date-fns
-import { Bell, CheckCheck, X as XIcon } from "lucide-react";
+import { Bell, X as XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -58,28 +58,22 @@ export default function NotificationDropdown({ onClose }: NotificationDropdownPr
   const handleNotificationNavigation = (notification: Notification) => {
     if (!notification.relatedId) return;
 
-    const routes: Record<string, (id: string) => void> = {
-      "payment-received": (id) => router.push(`/dashboard/payments`),
-      "complaint-received": (id) => router.push(`/dashboard/complaints/${id}`),
-      "new-booking": (id) => router.push(`/dashboard/bookings?search=${id}`),
-      "broadcast": (id) => router.push(`/dashboard/broadcast`),
-      "booking-approved": (id) => router.push(`/dashboard/bookings?search=${id}`),
-      "booking-rejected": (id) => router.push(`/dashboard/bookings?search=${id}`),
-      "booking-cancelled": (id) => router.push(`/dashboard/bookings?search=${id}`),
-      "room-allocated": (id) => router.push(`/dashboard/bookings?search=${id}`),
-      "complaint-resolved": (id) => router.push(`/dashboard/complaints/${id}`),
+    const routes: Record<string, string> = {
+      "payment-received": "/dashboard/payments",
+      "complaint-received": `/dashboard/complaints/${notification.relatedId}`,
+      "new-booking": `/dashboard/bookings?search=${notification.relatedId}`,
+      "broadcast": "/dashboard/broadcast",
+      "booking-approved": `/dashboard/bookings?search=${notification.relatedId}`,
+      "booking-rejected": `/dashboard/bookings?search=${notification.relatedId}`,
+      "booking-cancelled": `/dashboard/bookings?search=${notification.relatedId}`,
+      "room-allocated": `/dashboard/bookings?search=${notification.relatedId}`,
+      "complaint-resolved": `/dashboard/complaints/${notification.relatedId}`,
     };
 
-    const handler = routes[notification.type];
-    if (handler) {
-      handler(notification.relatedId);
+    const route = routes[notification.type];
+    if (route) {
+      router.push(route);
     }
-  };
-
-  const getNotificationIcon = (type: string) => {
-    const config = typeConfig[type as keyof typeof typeConfig] ?? typeConfig["system-alert"];
-    const Icon = config.icon ?? Bell;
-    return <Icon className="h-5 w-5" />;
   };
 
   if (loading && notifications.length === 0) {

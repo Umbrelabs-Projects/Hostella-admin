@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { NotificationHeader } from "./components/NotificationHeader";
 import { NotificationList } from "./components/NotificationList";
 import { useNotificationsStore } from "@/stores/useNotificationsStore";
 import { CardSkeleton } from "@/components/ui/skeleton";
@@ -18,8 +17,6 @@ const NotificationsPage: React.FC = () => {
     markAllAsRead,
     deleteAll,
     fetchNotifications,
-    setFilters,
-    filters,
     loading,
     error,
   } = useNotificationsStore();
@@ -100,11 +97,9 @@ const NotificationsPage: React.FC = () => {
   };
 
   const handleMarkAll = () => markAllAsRead().catch(() => {});
-  const handleDeleteAll = () => deleteAll().catch(() => {});
 
   const handleFilterChange = (newFilter: "all" | "unread") => {
     setFilter(newFilter);
-    setFilters({ unreadOnly: newFilter === "unread" });
     fetchNotifications({ unreadOnly: newFilter === "unread" }).catch(() => {});
   };
 
