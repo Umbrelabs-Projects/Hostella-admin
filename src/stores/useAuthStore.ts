@@ -220,7 +220,7 @@ const useAuthStore = create<AuthState>()(
       updatePassword: async (payload) => {
         set({ loading: true, error: null });
         try {
-          await apiFetch("/auth/password", {
+          await apiFetch("/user/password", {
             method: "PUT",
             body: JSON.stringify(payload),
           });

@@ -10,7 +10,10 @@ interface ContactSectionProps {
   noOfFloors: string;
 }
 
-export default function ContactSection({ phoneNumber, noOfFloors }: ContactSectionProps) {
+export default function ContactSection({
+  phoneNumber,
+  noOfFloors,
+}: ContactSectionProps) {
   return (
     <div className="space-y-4">
       <div className="space-y-2">
@@ -20,6 +23,9 @@ export default function ContactSection({ phoneNumber, noOfFloors }: ContactSecti
         >
           <Phone className="h-4 w-4 text-gray-400" />
           Phone Number
+          <span className="text-[10px] text-gray-500 italic">
+            (Official contact number for students)
+          </span>
         </Label>
         <Input
           id="phoneNumber"
@@ -29,9 +35,6 @@ export default function ContactSection({ phoneNumber, noOfFloors }: ContactSecti
           className="border-gray-300 bg-gray-50 cursor-not-allowed"
           required
         />
-        <p className="text-[10px] text-gray-500 italic">
-          Official contact number for students
-        </p>
       </div>
 
       <div className="space-y-2">
