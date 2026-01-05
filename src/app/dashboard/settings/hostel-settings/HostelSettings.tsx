@@ -48,8 +48,10 @@ interface HostelData {
   roomTypes?: RoomType[];
   singleRooms: number;
   doubleRooms: number;
+  tripleRooms: number;
   availableSingleRooms?: number;
   availableDoubleRooms?: number;
+  availableTripleRooms?: number;
   rooms?: Room[];
 }
 
@@ -198,6 +200,10 @@ export default function HostelSettings() {
                 );
               }
 
+              // Triple room support
+              const tripleOccupied = Array.isArray(hData.rooms)
+                ? hData.rooms.filter((r) => (r.type?.toUpperCase() === "TRIPLE" || r.type?.toUpperCase() === "TP")).reduce((acc, r) => acc + (r.currentOccupants || 0), 0)
+                : 0;
               const availSingle = Math.max(
                 0,
                 (hData.singleRooms || 0) - singleOccupied
@@ -206,12 +212,9 @@ export default function HostelSettings() {
                 0,
                 (hData.doubleRooms || 0) - doubleOccupied
               );
-
-              console.log(
-                "[HostelSettings] Final Avail - Single:",
-                availSingle,
-                "Double:",
-                availDouble
+              const availTriple = Math.max(
+                0,
+                (hData.tripleRooms || 0) - tripleOccupied
               );
 
               setHostel({
@@ -224,8 +227,10 @@ export default function HostelSettings() {
                 noOfFloors: String(hData.noOfFloors || "0"),
                 singleRooms: hData.singleRooms || 0,
                 doubleRooms: hData.doubleRooms || 0,
+                tripleRooms: hData.tripleRooms || 0,
                 availableSingleRooms: availSingle,
                 availableDoubleRooms: availDouble,
+                availableTripleRooms: availTriple,
               });
               setResolvedId(currentId);
               successfullyLoaded = true;
@@ -304,6 +309,10 @@ export default function HostelSettings() {
               );
             }
 
+            // Triple room support (fallback)
+            const tripleOccupied = Array.isArray(detailHostel.rooms)
+              ? detailHostel.rooms.filter((r) => (r.type?.toUpperCase() === "TRIPLE" || r.type?.toUpperCase() === "TP")).reduce((acc, r) => acc + (r.currentOccupants || 0), 0)
+              : 0;
             const availSingle = Math.max(
               0,
               (detailHostel.singleRooms || 0) - singleOccupied
@@ -311,6 +320,10 @@ export default function HostelSettings() {
             const availDouble = Math.max(
               0,
               (detailHostel.doubleRooms || 0) - doubleOccupied
+            );
+            const availTriple = Math.max(
+              0,
+              (detailHostel.tripleRooms || 0) - tripleOccupied
             );
 
             setHostel({
@@ -323,8 +336,10 @@ export default function HostelSettings() {
               noOfFloors: String(detailHostel.noOfFloors || "0"),
               singleRooms: detailHostel.singleRooms || 0,
               doubleRooms: detailHostel.doubleRooms || 0,
+              tripleRooms: detailHostel.tripleRooms || 0,
               availableSingleRooms: availSingle,
               availableDoubleRooms: availDouble,
+              availableTripleRooms: availTriple,
             });
             setResolvedId(currentId);
             successfullyLoaded = true;
@@ -505,7 +520,7 @@ export default function HostelSettings() {
                   </p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label className="text-gray-700 font-semibold flex items-center gap-2">
                       <Layout className="h-4 w-4 text-gray-400" />
@@ -529,6 +544,20 @@ export default function HostelSettings() {
                       type="number"
                       value={
                         hostel?.availableDoubleRooms ?? hostel?.doubleRooms ?? 0
+                      }
+                      readOnly
+                      className="border-gray-300 bg-gray-50 cursor-not-allowed font-semibold text-blue-700"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-gray-700 font-semibold flex items-center gap-2">
+                      <Layout className="h-4 w-4 text-gray-400" />
+                      Available Triple Rooms
+                    </Label>
+                    <Input
+                      type="number"
+                      value={
+                        hostel?.availableTripleRooms ?? hostel?.tripleRooms ?? 0
                       }
                       readOnly
                       className="border-gray-300 bg-gray-50 cursor-not-allowed font-semibold text-blue-700"

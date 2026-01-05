@@ -15,6 +15,10 @@ export const typeConfig = {
     icon: Key,
     color: "bg-blue-100 text-blue-600 border-blue-500",
   },
+  triple_room_allocated: {
+    icon: Key,
+    color: "bg-purple-100 text-purple-600 border-purple-500",
+  },
   maintenance_alert: {
     icon: ToolCase,
     color: "bg-red-100 text-red-600 border-red-500",

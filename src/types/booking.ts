@@ -1,7 +1,7 @@
 // src/types/booking.ts
 export type Gender = "male" | "female";
 export type Level = "100" | "200" | "300" | "400";
-export type RoomTitle = "One-in-one" | "Two-in-one";
+export type RoomTitle = "One-in-one" | "Two-in-one" | "Three-in-one" | "Triple" | "TP";
 
 // Backend uses uppercase with underscores, but we'll handle both formats
 export type BookingStatus = 
@@ -34,6 +34,7 @@ export interface StudentBooking {
   imageUrl?: string; // profile image URL (legacy support)
   hostelName: string;
   roomTitle: RoomTitle;
+  roomType?: string; // e.g. "SINGLE", "DOUBLE", "TRIPLE", "TP"
   price: string;
   emergencyContactName: string;
   emergencyContactNumber: string;

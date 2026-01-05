@@ -12,7 +12,7 @@ export interface ValidationError {
  */
 export interface BookingCreateRequest {
   hostelName: string;
-  preferredRoomType: "SINGLE" | "DOUBLE";
+  preferredRoomType: "SINGLE" | "DOUBLE" | "TRIPLE";
   email: string;
   firstName: string;
   lastName: string;
@@ -44,7 +44,7 @@ export function validateBookingForm(formData: Partial<StudentBooking>): Validati
   } else {
     const roomTitle = formData.roomTitle.trim();
     if (!isValidRoomTypeDisplay(roomTitle)) {
-      errors.push({ field: "roomTitle", message: "Room type must be 'One-in-one' or 'Two-in-one'" });
+      errors.push({ field: "roomTitle", message: "Room type must be 'One-in-one', 'Two-in-one', or 'Three-in-one'" });
     }
   }
 
@@ -99,8 +99,8 @@ export function validateBookingForm(formData: Partial<StudentBooking>): Validati
 
 export function formatBookingForAPI(formData: Partial<StudentBooking>): BookingCreateRequest {
   // Convert UI display name to API format
-  // Backend requires preferredRoomType: "SINGLE" | "DOUBLE" (not roomTitle)
-  let preferredRoomType: "SINGLE" | "DOUBLE" = "SINGLE";
+  // Backend requires preferredRoomType: "SINGLE" | "DOUBLE" | "TRIPLE" (not roomTitle)
+  let preferredRoomType: "SINGLE" | "DOUBLE" | "TRIPLE" = "SINGLE";
   
   if (formData.roomTitle) {
     const normalized = formData.roomTitle.trim();

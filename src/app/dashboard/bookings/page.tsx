@@ -56,7 +56,11 @@ export default function Bookings() {
   // Ensure bookings is always an array
   const bookingsArray = Array.isArray(bookings) ? bookings : [];
   const genderOptions = Array.from(new Set(bookingsArray.map((b) => b.gender).filter(Boolean)));
-  const roomOptions = Array.from(new Set(bookingsArray.map((b) => b.roomTitle).filter(Boolean)));
+  // Add triple room support to room options
+  const roomOptions = Array.from(new Set(bookingsArray.map((b) => {
+    if (b.roomTitle && ["Three-in-one", "Triple", "TP"].includes(b.roomTitle)) return "Triple";
+    return b.roomTitle;
+  }).filter(Boolean)));
 
   const resetFilters = () => {
     setFilters({

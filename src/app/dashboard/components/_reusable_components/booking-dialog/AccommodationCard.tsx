@@ -33,7 +33,11 @@ export default function AccommodationCard({
             label="Room Type"
             icon={Key}
             iconColor="purple"
-            value={booking.roomTitle}
+            value={
+              ["Three-in-one", "Triple", "TP"].includes(booking.roomTitle)
+                ? "Triple"
+                : booking.roomTitle
+            }
           />
 
           <InfoField

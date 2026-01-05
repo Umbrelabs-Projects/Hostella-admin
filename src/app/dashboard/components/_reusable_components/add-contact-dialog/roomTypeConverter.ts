@@ -8,11 +8,15 @@
 export const ROOM_TYPE_DISPLAY_TO_API = {
   "One-in-one": "SINGLE",
   "Two-in-one": "DOUBLE",
+  "Three-in-one": "TRIPLE",
+  "Triple": "TRIPLE",
+  "TP": "TRIPLE",
 } as const;
 
 export const ROOM_TYPE_API_TO_DISPLAY = {
   "SINGLE": "One-in-one",
   "DOUBLE": "Two-in-one",
+  "TRIPLE": "Three-in-one",
 } as const;
 
 export type RoomTypeDisplay = keyof typeof ROOM_TYPE_DISPLAY_TO_API;
@@ -40,13 +44,13 @@ export function convertRoomTypeToDisplay(apiValue: RoomTypeAPI): RoomTypeDisplay
  * Validates if a display name is a valid room type
  */
 export function isValidRoomTypeDisplay(displayName: string): displayName is RoomTypeDisplay {
-  return displayName === "One-in-one" || displayName === "Two-in-one";
+  return ["One-in-one", "Two-in-one", "Three-in-one", "Triple", "TP"].includes(displayName);
 }
 
 /**
  * Validates if an API value is a valid room type
  */
 export function isValidRoomTypeAPI(apiValue: string): apiValue is RoomTypeAPI {
-  return apiValue === "SINGLE" || apiValue === "DOUBLE";
+  return ["SINGLE", "DOUBLE", "TRIPLE"].includes(apiValue);
 }
 

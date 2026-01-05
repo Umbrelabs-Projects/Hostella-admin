@@ -9,6 +9,8 @@ export interface ChatStore {
 
   setCurrentChat: (id: string | null) => void;
   setMessages: (chatId: string, ...msgs: Message[]) => void;
+  loadChatMessages: (chatId: string, page?: number, limit?: number) => Promise<void>;
+  closeChat: (chatId: string) => Promise<void>;
 
   // message operations
   sendMessage: (chatId: string, text: string, replyTo?: Message | null) => void;
@@ -42,50 +44,53 @@ export interface ChatStore {
 export const EMPTY_MESSAGES: Message[] = [];
 
 
-// chatsInfo will be loaded from API
-
-const MOCK_MESSAGES: Record<string, Message[]> = {
-  "1": [
-    {
-      id: "1",
-      sender: "student",
-      text: "Hi, I wanted to ask about room 201",
-      timestamp: "2:30 PM",
-      type: "text",
-    },
-    {
-      id: "2",
-      sender: "admin",
-      text: "Hi Rahul! Room 201 is available. Would you like to book it?",
-      timestamp: "2:32 PM",
-      type: "text",
-    },
-  ],
-  "2": [
-    {
-      id: "1",
-      sender: "student",
-      text: "Thank you for the confirmation!",
-      timestamp: "1:25 PM",
-      type: "text",
-    },
-  ],
-};
-
-
 export const useChatStore = create<ChatStore & {
   loadChatsInfo: () => Promise<void>;
 }>((set, get) => ({
   currentChatId: null,
   chatsInfo: {},
-  messages: MOCK_MESSAGES,
+  messages: {}, // Start with empty messages, load from API on demand
 
-  // Fetch chat members connected to the admin
+  // Fetch active chats for the admin
   loadChatsInfo: async () => {
     try {
-      const res = await (await import("@/lib/api")).apiFetch<{ success: boolean; data: Record<string, ChatInfo> }>("/chat/members");
-      set({ chatsInfo: res.data });
+      const res = await (await import("@/lib/api")).apiFetch<{ 
+        success: boolean; 
+        data?: { chats: ChatInfo[] } | Record<string, ChatInfo>;
+        chats?: ChatInfo[];
+      }>("/chat/admin/active-chats");
+      
+      // Handle different response formats from backend
+      let chatsRecord: Record<string, ChatInfo> = {};
+      
+      if (res.data) {
+        if (Array.isArray(res.data)) {
+          // Direct array response
+          chatsRecord = res.data.reduce((acc, chat) => {
+            acc[chat.id] = chat;
+            return acc;
+          }, {} as Record<string, ChatInfo>);
+        } else if ('chats' in res.data && Array.isArray(res.data.chats)) {
+          // { chats: [...] } format
+          chatsRecord = res.data.chats.reduce((acc, chat) => {
+            acc[chat.id] = chat;
+            return acc;
+          }, {} as Record<string, ChatInfo>);
+        } else if (typeof res.data === 'object') {
+          // Already a record format
+          chatsRecord = res.data as Record<string, ChatInfo>;
+        }
+      } else if (Array.isArray(res.chats)) {
+        // Top-level chats array
+        chatsRecord = res.chats.reduce((acc, chat) => {
+          acc[chat.id] = chat;
+          return acc;
+        }, {} as Record<string, ChatInfo>);
+      }
+      
+      set({ chatsInfo: chatsRecord });
     } catch (e) {
+      console.warn("Failed to load chats:", e);
       // fallback to empty or keep previous
       set((state) => ({ chatsInfo: state.chatsInfo || {} }));
     }
@@ -99,6 +104,38 @@ export const useChatStore = create<ChatStore & {
         [chatId]: [...(state.messages[chatId] ?? []), ...msgs],
       },
     }));
+  },
+
+  loadChatMessages: async (chatId, page = 1, limit = 50) => {
+    try {
+      const res = await (await import("@/lib/api")).apiFetch<{
+        success: boolean;
+        data?: { messages: Message[] } | Message[];
+        messages?: Message[];
+      }>(`/chat/${chatId}/messages?page=${page}&limit=${limit}`);
+
+      let messagesArray: Message[] = [];
+
+      if (res.data) {
+        if (Array.isArray(res.data)) {
+          messagesArray = res.data;
+        } else if ('messages' in res.data && Array.isArray(res.data.messages)) {
+          messagesArray = res.data.messages;
+        }
+      } else if (Array.isArray(res.messages)) {
+        messagesArray = res.messages;
+      }
+
+      set((state) => ({
+        messages: {
+          ...state.messages,
+          [chatId]: messagesArray,
+        },
+      }));
+    } catch (e) {
+      console.warn("Failed to load chat messages:", e);
+      // Keep existing messages if API fails
+    }
   },
 
   sendMessage: (chatId, text, replyTo) => {
@@ -132,10 +169,22 @@ export const useChatStore = create<ChatStore & {
       },
       replying: null,
     });
-    // Send via WebSocket
+    
+    // Send via API
+    (async () => {
+      try {
+        await (await import("@/lib/api")).apiFetch(`/chat/${chatId}/messages`, {
+          method: "POST",
+          body: JSON.stringify({ message: text }),
+        });
+      } catch (e) {
+        console.warn("Failed to send message via API:", e);
+        // Message is still added locally for better UX
+      }
+    })();
+
+    // Also send via WebSocket
     sendChatSocket({ ...newMessage, chatId });
-    // Optionally, send to API
-    // apiFetch(`/chat/${chatId}/send`, { method: "POST", body: JSON.stringify(newMessage) });
   },
 
   sendVoice: (chatId, duration, blob) => {
@@ -228,6 +277,25 @@ export const useChatStore = create<ChatStore & {
         [chatId]: (messages[chatId] ?? []).filter((m) => m.id !== messageId),
       },
     });
+  },
+
+  closeChat: async (chatId) => {
+    try {
+      await (await import("@/lib/api")).apiFetch(`/chat/${chatId}/close`, {
+        method: "PATCH",
+      });
+      // Remove closed chat from chatsInfo
+      set((state) => {
+        const updatedChats = { ...state.chatsInfo };
+        delete updatedChats[chatId];
+        return {
+          chatsInfo: updatedChats,
+          currentChatId: state.currentChatId === chatId ? null : state.currentChatId,
+        };
+      });
+    } catch (e) {
+      console.warn("Failed to close chat:", e);
+    }
   },
 
   replying: null,

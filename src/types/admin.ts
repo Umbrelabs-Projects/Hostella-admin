@@ -9,6 +9,12 @@ export interface Hostel {
   location: string;
   capacity: number;
   hasAdmin: boolean; // Tracks if hostel already has an admin assigned
+  singleRooms?: number;
+  doubleRooms?: number;
+  tripleRooms?: number;
+  availableSingleRooms?: number;
+  availableDoubleRooms?: number;
+  availableTripleRooms?: number;
 }
 
 export interface Admin {

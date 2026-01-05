@@ -171,13 +171,16 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
         ? getApiStatusFormat(filters.status)
         : filters.status;
 
+      // Normalize triple room types for API
+      let apiRoomType = filters.roomType;
+      if (["Three-in-one", "Triple", "TP"].includes(apiRoomType)) apiRoomType = "TRIPLE";
       const params = new URLSearchParams({
         page: page.toString(),
         limit: pageSize.toString(), // API uses 'limit' not 'pageSize'
         ...(filters.search && { search: filters.search }),
         ...(filters.status && filters.status !== "all" && { status: apiStatus }),
         ...(filters.gender && filters.gender !== "all" && { gender: filters.gender }),
-        ...(filters.roomType && filters.roomType !== "all" && { roomType: filters.roomType }),
+        ...(apiRoomType && apiRoomType !== "all" && { roomType: apiRoomType }),
       });
 
       // Backend may return different formats:
@@ -334,15 +337,19 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
         }
       }
 
-      // Backend expects preferredRoomType: "SINGLE" | "DOUBLE" in the request
-      // Backend returns roomTitle: "One-in-one" | "Two-in-one" in the response
+      // Backend expects preferredRoomType: "SINGLE" | "DOUBLE" | "TRIPLE" in the request
+      // Backend returns roomTitle: "One-in-one" | "Two-in-one" | "Three-in-one" in the response
+      let bookingToSend = { ...booking };
+      if (bookingToSend.preferredRoomType && ["Three-in-one", "Triple", "TP"].includes(bookingToSend.preferredRoomType)) {
+        bookingToSend.preferredRoomType = "TRIPLE";
+      }
       const response = await apiFetch<{
         success: boolean;
         data: StudentBooking;
         message?: string;
       }>("/bookings", {
         method: "POST",
-        body: JSON.stringify(booking),
+        body: JSON.stringify(bookingToSend),
       });
 
       const transformed = transformBooking(response.data as any);
@@ -790,11 +797,14 @@ export const useBookingsStore = create<BookingsState>((set, get) => ({
   getPendingAssignments: async (page = 1, limit = 10, hostelId?, preferredRoomType?) => {
     set({ loading: true, error: null });
     try {
+      // Normalize triple room types for API
+      let apiPreferredRoomType = preferredRoomType;
+      if (["Three-in-one", "Triple", "TP"].includes(apiPreferredRoomType)) apiPreferredRoomType = "TRIPLE";
       const params = new URLSearchParams({
         page: page.toString(),
         limit: limit.toString(),
         ...(hostelId && { hostelId }),
-        ...(preferredRoomType && { preferredRoomType }),
+        ...(apiPreferredRoomType && { preferredRoomType: apiPreferredRoomType }),
       });
 
       const response = await apiFetch<{

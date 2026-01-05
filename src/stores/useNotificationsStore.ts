@@ -79,6 +79,10 @@ export const typeConfig = {
     icon: Key,
     color: "bg-blue-100 text-blue-600 border-blue-500",
   },
+  "triple-room-allocated": {
+    icon: Key,
+    color: "bg-purple-100 text-purple-600 border-purple-500",
+  },
   "booking-approved": {
     icon: CheckCircle,
     color: "bg-green-100 text-green-600 border-green-500",
