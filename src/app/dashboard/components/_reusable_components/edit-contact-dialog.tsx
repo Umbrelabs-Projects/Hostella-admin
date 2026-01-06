@@ -21,6 +21,7 @@ import {
   getDisplayStatus,
   getDisplayVariant,
 } from "./booking-dialog/utils";
+import { transformBooking } from "@/lib/transformBooking";
 
 interface BookingDetailsDialogProps {
   booking: StudentBooking;
@@ -109,20 +110,18 @@ export default function EditContactDialog({
         
         const response = await apiFetch<BookingDetailResponse>(`/bookings/${local.id}`);
         const bookingData = response.data || (response as unknown as StudentBooking);
-        
+
         if (bookingData) {
-          // Update local state with fresh booking data including payment info
-          setLocal(prev => {
-            const bookingWithPayment = bookingData as StudentBooking;
-            return {
-              ...prev,
-              ...bookingData,
-              status: bookingData.status || prev.status,
-              avatar: bookingData.avatar || prev.avatar,
-              // Include payment data if available
-              ...(bookingWithPayment.payment && { payment: bookingWithPayment.payment }),
-            };
-          });
+          // Normalize booking shape (handles studentId / studentRefNumber, etc.) before merging
+          const transformed = transformBooking(bookingData as unknown as Parameters<typeof transformBooking>[0]);
+
+          setLocal(prev => ({
+            ...prev,
+            ...transformed,
+            status: transformed.status || prev.status,
+            avatar: transformed.avatar || prev.avatar,
+            ...(transformed.payment && { payment: transformed.payment }),
+          }));
         }
       } catch (_error) {
         // Silently fail - booking might not be accessible

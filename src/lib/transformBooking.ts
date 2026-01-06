@@ -126,6 +126,18 @@ export function transformBooking(apiBooking: ApiBookingResponse): StudentBooking
     return normalized === "female" ? "female" : "male";
   };
 
+  // Prefer any available student identifier across old and new payloads
+  const studentIdValue = [
+    user.studentRefNumber,
+    // Some payloads send studentId inside the nested user object
+    // instead of studentRefNumber
+    (user as Record<string, unknown>).studentId as string | undefined,
+    (user as Record<string, unknown>).student_id as string | undefined,
+    apiBooking.studentId,
+    apiBooking.studentRefNumber,
+    (apiBooking as Record<string, unknown>).student_id as string | undefined,
+  ].find((val) => val != null && val !== "");
+
   // Build the flat StudentBooking structure
   const booking: StudentBooking = {
     id: apiBooking.id,
@@ -136,7 +148,7 @@ export function transformBooking(apiBooking: ApiBookingResponse): StudentBooking
     gender: normalizeGender(user.gender || apiBooking.gender),
     level: (user.level || apiBooking.level || "100") as "100" | "200" | "300" | "400",
     school: user.school || user.campus || apiBooking.school || apiBooking.campus || "",
-    studentId: user.studentRefNumber || apiBooking.studentId || apiBooking.studentRefNumber || "",
+    studentId: studentIdValue ? String(studentIdValue) : "",
     phone: user.phone || apiBooking.phone || "",
     avatar: user.avatar || apiBooking.avatar || apiBooking.imageUrl,
     imageUrl: user.avatar || apiBooking.avatar || apiBooking.imageUrl, // Legacy support
