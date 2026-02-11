@@ -26,14 +26,22 @@ export default function ConfirmDialog({
 }: ConfirmDialogProps) {
   const [isLoading, setIsLoading] = React.useState(false);
 
+  // Reset internal loading state when dialog closes
+  React.useEffect(() => {
+    if (!open) {
+      setIsLoading(false);
+    }
+  }, [open]);
+
   const handleConfirm = React.useCallback(async () => {
     if (loading || isLoading) return;
     setIsLoading(true);
     try {
       await onConfirm?.();
-      if (!loading) {
-        onOpenChange(false);
-      }
+      // Always close dialog after successful confirm
+      onOpenChange(false);
+    } catch {
+      // Keep dialog open on error for retry
     } finally {
       setIsLoading(false);
     }

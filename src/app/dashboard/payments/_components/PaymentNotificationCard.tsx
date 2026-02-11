@@ -2,19 +2,7 @@
 
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  Receipt,
-  CreditCard,
-  User,
-  Calendar,
-  Building2,
-  Eye,
-  Check,
-  X,
-  ExternalLink,
-  Shield,
-  Phone,
-} from "lucide-react";
+import { Receipt, CreditCard, Eye, ExternalLink } from "lucide-react";
 import { PaymentReceipt, usePaymentsStore } from "@/stores/usePaymentsStore";
 import { useState, useEffect } from "react";
 import { useBookingsStore } from "@/stores/useBookingsStore";
@@ -190,6 +178,34 @@ export default function PaymentNotificationCard({
 
   const timeAgo = formatTimeAgo(payment.createdAt);
 
+  const statusPill = (
+    <span
+      className={`px-2.5 py-0.5 rounded-full text-xs font-semibold shrink-0 ${
+        payment.status === "AWAITING_VERIFICATION" || payment.status === "INITIATED"
+          ? payment.status === "INITIATED"
+            ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
+            : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+          : payment.status === "CONFIRMED"
+          ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+          : payment.status === "FAILED"
+          ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+          : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+      }`}
+    >
+      {payment.status === "AWAITING_VERIFICATION"
+        ? "Pending"
+        : payment.status === "INITIATED"
+        ? "Initiated"
+        : payment.status}
+    </span>
+  );
+
+  const providerIcon = isBankTransfer ? (
+    <Receipt className="size-4 text-green-600" />
+  ) : (
+    <CreditCard className="size-4 text-purple-600" />
+  );
+
   return (
     <>
       <Card className={`border ${
@@ -197,271 +213,72 @@ export default function PaymentNotificationCard({
           ? "border-orange-300 dark:border-orange-700 bg-orange-50/30 dark:bg-orange-950/20"
           : "border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900"
       } hover:border-gray-300 dark:hover:border-gray-700 transition-all shadow-sm hover:shadow-md`}>
-        <CardHeader className="pb-3">
+        <CardHeader className="">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-start gap-3 flex-1 min-w-0">
-              <div
-                className={`p-2.5 rounded-xl shrink-0 ${
-                  isBankTransfer
-                    ? "bg-linear-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30"
-                    : "bg-linear-to-br from-purple-50 to-violet-50 dark:from-purple-950/30 dark:to-violet-950/30"
-                }`}
-              >
-                {isBankTransfer ? (
-                  <Receipt
-                    className={`size-5 ${
-                      isBankTransfer
-                        ? "text-green-600 dark:text-green-400"
-                        : "text-purple-600 dark:text-purple-400"
-                    }`}
-                  />
-                ) : (
-                  <CreditCard
-                    className={`size-5 ${
-                      isBankTransfer
-                        ? "text-green-600 dark:text-green-400"
-                        : "text-purple-600 dark:text-purple-400"
-                    }`}
-                  />
-                )}
+              <div className={`p-2.5 rounded-xl shrink-0 ${isBankTransfer ? "bg-green-50" : "bg-purple-50"}`}>
+                {providerIcon}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   <h3 className="text-base font-semibold text-gray-900 dark:text-gray-50 truncate">
-                    {isBankTransfer
-                      ? "Bank Receipt Uploaded"
-                      : "Mobile Money Payment Received"}
+                    {isBankTransfer ? "Bank Receipt" : "Paystack Payment"}
                   </h3>
-                  <span
-                    className={`px-2.5 py-0.5 rounded-full text-xs font-medium shrink-0 ${
-                      payment.status === "AWAITING_VERIFICATION" || payment.status === "INITIATED"
-                        ? payment.status === "INITIATED"
-                          ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 animate-pulse"
-                          : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
-                        : payment.status === "CONFIRMED"
-                        ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                        : payment.status === "FAILED"
-                        ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                        : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
-                    }`}
-                  >
-                    {payment.status === "AWAITING_VERIFICATION"
-                      ? "Pending"
-                      : payment.status === "INITIATED"
-                      ? "⚠️ Initiated - Verify Now"
-                      : payment.status}
-                  </span>
+                  {statusPill}
                 </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {timeAgo}
-                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">{timeAgo}</p>
               </div>
             </div>
             <div className="text-right shrink-0">
               <p className="text-2xl font-bold text-gray-900 dark:text-gray-50">
                 GHS {payment.amount.toLocaleString()}
               </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                Payment Amount
-              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Amount</p>
             </div>
           </div>
         </CardHeader>
 
-        <CardContent className="pt-0">
-          <div className="space-y-4">
-            {/* Student & Booking Info */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="p-3 rounded-lg bg-linear-to-br from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 border border-blue-100 dark:border-blue-900/30">
-                <div className="flex items-start gap-3">
-                  <div className="p-1.5 rounded-lg bg-blue-100 dark:bg-blue-900/40 shrink-0">
-                    <User className="size-4 text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wide mb-1">
-                      Student
-                    </p>
-                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-50 truncate mb-0.5">
-                      {studentName}
-                    </p>
-                    <p className="text-xs text-gray-600 dark:text-gray-400">
-                      Ref: <span className="font-medium">{studentIndex}</span>
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-3 rounded-lg bg-linear-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/20 dark:to-purple-950/20 border border-indigo-100 dark:border-indigo-900/30">
-                <div className="flex items-start gap-3">
-                  <div className="p-1.5 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 shrink-0">
-                    <Building2 className="size-4 text-indigo-600 dark:text-indigo-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-indigo-700 dark:text-indigo-300 uppercase tracking-wide mb-1">
-                      Booking & Hostel
-                    </p>
-                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-50 truncate mb-0.5">
-                      {displayBookingId}
-                    </p>
-                    <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
-                      {hostelName} • {roomType}
-                    </p>
-                  </div>
-                </div>
-              </div>
+        <CardContent className="pt-0 space-y-2">
+          <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600 dark:text-gray-300">
+            <div className="flex items-center gap-1 min-w-40">
+              <span className="font-semibold text-gray-900 dark:text-gray-50">{studentName}</span>
+              <span className="text-[11px] text-gray-500">({studentIndex})</span>
             </div>
-
-            {/* Payment Reference & Method */}
-            <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700">
-              <div className="flex items-center gap-2 mb-2">
-                <Calendar className="size-4 text-gray-500 dark:text-gray-400" />
-                <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
-                  Payment Reference
-                </span>
-              </div>
-              <p className="text-sm font-mono font-semibold text-gray-900 dark:text-gray-50 break-all mb-2">
+            <div className="flex items-center gap-1 min-w-[140px]">
+              <span className="font-semibold text-gray-900 dark:text-gray-50">{displayBookingId}</span>
+              <span className="text-[11px] text-gray-500 truncate">• {hostelName} • {roomType}</span>
+            </div>
+            <div className="flex-1 min-w-[180px]">
+              <span className="font-mono text-[11px] text-gray-700 dark:text-gray-200 truncate block">
                 {payment.reference}
-              </p>
-              {!isBankTransfer && (
-                <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
-                  {verificationData?.authorization?.channel ? (
-                    <p className="text-xs text-gray-600 dark:text-gray-400">
-                      <span className="font-medium">Payment Method:</span>{" "}
-                      <span className="uppercase font-semibold text-gray-900 dark:text-gray-50">
-                        {verificationData.authorization.channel === "mtn" ? "MTN" :
-                         verificationData.authorization.channel === "airtel" || verificationData.authorization.channel === "airteltigo" ? "AirtelTigo" :
-                         verificationData.authorization.channel === "vodafone" || verificationData.authorization.channel === "telecel" ? "Telecel" :
-                         verificationData.authorization.channel.toUpperCase()} Mobile Money
-                      </span>
-                    </p>
-                  ) : (
-                    <p className="text-xs text-purple-600 dark:text-purple-400 font-medium">
-                      Mobile Money payment received. Please verify and approve payment.
-                    </p>
-                  )}
-                </div>
-              )}
+              </span>
             </div>
+          </div>
 
-            {/* Paystack Payment Details */}
-            {!isBankTransfer && (
-              <div className="space-y-2">
-                {payerPhone && (
-                  <div className="p-3 rounded-lg bg-purple-50 dark:bg-purple-950/20 border border-purple-100 dark:border-purple-900/30">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Phone className="size-4 text-purple-600 dark:text-purple-400" />
-                      <span className="text-xs font-semibold text-purple-700 dark:text-purple-300 uppercase tracking-wide">
-                        Payer Phone
-                      </span>
-                    </div>
-                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-50">
-                      {payerPhone}
-                    </p>
-                  </div>
-                )}
-
-                {verificationData && (
-                  <div className="p-3 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-100 dark:border-green-900/30">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Shield className="size-4 text-green-600 dark:text-green-400" />
-                      <span className="text-xs font-semibold text-green-700 dark:text-green-300 uppercase tracking-wide">
-                        Verification Details
-                      </span>
-                    </div>
-                    <div className="space-y-1">
-                      {verificationData.channel && (
-                        <p className="text-xs text-gray-600 dark:text-gray-400">
-                          <span className="font-medium">Channel:</span>{" "}
-                          <span className="uppercase">{verificationData.channel}</span>
-                        </p>
-                      )}
-                      {verificationData.authorization?.channel && (
-                        <p className="text-xs text-gray-600 dark:text-gray-400">
-                          <span className="font-medium">Provider:</span>{" "}
-                          <span className="uppercase">{verificationData.authorization.channel}</span>
-                        </p>
-                      )}
-                      {verificationData.authorization?.mobile_money_number && (
-                        <p className="text-xs text-gray-600 dark:text-gray-400">
-                          <span className="font-medium">Mobile Money:</span>{" "}
-                          {verificationData.authorization.mobile_money_number}
-                        </p>
-                      )}
-                      {verificationData.gateway_response && (
-                        <p className="text-xs text-gray-600 dark:text-gray-400">
-                          <span className="font-medium">Status:</span>{" "}
-                          {verificationData.gateway_response}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Info Message for Paystack Payments */}
-            {!isBankTransfer && payment.status === "INITIATED" && (
-              <div className="p-3 rounded-lg bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-900/30">
-                <p className="text-sm text-orange-800 dark:text-orange-200 font-medium">
-                  ⚠️ Mobile Money payment received. Please verify with Paystack and approve payment.
-                </p>
-              </div>
-            )}
-
-            {/* Actions */}
-            <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-200 dark:border-gray-800">
-              {isBankTransfer && payment.receiptUrl && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowReceiptModal(true)}
-                  className="flex-1 md:flex-none border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"
-                >
-                  <Eye className="size-4 mr-2" />
-                  View Receipt
-                </Button>
-              )}
-              {/* Restore View Booking button */}
+          <div className="flex flex-wrap gap-2">
+            {isBankTransfer && payment.receiptUrl && (
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => {
-                  window.location.href = `/dashboard/bookings?search=${displayBookingId}`;
-                }}
-                className="flex-1 md:flex-none border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"
+                onClick={() => setShowReceiptModal(true)}
+                className="gap-1 border-gray-300 dark:border-gray-700"
               >
-                <ExternalLink className="size-4 mr-2" />
-                View Booking
+                <Eye className="size-4" /> Receipt
               </Button>
-              {(payment.status === "INITIATED" || payment.status === "AWAITING_VERIFICATION" || payment.status === "CONFIRMED") && (
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={async () => {
-                    if (!isBankTransfer) {
-                      await handleVerifyPaystack();
-                    } else {
-                      await handleVerify("CONFIRMED");
-                    }
-                  }}
-                  disabled={verifying || verifyingPaystack}
-                  className="flex-1 md:flex-none bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-                >
-                  <Check className="size-4 mr-2" />
-                  {(verifying || verifyingPaystack) ? "Verifying..." : payment.status === "CONFIRMED" ? "Approve Payment" : "Verify & Approve"}
-                </Button>
-              )}
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => handleVerify("FAILED")}
-                disabled={verifying || (payment.status !== "AWAITING_VERIFICATION" && payment.status !== "INITIATED")}
-                className="flex-1 md:flex-none shadow-sm"
-              >
-                <X className="size-4 mr-2" />
-                Reject
-              </Button>
-            </div>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                window.location.href = `/dashboard/bookings?search=${displayBookingId}`;
+              }}
+              className="gap-1 border-gray-300 dark:border-gray-700"
+            >
+              <ExternalLink className="size-4" /> Booking
+            </Button>
+            <Button size="sm" onClick={() => setShowDetailsModal(true)} className="gap-1">
+              Details
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -483,7 +300,24 @@ export default function PaymentNotificationCard({
         <PaymentDetailsModal
           open={showDetailsModal}
           payment={displayPayment}
+          studentName={studentName}
+          studentId={studentIndex}
+          bookingId={displayBookingId}
+          hostelName={hostelName}
+          roomType={roomType}
+          isBankTransfer={isBankTransfer}
           onClose={() => setShowDetailsModal(false)}
+          onViewReceipt={isBankTransfer && payment.receiptUrl ? () => setShowReceiptModal(true) : undefined}
+          onVerify={async () => {
+            if (!isBankTransfer) {
+              await handleVerifyPaystack();
+            } else {
+              await handleVerify("CONFIRMED");
+            }
+          }}
+          onReject={payment.status === "AWAITING_VERIFICATION" || payment.status === "INITIATED" ? () => handleVerify("FAILED") : undefined}
+          verifying={verifying || verifyingPaystack}
+          verificationData={verificationData}
         />
       )}
     </>

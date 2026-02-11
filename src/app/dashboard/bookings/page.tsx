@@ -42,6 +42,32 @@ export default function Bookings() {
   const [isInitialized, setIsInitialized] = useState(false);
   const [loadingActions, setLoadingActions] = useState<Record<string, boolean>>({});
 
+  const clearLoadingForBooking = (id?: string | null) => {
+    if (!id) return;
+    setLoadingActions((prev) => {
+      const next = { ...prev };
+      Object.keys(next).forEach((key) => {
+        if (key.endsWith(`-${id}`)) delete next[key];
+      });
+      return next;
+    });
+  };
+
+  const closeViewingBooking = () => {
+    if (viewingBooking?.id) clearLoadingForBooking(viewingBooking.id);
+    setViewingBooking(null);
+  };
+
+  // If the dialog is closed or the viewed booking changes, clear stale loading flags
+  useEffect(() => {
+    if (!viewingBooking) {
+      setLoadingActions({});
+    } else {
+      clearLoadingForBooking(viewingBooking.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewingBooking?.id]);
+
   // Fetch bookings on mount and when filters change
   useEffect(() => {
     const loadBookings = async () => {
@@ -103,12 +129,13 @@ export default function Bookings() {
     setLoadingActions(prev => ({ ...prev, [`approvePayment-${id}`]: true }));
     try {
       const updated = await approvePayment(id);
+      // Clear flag immediately after await completes
+      setLoadingActions(prev => ({ ...prev, [`approvePayment-${id}`]: false }));
       setViewingBooking(updated);
       toast.success("Payment approved");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to approve payment", { duration: 4000 });
-    } finally {
       setLoadingActions(prev => ({ ...prev, [`approvePayment-${id}`]: false }));
+      toast.error(err instanceof Error ? err.message : "Failed to approve payment", { duration: 4000 });
     }
   };
 
@@ -116,7 +143,7 @@ export default function Bookings() {
     setLoadingActions(prev => ({ ...prev, [`assignRoom-${id}`]: true }));
     try {
       const updated = await assignRoom(id, roomId);
-      setViewingBooking(null); // Close the dialog
+      closeViewingBooking(); // Close the dialog and clear loading flags
       
       // Refresh members list to include the newly assigned member
       const { fetchMembers } = useMembersStore.getState();
@@ -144,7 +171,7 @@ export default function Bookings() {
       }
 
       await completeOnboarding(id);
-      setViewingBooking(null);
+      closeViewingBooking();
       toast.success("Onboarding completed; booking moved to members");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to complete onboarding", { duration: 4000 });
@@ -157,12 +184,13 @@ export default function Bookings() {
     setLoadingActions(prev => ({ ...prev, [`approve-${id}`]: true }));
     try {
       const updated = await approveBooking(id);
+      // Clear flag immediately after await completes
+      setLoadingActions(prev => ({ ...prev, [`approve-${id}`]: false }));
       setViewingBooking(updated);
       toast.success("Booking approved");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to approve booking", { duration: 4000 });
-    } finally {
       setLoadingActions(prev => ({ ...prev, [`approve-${id}`]: false }));
+      toast.error(err instanceof Error ? err.message : "Failed to approve booking", { duration: 4000 });
     }
   };
 
@@ -187,7 +215,7 @@ export default function Bookings() {
       await cancelBooking(id, reason);
       const { removeMember } = useMembersStore.getState();
       removeMember(id);
-      setViewingBooking(null); // Close the dialog since booking is removed
+      closeViewingBooking(); // Close the dialog since booking is removed
       toast.success("Booking cancelled successfully");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to cancel booking", { duration: 4000 });
@@ -252,7 +280,7 @@ export default function Bookings() {
             statusFilter={filters.status}
             genderFilter={filters.gender ?? "all"}
             roomFilter={filters.roomType ?? "all"}
-            onView={setViewingBooking}
+            onView={(b) => setViewingBooking(b)}
             onDelete={setDeletingBookingId}
             isLoading={loading}
           />
@@ -289,23 +317,26 @@ export default function Bookings() {
         )}
       </div>
 
-      <BookingsDialogs
-        showAddDialog={showAddDialog}
-        setShowAddDialog={setShowAddDialog}
-        viewingBooking={viewingBooking}
-        setViewingBooking={setViewingBooking}
-        deletingBookingId={deletingBookingId}
-        setDeletingBookingId={setDeletingBookingId}
-        onAdd={handleAddBooking}
-        onApprovePayment={handleApprovePayment}
-        onAssignRoom={handleAssignRoom}
-        onCompleteOnboarding={handleCompleteOnboarding}
-        onApprove={handleApprove}
-        onDeleteConfirm={handleDeleteBooking}
-        onCancel={handleCancelBooking}
-        onRemoveStudent={handleRemoveStudent}
-        loadingActions={loadingActions}
-      />
+        <BookingsDialogs
+          showAddDialog={showAddDialog}
+          setShowAddDialog={setShowAddDialog}
+          viewingBooking={viewingBooking}
+          setViewingBooking={(b) => {
+            if (!b && viewingBooking?.id) clearLoadingForBooking(viewingBooking.id);
+            setViewingBooking(b);
+          }}
+          deletingBookingId={deletingBookingId}
+          setDeletingBookingId={setDeletingBookingId}
+          onAdd={handleAddBooking}
+          onApprovePayment={handleApprovePayment}
+          onAssignRoom={handleAssignRoom}
+          onCompleteOnboarding={handleCompleteOnboarding}
+          onApprove={handleApprove}
+          onDeleteConfirm={handleDeleteBooking}
+          onCancel={handleCancelBooking}
+          onRemoveStudent={handleRemoveStudent}
+          loadingActions={loadingActions}
+        />
     </main>
   );
 }

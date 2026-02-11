@@ -106,6 +106,15 @@ export default function AssignRoomDialog({ open, bookingId, onOpenChange, onAssi
     }
   }, [open, bookingId, isMember, getSuitableRooms, getSuitableRoomsForMember]);
 
+  // Reset transient state whenever the dialog closes to avoid stuck loaders
+  useEffect(() => {
+    if (!open) {
+      setAssigning(false);
+      setLoading(false);
+      setError(null);
+    }
+  }, [open]);
+
   const handleAssign = async () => {
     if (!bookingId) {
       setError("Missing booking ID");

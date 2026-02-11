@@ -25,6 +25,27 @@ export default function MembersPage() {
   const [isInitialized, setIsInitialized] = useState(false);
   const [loadingActions, setLoadingActions] = useState<Record<string, boolean>>({});
 
+  const clearLoadingForMember = (id?: string | null) => {
+    if (!id) return;
+    setLoadingActions((prev) => {
+      const next = { ...prev };
+      Object.keys(next).forEach((key) => {
+        if (key.endsWith(`-${id}`)) delete next[key];
+      });
+      return next;
+    });
+  };
+
+  // Clear stale loading flags when dialog closes or switches to another member
+  useEffect(() => {
+    if (!viewingBooking) {
+      setLoadingActions({});
+    } else {
+      clearLoadingForMember(viewingBooking.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewingBooking?.id]);
+
   // Filters
   const [search, setSearch] = useState("");
   const [genderFilter, setGenderFilter] = useState<string>("all");
@@ -69,6 +90,8 @@ export default function MembersPage() {
     setLoadingActions(prev => ({ ...prev, [`unassign-${id}`]: true }));
     try {
       const updated = await unassignRoom(id);
+      // Clear flag BEFORE updating state so UI updates immediately
+      setLoadingActions(prev => ({ ...prev, [`unassign-${id}`]: false }));
       toast.success("Room unassigned successfully");
       // Update viewing booking if it's the same member
       if (viewingBooking?.id === id && updated) {
@@ -76,10 +99,9 @@ export default function MembersPage() {
       }
       await fetchMembers(); // Refresh the list
     } catch (err) {
+      setLoadingActions(prev => ({ ...prev, [`unassign-${id}`]: false }));
       toast.error(err instanceof Error ? err.message : "Failed to unassign room", { duration: 4000 });
       throw err;
-    } finally {
-      setLoadingActions(prev => ({ ...prev, [`unassign-${id}`]: false }));
     }
   };
 
@@ -89,6 +111,8 @@ export default function MembersPage() {
       setLoadingActions(prev => ({ ...prev, [`reassign-${id}`]: true }));
       try {
         const updated = await reassignRoom(id, roomId);
+        // Clear flag BEFORE updating state so UI updates immediately
+        setLoadingActions(prev => ({ ...prev, [`reassign-${id}`]: false }));
         toast.success("Room reassigned successfully");
         // Update viewing booking if it's the same member
         if (viewingBooking?.id === id && updated) {
@@ -97,10 +121,9 @@ export default function MembersPage() {
         await fetchMembers(); // Refresh the list
         return updated;
       } catch (err) {
+        setLoadingActions(prev => ({ ...prev, [`reassign-${id}`]: false }));
         toast.error(err instanceof Error ? err.message : "Failed to reassign room", { duration: 4000 });
         throw err;
-      } finally {
-        setLoadingActions(prev => ({ ...prev, [`reassign-${id}`]: false }));
       }
     }
     // No roomId means we need to open the dialog to select a room
@@ -158,7 +181,12 @@ export default function MembersPage() {
       {viewingBooking && (
         <EditContactDialog 
           booking={viewingBooking} 
-          onOpenChange={(open) => !open && setViewingBooking(null)}
+          onOpenChange={(open) => {
+            if (!open) {
+              clearLoadingForMember(viewingBooking.id);
+              setViewingBooking(null);
+            }
+          }}
           onUnassignRoom={handleUnassignRoom}
           onReassignRoom={handleReassignRoom}
           loadingActions={loadingActions}
